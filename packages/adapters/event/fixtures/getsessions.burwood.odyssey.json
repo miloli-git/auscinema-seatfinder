@@ -1,0 +1,1927 @@
+{
+  "Success": true,
+  "Data": {
+    "CinemaIds": [
+      58
+    ],
+    "Movies": [
+      {
+        "Id": 19797,
+        "Name": "The Odyssey",
+        "HasGoldClass": true,
+        "HasStandard": true,
+        "MovieUrl": "/Movie/The-Odyssey",
+        "Attributes": [
+          "NFT",
+          "Recliner",
+          "Standard+",
+          "Daybed",
+          "IR",
+          "Recline",
+          "ACCESS",
+          "SAVER",
+          "removable",
+          "LOOP",
+          "No-Alcohol",
+          "Filmed For IMAX",
+          "Delivery",
+          "SAVER",
+          "Armchair Double",
+          "Armchair Single",
+          "Lounger Double",
+          "Lounger Single",
+          "Open Captions"
+        ],
+        "Rating": "CTC",
+        "RatingId": 8,
+        "ReleasedAt": "2026-07-16T00:00",
+        "RunningTime": 172,
+        "Genres": "drama",
+        "MainCast": "Zendaya, Matt Damon, Anne Hathaway, Tom  Holland, Lupita Nyong'o, Robert Pattinson, Charlize Theron",
+        "Synopsis": "Christopher Nolan's next film, The Odyssey, is a mythic action epic shot across the world using brand new IMAX® film technology. The film brings Homer's foundational saga to IMAX® film screens for the first time.",
+        "HasTrailers": true,
+        "Director": "Christopher Nolan",
+        "FirstSession": "2026-07-16T00:01",
+        "LastSession": "2026-08-12T21:30",
+        "Trailers": [
+          "0YfyIFQih8U"
+        ],
+        "MovieGenres": [
+          {
+            "Id": 15,
+            "Name": "Drama"
+          }
+        ],
+        "Experiences": [
+          {
+            "sortOrder": 1046,
+            "id": 59,
+            "code": "ATMOS",
+            "name": "Dolby Atmos",
+            "desc": "Best cinema sound",
+            "cssStyle": "background-color: #575a5a; color: white;",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/atmos/icon.svg",
+            "Regions": [
+              "Movies_Categories_Filter_Experience",
+              "Cinemas_Index_Tile_Icons",
+              "Cinemas_Details_Top_Icons",
+              "Sessions_Legend",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "att_59"
+          },
+          {
+            "sortOrder": 1026,
+            "id": 195,
+            "code": "Private Box",
+            "name": "Private Box",
+            "desc": "Private Box",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box/icon.svg",
+            "Regions": [
+              "Movies_Categories_Filter_Experience",
+              "Cinemas_Index_Tile_Icons",
+              "Cinemas_Index_Tile_Pills",
+              "Cinemas_Details_Top_Icons",
+              "Sessions_Legend",
+              "Cinemas_Details_Top_Pills",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "att_195"
+          },
+          {
+            "sortOrder": 1028,
+            "id": 196,
+            "code": "Couples",
+            "name": "Couples Recliner",
+            "desc": "Couples Recliner",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/couples/icon.svg",
+            "Regions": [
+              "Movies_Categories_Filter_Experience",
+              "Cinemas_Index_Tile_Icons",
+              "Cinemas_Index_Tile_Pills",
+              "Cinemas_Details_Top_Icons",
+              "Sessions_Legend",
+              "Cinemas_Details_Top_Pills",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "att_196"
+          },
+          {
+            "sortOrder": 1027,
+            "id": 199,
+            "code": "Private Box - 2 Seats",
+            "name": "Private Box - 2 Seats",
+            "desc": "Private Box - 2 Seats",
+            "doNotDisplay": true,
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box - 2 seats/icon.svg",
+            "Regions": [
+              "Movies_Categories_Filter_Experience",
+              "Cinemas_Index_Tile_Pills",
+              "Sessions_Legend",
+              "Cinemas_Details_Top_Pills",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "att_199"
+          },
+          {
+            "sortOrder": 2,
+            "id": 2,
+            "code": "GC",
+            "name": "Gold Class",
+            "desc": "Star treatment - reclining seats, full menu & waiter service",
+            "cssStyle": "background: #CDA349 !important; font-weight:normal !important; color:white !important;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_2"
+          },
+          {
+            "sortOrder": 1,
+            "id": 4,
+            "code": "Vmax",
+            "name": "V-Max",
+            "desc": "Upsize - biggest screens, sound & seats",
+            "cssStyle": "background: #A6A8AB !important; color:white !important;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_4"
+          },
+          {
+            "sortOrder": 4,
+            "id": 107,
+            "code": "4DX",
+            "name": "4DX",
+            "desc": "Buckle up - moving seats & special effects",
+            "cssStyle": "background: #5C00FF !important; font-weight:normal !important; color:white !important;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_107"
+          },
+          {
+            "sortOrder": 5,
+            "id": 109,
+            "code": "IMAX",
+            "name": "IMAX",
+            "desc": "IMAX",
+            "cssStyle": "background: #0072ce !important; font-weight:normal !important; color:#ffffff !important;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_109"
+          },
+          {
+            "sortOrder": 9,
+            "id": 114,
+            "code": "Recline",
+            "name": "BCC Recline",
+            "desc": "BCC Recline",
+            "cssStyle": "background:#000032 !important;color:white;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_114"
+          },
+          {
+            "sortOrder": 888,
+            "id": 117,
+            "code": "sofa",
+            "name": "Sofa",
+            "desc": "Sofa",
+            "cssStyle": "background: #001875 !important; color:white;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "sc_117"
+          }
+        ],
+        "ForCinebuzz": false,
+        "MovieCode": "ODYSSEY",
+        "Rank": 3438,
+        "HOCode": "HO00017371",
+        "CinemaModels": [
+          {
+            "Id": 58,
+            "Name": "Burwood",
+            "Url": "Burwood",
+            "HasStandard": true,
+            "HasVmax": true,
+            "Sessions": [
+              {
+                "Id": 15433720,
+                "MovieId": 19797,
+                "CinemaId": 58,
+                "StartTime": "2026-07-21T09:30",
+                "ScreenType": "Vmax",
+                "Attributes": [
+                  {
+                    "Id": 159,
+                    "Name": "Recliner",
+                    "Code": "Recliner",
+                    "TypeId": 1,
+                    "AdditionalClass": "Recliner",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+                    "SortOrder": 1030,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Recliner"
+                  },
+                  {
+                    "Id": 160,
+                    "Name": "Daybed",
+                    "Code": "Daybed",
+                    "TypeId": 1,
+                    "AdditionalClass": "Daybed",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+                    "SortOrder": 1036,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Daybed"
+                  },
+                  {
+                    "Id": 57,
+                    "Name": "Infra-Red Hearing",
+                    "Code": "IR",
+                    "TypeId": 1,
+                    "AdditionalClass": "Infra-Red Hearing",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+                    "SortOrder": 1091,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Infra-Red Hearing"
+                  },
+                  {
+                    "Id": 21,
+                    "Name": "No Free Tickets",
+                    "Code": "NFT",
+                    "TypeId": 1,
+                    "CssStyle": "color: white; background-color: #7b7b78;",
+                    "SortOrder": 1119,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "No Free Tickets"
+                  }
+                ],
+                "NoFreeTicket": true,
+                "ScreenTypeId": 4,
+                "Code": 429981,
+                "SeatsAvailable": 156,
+                "SeatAllocation": true,
+                "ScreenName": "7",
+                "BookingUrl": "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433720",
+                "TicketingFlow": "seatfirst",
+                "ScreenTypeName": "V-Max",
+                "IsExperience": true,
+                "ScreenDescription": "V-Max"
+              },
+              {
+                "Id": 15433719,
+                "MovieId": 19797,
+                "CinemaId": 58,
+                "StartTime": "2026-07-21T10:15",
+                "ScreenType": "Vmax",
+                "Attributes": [
+                  {
+                    "Id": 199,
+                    "Name": "Private Box - 2 Seats",
+                    "Code": "Private Box - 2 Seats",
+                    "TypeId": 2,
+                    "IsExperience": true,
+                    "DoNotDisplay": true,
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box - 2 seats/icon.svg",
+                    "SortOrder": 1027,
+                    "Regions": [
+                      "Movies_Categories_Filter_Experience",
+                      "Cinemas_Index_Tile_Pills",
+                      "Sessions_Legend",
+                      "Cinemas_Details_Top_Pills",
+                      "Sessions_Filter_Experience"
+                    ],
+                    "LongDescription": "Private Box - 2 Seats"
+                  },
+                  {
+                    "Id": 159,
+                    "Name": "Recliner",
+                    "Code": "Recliner",
+                    "TypeId": 1,
+                    "AdditionalClass": "Recliner",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+                    "SortOrder": 1030,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Recliner"
+                  },
+                  {
+                    "Id": 160,
+                    "Name": "Daybed",
+                    "Code": "Daybed",
+                    "TypeId": 1,
+                    "AdditionalClass": "Daybed",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+                    "SortOrder": 1036,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Daybed"
+                  },
+                  {
+                    "Id": 57,
+                    "Name": "Infra-Red Hearing",
+                    "Code": "IR",
+                    "TypeId": 1,
+                    "AdditionalClass": "Infra-Red Hearing",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+                    "SortOrder": 1091,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Infra-Red Hearing"
+                  },
+                  {
+                    "Id": 21,
+                    "Name": "No Free Tickets",
+                    "Code": "NFT",
+                    "TypeId": 1,
+                    "CssStyle": "color: white; background-color: #7b7b78;",
+                    "SortOrder": 1119,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "No Free Tickets"
+                  }
+                ],
+                "NoFreeTicket": true,
+                "ScreenTypeId": 4,
+                "Code": 429977,
+                "SeatsAvailable": 168,
+                "SeatAllocation": true,
+                "ScreenName": "1",
+                "BookingUrl": "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433719",
+                "TicketingFlow": "seatfirst",
+                "ScreenTypeName": "V-Max",
+                "IsExperience": true,
+                "ScreenDescription": "V-Max"
+              },
+              {
+                "Id": 15433721,
+                "MovieId": 19797,
+                "CinemaId": 58,
+                "StartTime": "2026-07-21T13:15",
+                "ScreenType": "Vmax",
+                "Attributes": [
+                  {
+                    "Id": 159,
+                    "Name": "Recliner",
+                    "Code": "Recliner",
+                    "TypeId": 1,
+                    "AdditionalClass": "Recliner",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+                    "SortOrder": 1030,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Recliner"
+                  },
+                  {
+                    "Id": 160,
+                    "Name": "Daybed",
+                    "Code": "Daybed",
+                    "TypeId": 1,
+                    "AdditionalClass": "Daybed",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+                    "SortOrder": 1036,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Daybed"
+                  },
+                  {
+                    "Id": 57,
+                    "Name": "Infra-Red Hearing",
+                    "Code": "IR",
+                    "TypeId": 1,
+                    "AdditionalClass": "Infra-Red Hearing",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+                    "SortOrder": 1091,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Infra-Red Hearing"
+                  },
+                  {
+                    "Id": 21,
+                    "Name": "No Free Tickets",
+                    "Code": "NFT",
+                    "TypeId": 1,
+                    "CssStyle": "color: white; background-color: #7b7b78;",
+                    "SortOrder": 1119,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "No Free Tickets"
+                  }
+                ],
+                "NoFreeTicket": true,
+                "ScreenTypeId": 4,
+                "Code": 429982,
+                "SeatsAvailable": 156,
+                "SeatAllocation": true,
+                "ScreenName": "7",
+                "BookingUrl": "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433721",
+                "TicketingFlow": "seatfirst",
+                "ScreenTypeName": "V-Max",
+                "IsExperience": true,
+                "ScreenDescription": "V-Max"
+              },
+              {
+                "Id": 15433718,
+                "MovieId": 19797,
+                "CinemaId": 58,
+                "StartTime": "2026-07-21T14:00",
+                "ScreenType": "Vmax",
+                "Attributes": [
+                  {
+                    "Id": 199,
+                    "Name": "Private Box - 2 Seats",
+                    "Code": "Private Box - 2 Seats",
+                    "TypeId": 2,
+                    "IsExperience": true,
+                    "DoNotDisplay": true,
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box - 2 seats/icon.svg",
+                    "SortOrder": 1027,
+                    "Regions": [
+                      "Movies_Categories_Filter_Experience",
+                      "Cinemas_Index_Tile_Pills",
+                      "Sessions_Legend",
+                      "Cinemas_Details_Top_Pills",
+                      "Sessions_Filter_Experience"
+                    ],
+                    "LongDescription": "Private Box - 2 Seats"
+                  },
+                  {
+                    "Id": 159,
+                    "Name": "Recliner",
+                    "Code": "Recliner",
+                    "TypeId": 1,
+                    "AdditionalClass": "Recliner",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+                    "SortOrder": 1030,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Recliner"
+                  },
+                  {
+                    "Id": 160,
+                    "Name": "Daybed",
+                    "Code": "Daybed",
+                    "TypeId": 1,
+                    "AdditionalClass": "Daybed",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+                    "SortOrder": 1036,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Daybed"
+                  },
+                  {
+                    "Id": 57,
+                    "Name": "Infra-Red Hearing",
+                    "Code": "IR",
+                    "TypeId": 1,
+                    "AdditionalClass": "Infra-Red Hearing",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+                    "SortOrder": 1091,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Infra-Red Hearing"
+                  },
+                  {
+                    "Id": 21,
+                    "Name": "No Free Tickets",
+                    "Code": "NFT",
+                    "TypeId": 1,
+                    "CssStyle": "color: white; background-color: #7b7b78;",
+                    "SortOrder": 1119,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "No Free Tickets"
+                  }
+                ],
+                "NoFreeTicket": true,
+                "ScreenTypeId": 4,
+                "Code": 429976,
+                "SeatsAvailable": 168,
+                "SeatAllocation": true,
+                "ScreenName": "1",
+                "BookingUrl": "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433718",
+                "TicketingFlow": "seatfirst",
+                "ScreenTypeName": "V-Max",
+                "IsExperience": true,
+                "ScreenDescription": "V-Max"
+              },
+              {
+                "Id": 15433723,
+                "MovieId": 19797,
+                "CinemaId": 58,
+                "StartTime": "2026-07-21T17:00",
+                "ScreenType": "Vmax",
+                "Attributes": [
+                  {
+                    "Id": 159,
+                    "Name": "Recliner",
+                    "Code": "Recliner",
+                    "TypeId": 1,
+                    "AdditionalClass": "Recliner",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+                    "SortOrder": 1030,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Recliner"
+                  },
+                  {
+                    "Id": 160,
+                    "Name": "Daybed",
+                    "Code": "Daybed",
+                    "TypeId": 1,
+                    "AdditionalClass": "Daybed",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+                    "SortOrder": 1036,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Daybed"
+                  },
+                  {
+                    "Id": 57,
+                    "Name": "Infra-Red Hearing",
+                    "Code": "IR",
+                    "TypeId": 1,
+                    "AdditionalClass": "Infra-Red Hearing",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+                    "SortOrder": 1091,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Infra-Red Hearing"
+                  },
+                  {
+                    "Id": 21,
+                    "Name": "No Free Tickets",
+                    "Code": "NFT",
+                    "TypeId": 1,
+                    "CssStyle": "color: white; background-color: #7b7b78;",
+                    "SortOrder": 1119,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "No Free Tickets"
+                  }
+                ],
+                "NoFreeTicket": true,
+                "ScreenTypeId": 4,
+                "Code": 429984,
+                "SeatsAvailable": 156,
+                "SeatAllocation": true,
+                "ScreenName": "7",
+                "BookingUrl": "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433723",
+                "TicketingFlow": "seatfirst",
+                "ScreenTypeName": "V-Max",
+                "IsExperience": true,
+                "ScreenDescription": "V-Max"
+              },
+              {
+                "Id": 15433717,
+                "MovieId": 19797,
+                "CinemaId": 58,
+                "StartTime": "2026-07-21T17:40",
+                "ScreenType": "Vmax",
+                "Attributes": [
+                  {
+                    "Id": 199,
+                    "Name": "Private Box - 2 Seats",
+                    "Code": "Private Box - 2 Seats",
+                    "TypeId": 2,
+                    "IsExperience": true,
+                    "DoNotDisplay": true,
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box - 2 seats/icon.svg",
+                    "SortOrder": 1027,
+                    "Regions": [
+                      "Movies_Categories_Filter_Experience",
+                      "Cinemas_Index_Tile_Pills",
+                      "Sessions_Legend",
+                      "Cinemas_Details_Top_Pills",
+                      "Sessions_Filter_Experience"
+                    ],
+                    "LongDescription": "Private Box - 2 Seats"
+                  },
+                  {
+                    "Id": 159,
+                    "Name": "Recliner",
+                    "Code": "Recliner",
+                    "TypeId": 1,
+                    "AdditionalClass": "Recliner",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+                    "SortOrder": 1030,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Recliner"
+                  },
+                  {
+                    "Id": 160,
+                    "Name": "Daybed",
+                    "Code": "Daybed",
+                    "TypeId": 1,
+                    "AdditionalClass": "Daybed",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+                    "SortOrder": 1036,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Daybed"
+                  },
+                  {
+                    "Id": 57,
+                    "Name": "Infra-Red Hearing",
+                    "Code": "IR",
+                    "TypeId": 1,
+                    "AdditionalClass": "Infra-Red Hearing",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+                    "SortOrder": 1091,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Infra-Red Hearing"
+                  },
+                  {
+                    "Id": 21,
+                    "Name": "No Free Tickets",
+                    "Code": "NFT",
+                    "TypeId": 1,
+                    "CssStyle": "color: white; background-color: #7b7b78;",
+                    "SortOrder": 1119,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "No Free Tickets"
+                  }
+                ],
+                "NoFreeTicket": true,
+                "ScreenTypeId": 4,
+                "Code": 429975,
+                "SeatsAvailable": 166,
+                "SeatAllocation": true,
+                "ScreenName": "1",
+                "BookingUrl": "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433717",
+                "TicketingFlow": "seatfirst",
+                "ScreenTypeName": "V-Max",
+                "IsExperience": true,
+                "ScreenDescription": "V-Max"
+              },
+              {
+                "Id": 15433722,
+                "MovieId": 19797,
+                "CinemaId": 58,
+                "StartTime": "2026-07-21T20:40",
+                "ScreenType": "Vmax",
+                "Attributes": [
+                  {
+                    "Id": 159,
+                    "Name": "Recliner",
+                    "Code": "Recliner",
+                    "TypeId": 1,
+                    "AdditionalClass": "Recliner",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+                    "SortOrder": 1030,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Recliner"
+                  },
+                  {
+                    "Id": 160,
+                    "Name": "Daybed",
+                    "Code": "Daybed",
+                    "TypeId": 1,
+                    "AdditionalClass": "Daybed",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+                    "SortOrder": 1036,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Daybed"
+                  },
+                  {
+                    "Id": 57,
+                    "Name": "Infra-Red Hearing",
+                    "Code": "IR",
+                    "TypeId": 1,
+                    "AdditionalClass": "Infra-Red Hearing",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+                    "SortOrder": 1091,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Infra-Red Hearing"
+                  },
+                  {
+                    "Id": 21,
+                    "Name": "No Free Tickets",
+                    "Code": "NFT",
+                    "TypeId": 1,
+                    "CssStyle": "color: white; background-color: #7b7b78;",
+                    "SortOrder": 1119,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "No Free Tickets"
+                  }
+                ],
+                "NoFreeTicket": true,
+                "ScreenTypeId": 4,
+                "Code": 429983,
+                "SeatsAvailable": 156,
+                "SeatAllocation": true,
+                "ScreenName": "7",
+                "BookingUrl": "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433722",
+                "TicketingFlow": "seatfirst",
+                "ScreenTypeName": "V-Max",
+                "IsExperience": true,
+                "ScreenDescription": "V-Max"
+              },
+              {
+                "Id": 15433716,
+                "MovieId": 19797,
+                "CinemaId": 58,
+                "StartTime": "2026-07-21T21:20",
+                "ScreenType": "Vmax",
+                "Attributes": [
+                  {
+                    "Id": 199,
+                    "Name": "Private Box - 2 Seats",
+                    "Code": "Private Box - 2 Seats",
+                    "TypeId": 2,
+                    "IsExperience": true,
+                    "DoNotDisplay": true,
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box - 2 seats/icon.svg",
+                    "SortOrder": 1027,
+                    "Regions": [
+                      "Movies_Categories_Filter_Experience",
+                      "Cinemas_Index_Tile_Pills",
+                      "Sessions_Legend",
+                      "Cinemas_Details_Top_Pills",
+                      "Sessions_Filter_Experience"
+                    ],
+                    "LongDescription": "Private Box - 2 Seats"
+                  },
+                  {
+                    "Id": 159,
+                    "Name": "Recliner",
+                    "Code": "Recliner",
+                    "TypeId": 1,
+                    "AdditionalClass": "Recliner",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+                    "SortOrder": 1030,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Recliner"
+                  },
+                  {
+                    "Id": 160,
+                    "Name": "Daybed",
+                    "Code": "Daybed",
+                    "TypeId": 1,
+                    "AdditionalClass": "Daybed",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+                    "SortOrder": 1036,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Cinemas_Index_Tile_Icons",
+                      "Cinemas_Details_Top_Icons",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Daybed"
+                  },
+                  {
+                    "Id": 57,
+                    "Name": "Infra-Red Hearing",
+                    "Code": "IR",
+                    "TypeId": 1,
+                    "AdditionalClass": "Infra-Red Hearing",
+                    "IconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+                    "SortOrder": 1091,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "Infra-Red Hearing"
+                  },
+                  {
+                    "Id": 21,
+                    "Name": "No Free Tickets",
+                    "Code": "NFT",
+                    "TypeId": 1,
+                    "CssStyle": "color: white; background-color: #7b7b78;",
+                    "SortOrder": 1119,
+                    "Regions": [
+                      "Sessions_Filter_SessionType",
+                      "Sessions_Legend"
+                    ],
+                    "LongDescription": "No Free Tickets"
+                  }
+                ],
+                "NoFreeTicket": true,
+                "ScreenTypeId": 4,
+                "Code": 429974,
+                "SeatsAvailable": 168,
+                "SeatAllocation": true,
+                "ScreenName": "1",
+                "BookingUrl": "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433716",
+                "TicketingFlow": "seatfirst",
+                "ScreenTypeName": "V-Max",
+                "IsExperience": true,
+                "ScreenDescription": "V-Max"
+              }
+            ],
+            "ScreenTypes": [
+              "Vmax"
+            ],
+            "ScreenTypeIds": [
+              0,
+              4
+            ]
+          }
+        ],
+        "CinemaIds": [
+          81,
+          47,
+          21,
+          34,
+          63,
+          90,
+          55,
+          36,
+          7,
+          48,
+          56,
+          22,
+          91,
+          49,
+          77,
+          23,
+          82,
+          83,
+          92,
+          85,
+          9,
+          15,
+          58,
+          65,
+          26,
+          19,
+          38,
+          52,
+          43,
+          30,
+          93,
+          59,
+          96,
+          66,
+          79,
+          28,
+          62,
+          94,
+          69,
+          86,
+          17,
+          61,
+          44,
+          89,
+          50,
+          53
+        ],
+        "Cinemas": "81,47,21,34,63,90,55,36,7,48,56,22,91,49,77,23,82,83,92,85,9,15,58,65,26,19,38,52,43,30,93,59,96,66,79,28,62,94,69,86,17,61,44,89,50,53",
+        "IsComingSoon": true,
+        "AbsoluteId": 19797,
+        "PosterUrl": "https://cdn.eventcinemas.com.au/cdn/resources/movies/19797/images/largeposter.jpg",
+        "LargePosterUrl": "https://cdn.eventcinemas.com.au/cdn/resources/movies/19797/images/largeposter.jpg",
+        "SkinUrl": "https://cdn.eventcinemas.com.au/cdn/resources/movies/19797/images/skin.jpg",
+        "SkinMobileUrl": "https://cdn.eventcinemas.com.au/cdn/resources/movies/19797/images/skinmobile.jpg",
+        "ScreenTypeIds": [
+          0,
+          4,
+          2,
+          107,
+          109,
+          114,
+          117
+        ],
+        "SessionsUrl": "/Sessions#movies=19797",
+        "Tags": [
+          "imaxmovies"
+        ],
+        "ExcludedRegions": [],
+        "AllFilters": [
+          {
+            "sortOrder": 1137,
+            "id": 2,
+            "code": "Open Captions",
+            "name": "Open caption (subtitles)",
+            "desc": "Open caption (subtitles)",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_2"
+          },
+          {
+            "sortOrder": 1119,
+            "id": 21,
+            "code": "NFT",
+            "name": "No Free Tickets",
+            "desc": "No Free Tickets",
+            "cssStyle": "color: white; background-color: #7b7b78;",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_21"
+          },
+          {
+            "sortOrder": 1192,
+            "id": 23,
+            "code": "ACCESS",
+            "name": "Wheelchair Accessible",
+            "desc": "Wheelchair Accessible",
+            "doNotDisplay": true,
+            "Regions": [
+              "Sessions_Legend"
+            ],
+            "key": "att_23"
+          },
+          {
+            "sortOrder": 1042,
+            "id": 56,
+            "code": "LOOP",
+            "name": "Hearing Aid Loop",
+            "desc": "Hearing Aid Loop",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/loop/icon.svg",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_56"
+          },
+          {
+            "sortOrder": 1091,
+            "id": 57,
+            "code": "IR",
+            "name": "Infra-Red Hearing",
+            "desc": "Infra-Red Hearing",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_57"
+          },
+          {
+            "sortOrder": 1134,
+            "id": 80,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_80"
+          },
+          {
+            "sortOrder": 1136,
+            "id": 81,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_81"
+          },
+          {
+            "sortOrder": 1121,
+            "id": 82,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_82"
+          },
+          {
+            "sortOrder": 1122,
+            "id": 83,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_83"
+          },
+          {
+            "sortOrder": 1123,
+            "id": 84,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_84"
+          },
+          {
+            "sortOrder": 1127,
+            "id": 85,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_85"
+          },
+          {
+            "sortOrder": 1125,
+            "id": 91,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_91"
+          },
+          {
+            "sortOrder": 1129,
+            "id": 92,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_92"
+          },
+          {
+            "sortOrder": 1130,
+            "id": 104,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_104"
+          },
+          {
+            "sortOrder": 1190,
+            "id": 105,
+            "code": "SAVER",
+            "name": "TUESDAY SAVER",
+            "desc": "TUESDAY SAVER",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_105"
+          },
+          {
+            "sortOrder": 1133,
+            "id": 106,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_106"
+          },
+          {
+            "sortOrder": 1126,
+            "id": 119,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_119"
+          },
+          {
+            "sortOrder": 1128,
+            "id": 120,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_120"
+          },
+          {
+            "sortOrder": 1131,
+            "id": 123,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_123"
+          },
+          {
+            "sortOrder": 1135,
+            "id": 135,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_135"
+          },
+          {
+            "sortOrder": 1124,
+            "id": 139,
+            "code": "SAVER",
+            "name": "Member discounted tickets",
+            "desc": "Member discounted tickets",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_139"
+          },
+          {
+            "sortOrder": 1173,
+            "id": 140,
+            "code": "SAVER",
+            "name": "Saver",
+            "desc": "Member discounted tickets",
+            "cssStyle": "background-color: #d61023; color: white;",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_140"
+          },
+          {
+            "sortOrder": 1030,
+            "id": 159,
+            "code": "Recliner",
+            "name": "Recliner",
+            "desc": "Recliner",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Cinemas_Index_Tile_Icons",
+              "Cinemas_Details_Top_Icons",
+              "Sessions_Legend"
+            ],
+            "key": "att_159"
+          },
+          {
+            "sortOrder": 1036,
+            "id": 160,
+            "code": "Daybed",
+            "name": "Daybed",
+            "desc": "Daybed",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Cinemas_Index_Tile_Icons",
+              "Cinemas_Details_Top_Icons",
+              "Sessions_Legend"
+            ],
+            "key": "att_160"
+          },
+          {
+            "sortOrder": 1005,
+            "id": 169,
+            "code": "Delivery",
+            "name": "food & drink service available this seat",
+            "desc": "food & drink service available this seat",
+            "doNotDisplay": true,
+            "Regions": [
+              "Sessions_Legend"
+            ],
+            "key": "att_169"
+          },
+          {
+            "sortOrder": 1023,
+            "id": 174,
+            "code": "No-Alcohol",
+            "name": "No Alcohol",
+            "desc": "No Alcohol available for this session",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_174"
+          },
+          {
+            "sortOrder": 1031,
+            "id": 183,
+            "code": "removable",
+            "name": "Wheelchair accessible space",
+            "desc": "Wheelchair accessible space",
+            "doNotDisplay": true,
+            "Regions": [
+              "Sessions_Legend"
+            ],
+            "key": "att_183"
+          },
+          {
+            "sortOrder": 1035,
+            "id": 188,
+            "code": "Standard+",
+            "name": "Standard+",
+            "desc": "Standard+",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_188"
+          },
+          {
+            "sortOrder": 1000,
+            "id": 204,
+            "code": "Recline",
+            "name": "Recline",
+            "desc": "Recline",
+            "Regions": [
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend",
+              "Sessions_Filter_Experience"
+            ],
+            "key": "att_204"
+          },
+          {
+            "hideFromLegend": true,
+            "sortOrder": 1000,
+            "id": 205,
+            "code": "Filmed For IMAX",
+            "name": "Filmed For IMAX",
+            "desc": "Filmed For IMAX",
+            "Regions": [
+              "Sessions_Filter_SessionType"
+            ],
+            "key": "att_205"
+          },
+          {
+            "sortOrder": 1000,
+            "id": 208,
+            "code": "Armchair Double",
+            "name": "Armchair Double",
+            "desc": "Armchair Double",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/armchair double/icon.svg",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Icons",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_208"
+          },
+          {
+            "sortOrder": 1000,
+            "id": 209,
+            "code": "Armchair Single",
+            "name": "Armchair Single",
+            "desc": "Armchair Single",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/armchair single/icon.svg",
+            "Regions": [
+              "Cinemas_Details_Top_Icons",
+              "Cinemas_Index_Tile_Icons",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_209"
+          },
+          {
+            "sortOrder": 1000,
+            "id": 210,
+            "code": "Lounger Double",
+            "name": "Lounger Double",
+            "desc": "Lounger Double",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/lounger double/icon.svg",
+            "Regions": [
+              "Cinemas_Details_Top_Icons",
+              "Cinemas_Index_Tile_Icons",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_210"
+          },
+          {
+            "sortOrder": 1000,
+            "id": 211,
+            "code": "Lounger Single",
+            "name": "Lounger Single",
+            "desc": "Lounger Single",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/lounger single/icon.svg",
+            "Regions": [
+              "Cinemas_Details_Top_Icons",
+              "Cinemas_Index_Tile_Icons",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_SessionType",
+              "Sessions_Legend"
+            ],
+            "key": "att_211"
+          },
+          {
+            "sortOrder": 1046,
+            "id": 59,
+            "code": "ATMOS",
+            "name": "Dolby Atmos",
+            "desc": "Best cinema sound",
+            "cssStyle": "background-color: #575a5a; color: white;",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/atmos/icon.svg",
+            "Regions": [
+              "Movies_Categories_Filter_Experience",
+              "Cinemas_Index_Tile_Icons",
+              "Cinemas_Details_Top_Icons",
+              "Sessions_Legend",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "att_59"
+          },
+          {
+            "sortOrder": 1026,
+            "id": 195,
+            "code": "Private Box",
+            "name": "Private Box",
+            "desc": "Private Box",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box/icon.svg",
+            "Regions": [
+              "Movies_Categories_Filter_Experience",
+              "Cinemas_Index_Tile_Icons",
+              "Cinemas_Index_Tile_Pills",
+              "Cinemas_Details_Top_Icons",
+              "Sessions_Legend",
+              "Cinemas_Details_Top_Pills",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "att_195"
+          },
+          {
+            "sortOrder": 1028,
+            "id": 196,
+            "code": "Couples",
+            "name": "Couples Recliner",
+            "desc": "Couples Recliner",
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/couples/icon.svg",
+            "Regions": [
+              "Movies_Categories_Filter_Experience",
+              "Cinemas_Index_Tile_Icons",
+              "Cinemas_Index_Tile_Pills",
+              "Cinemas_Details_Top_Icons",
+              "Sessions_Legend",
+              "Cinemas_Details_Top_Pills",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "att_196"
+          },
+          {
+            "sortOrder": 1027,
+            "id": 199,
+            "code": "Private Box - 2 Seats",
+            "name": "Private Box - 2 Seats",
+            "desc": "Private Box - 2 Seats",
+            "doNotDisplay": true,
+            "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box - 2 seats/icon.svg",
+            "Regions": [
+              "Movies_Categories_Filter_Experience",
+              "Cinemas_Index_Tile_Pills",
+              "Sessions_Legend",
+              "Cinemas_Details_Top_Pills",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "att_199"
+          },
+          {
+            "sortOrder": 2,
+            "id": 2,
+            "code": "GC",
+            "name": "Gold Class",
+            "desc": "Star treatment - reclining seats, full menu & waiter service",
+            "cssStyle": "background: #CDA349 !important; font-weight:normal !important; color:white !important;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_2"
+          },
+          {
+            "sortOrder": 1,
+            "id": 4,
+            "code": "Vmax",
+            "name": "V-Max",
+            "desc": "Upsize - biggest screens, sound & seats",
+            "cssStyle": "background: #A6A8AB !important; color:white !important;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_4"
+          },
+          {
+            "sortOrder": 4,
+            "id": 107,
+            "code": "4DX",
+            "name": "4DX",
+            "desc": "Buckle up - moving seats & special effects",
+            "cssStyle": "background: #5C00FF !important; font-weight:normal !important; color:white !important;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_107"
+          },
+          {
+            "sortOrder": 5,
+            "id": 109,
+            "code": "IMAX",
+            "name": "IMAX",
+            "desc": "IMAX",
+            "cssStyle": "background: #0072ce !important; font-weight:normal !important; color:#ffffff !important;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_109"
+          },
+          {
+            "sortOrder": 9,
+            "id": 114,
+            "code": "Recline",
+            "name": "BCC Recline",
+            "desc": "BCC Recline",
+            "cssStyle": "background:#000032 !important;color:white;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Movies_Index_ListView_Pills",
+              "Sessions_Filter_Experience",
+              "Sessions_Legend"
+            ],
+            "isExperience": true,
+            "key": "sc_114"
+          },
+          {
+            "sortOrder": 888,
+            "id": 117,
+            "code": "sofa",
+            "name": "Sofa",
+            "desc": "Sofa",
+            "cssStyle": "background: #001875 !important; color:white;",
+            "Regions": [
+              "Cinemas_Details_Top_Pills",
+              "Cinemas_Index_Tile_Pills",
+              "Movies_Categories_Filter_Experience",
+              "Sessions_Filter_Experience"
+            ],
+            "isExperience": true,
+            "key": "sc_117"
+          },
+          {
+            "sortOrder": 0,
+            "id": 0,
+            "code": "Std",
+            "name": "Original",
+            "desc": "Your everyday favourite cinema",
+            "cssStyle": "background: #D7291C !important; color:white;",
+            "Regions": [
+              "Cinemas_Index_Tile_Pills"
+            ],
+            "key": "sc_0"
+          }
+        ]
+      }
+    ],
+    "Dates": [
+      "2026-06-24",
+      "2026-06-25",
+      "2026-06-26",
+      "2026-06-27",
+      "2026-06-28",
+      "2026-06-29",
+      "2026-06-30",
+      "2026-07-01",
+      "2026-07-02",
+      "2026-07-03",
+      "2026-07-04",
+      "2026-07-05",
+      "2026-07-06",
+      "2026-07-07",
+      "2026-07-08",
+      "2026-07-09",
+      "2026-07-10",
+      "2026-07-11",
+      "2026-07-12",
+      "2026-07-13",
+      "2026-07-14",
+      "2026-07-15",
+      "2026-07-16",
+      "2026-07-17",
+      "2026-07-18",
+      "2026-07-19",
+      "2026-07-20",
+      "2026-07-21",
+      "2026-07-22",
+      "2026-07-30",
+      "2026-07-31",
+      "2026-08-01",
+      "2026-08-02",
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-13",
+      "2026-08-14",
+      "2026-08-15",
+      "2026-08-16",
+      "2026-08-29",
+      "2026-08-30",
+      "2026-09-02",
+      "2026-12-05",
+      "2026-12-06",
+      "2026-12-09"
+    ],
+    "SelectedDate": "2026-07-21",
+    "Genres": [
+      {
+        "code": "drama",
+        "name": "Drama"
+      }
+    ],
+    "Experiences": [
+      {
+        "sortOrder": 1027,
+        "id": 199,
+        "code": "Private Box - 2 Seats",
+        "name": "Private Box - 2 Seats",
+        "desc": "Private Box - 2 Seats",
+        "doNotDisplay": true,
+        "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box - 2 seats/icon.svg",
+        "Regions": [
+          "Movies_Categories_Filter_Experience",
+          "Cinemas_Index_Tile_Pills",
+          "Sessions_Legend",
+          "Cinemas_Details_Top_Pills",
+          "Sessions_Filter_Experience"
+        ],
+        "isExperience": true,
+        "key": "att_199"
+      },
+      {
+        "sortOrder": 1,
+        "id": 4,
+        "code": "Vmax",
+        "name": "V-Max",
+        "desc": "Upsize - biggest screens, sound & seats",
+        "cssStyle": "background: #A6A8AB !important; color:white !important;",
+        "Regions": [
+          "Cinemas_Details_Top_Pills",
+          "Cinemas_Index_Tile_Pills",
+          "Movies_Categories_Filter_Experience",
+          "Movies_Index_ListView_Pills",
+          "Sessions_Filter_Experience",
+          "Sessions_Legend"
+        ],
+        "isExperience": true,
+        "key": "sc_4"
+      }
+    ],
+    "Attributes": [
+      {
+        "sortOrder": 1030,
+        "id": 159,
+        "code": "Recliner",
+        "name": "Recliner",
+        "desc": "Recliner",
+        "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+        "Regions": [
+          "Sessions_Filter_SessionType",
+          "Cinemas_Index_Tile_Icons",
+          "Cinemas_Details_Top_Icons",
+          "Sessions_Legend"
+        ],
+        "key": "att_159"
+      },
+      {
+        "sortOrder": 1036,
+        "id": 160,
+        "code": "Daybed",
+        "name": "Daybed",
+        "desc": "Daybed",
+        "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+        "Regions": [
+          "Sessions_Filter_SessionType",
+          "Cinemas_Index_Tile_Icons",
+          "Cinemas_Details_Top_Icons",
+          "Sessions_Legend"
+        ],
+        "key": "att_160"
+      },
+      {
+        "sortOrder": 1091,
+        "id": 57,
+        "code": "IR",
+        "name": "Infra-Red Hearing",
+        "desc": "Infra-Red Hearing",
+        "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+        "Regions": [
+          "Sessions_Filter_SessionType",
+          "Sessions_Legend"
+        ],
+        "key": "att_57"
+      },
+      {
+        "sortOrder": 1119,
+        "id": 21,
+        "code": "NFT",
+        "name": "No Free Tickets",
+        "desc": "No Free Tickets",
+        "cssStyle": "color: white; background-color: #7b7b78;",
+        "Regions": [
+          "Sessions_Filter_SessionType",
+          "Sessions_Legend"
+        ],
+        "key": "att_21"
+      }
+    ],
+    "AllFilters": [
+      {
+        "sortOrder": 1119,
+        "id": 21,
+        "code": "NFT",
+        "name": "No Free Tickets",
+        "desc": "No Free Tickets",
+        "cssStyle": "color: white; background-color: #7b7b78;",
+        "Regions": [
+          "Sessions_Filter_SessionType",
+          "Sessions_Legend"
+        ],
+        "key": "att_21"
+      },
+      {
+        "sortOrder": 1091,
+        "id": 57,
+        "code": "IR",
+        "name": "Infra-Red Hearing",
+        "desc": "Infra-Red Hearing",
+        "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/ir/icon.svg",
+        "Regions": [
+          "Sessions_Filter_SessionType",
+          "Sessions_Legend"
+        ],
+        "key": "att_57"
+      },
+      {
+        "sortOrder": 1030,
+        "id": 159,
+        "code": "Recliner",
+        "name": "Recliner",
+        "desc": "Recliner",
+        "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/recliner/icon.svg",
+        "Regions": [
+          "Sessions_Filter_SessionType",
+          "Cinemas_Index_Tile_Icons",
+          "Cinemas_Details_Top_Icons",
+          "Sessions_Legend"
+        ],
+        "key": "att_159"
+      },
+      {
+        "sortOrder": 1036,
+        "id": 160,
+        "code": "Daybed",
+        "name": "Daybed",
+        "desc": "Daybed",
+        "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/daybed/icon.svg",
+        "Regions": [
+          "Sessions_Filter_SessionType",
+          "Cinemas_Index_Tile_Icons",
+          "Cinemas_Details_Top_Icons",
+          "Sessions_Legend"
+        ],
+        "key": "att_160"
+      },
+      {
+        "sortOrder": 1027,
+        "id": 199,
+        "code": "Private Box - 2 Seats",
+        "name": "Private Box - 2 Seats",
+        "desc": "Private Box - 2 Seats",
+        "doNotDisplay": true,
+        "iconUrl": "https://cdn.eventcinemas.com.au/cdn/resources/attributes/private box - 2 seats/icon.svg",
+        "Regions": [
+          "Movies_Categories_Filter_Experience",
+          "Cinemas_Index_Tile_Pills",
+          "Sessions_Legend",
+          "Cinemas_Details_Top_Pills",
+          "Sessions_Filter_Experience"
+        ],
+        "isExperience": true,
+        "key": "att_199"
+      },
+      {
+        "sortOrder": 1,
+        "id": 4,
+        "code": "Vmax",
+        "name": "V-Max",
+        "desc": "Upsize - biggest screens, sound & seats",
+        "cssStyle": "background: #A6A8AB !important; color:white !important;",
+        "Regions": [
+          "Cinemas_Details_Top_Pills",
+          "Cinemas_Index_Tile_Pills",
+          "Movies_Categories_Filter_Experience",
+          "Movies_Index_ListView_Pills",
+          "Sessions_Filter_Experience",
+          "Sessions_Legend"
+        ],
+        "isExperience": true,
+        "key": "sc_4"
+      },
+      {
+        "sortOrder": 0,
+        "id": 0,
+        "code": "Std",
+        "name": "Original",
+        "desc": "Your everyday favourite cinema",
+        "cssStyle": "background: #D7291C !important; color:white;",
+        "Regions": [
+          "Cinemas_Index_Tile_Pills"
+        ],
+        "key": "sc_0"
+      }
+    ]
+  }
+}

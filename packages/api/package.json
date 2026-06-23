@@ -1,0 +1,8 @@
+{
+  "name": "@auscinema/api",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": { "build": "tsc -b", "test": "node --test" },
+  "dependencies": { "@auscinema/core": "*" }
+}
