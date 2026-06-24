@@ -1,26 +1,20 @@
 # Single entrypoint: serves the SPA and reverse-proxies the API routes (same-origin).
-# Access gate is applied here at the proxy layer so it is auth-mechanism-agnostic.
+# The access gate lives here at the proxy layer so it is auth-mechanism-agnostic.
 #
-# INTERIM gate = basic_auth (one bcrypt credential). To move to Authentik later, replace
-# the `basic_auth` block with a `forward_auth` block pointing at the Authentik outpost,
-# e.g.:
-#   forward_auth authentik-outpost:9000 {
-#     uri /outpost.goauthentik.io/auth/caddy
-#     copy_headers X-Authentik-Username X-Authentik-Groups ...
+# CURRENTLY OPEN (no auth). The Fastify per-IP rate limit still protects the upstream
+# cinema calls. To re-gate, add ONE block inside the site below, before the @api matcher:
+#   basic_auth {
+#     {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}     # hash via `caddy hash-password`; in .env double every $ to $$
 #   }
+# or, for Authentik later, a `forward_auth authentik-outpost:9000 { ... }` block instead.
 # Nothing else in this file or the app changes.
 #
 # SITE_ADDRESS:  ":8080" for plain HTTP behind a tunnel/upstream proxy, or "seatfinder.example.org"
 #                for Caddy to fetch a real cert automatically.
 # UPSTREAM_API:  host:port of the api container (default api:3001).
-# BASIC_AUTH_USER / BASIC_AUTH_HASH: generate the hash with `caddy hash-password`.
 
 {$SITE_ADDRESS::8080} {
 	encode gzip
-
-	basic_auth {
-		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
-	}
 
 	# API routes -> Fastify service. Keep in sync with the app's route list.
 	# handle blocks are required: without them, the SPA `try_files` below rewrites
