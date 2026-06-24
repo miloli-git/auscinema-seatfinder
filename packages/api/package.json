@@ -3,6 +3,17 @@
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
-  "scripts": { "build": "tsc -b", "test": "node --test" },
-  "dependencies": { "@auscinema/core": "*" }
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/index.js",
+    "test": "tsc -b && node --test dist/index.test.js"
+  },
+  "dependencies": {
+    "@auscinema/core": "*",
+    "@auscinema/adapter-event": "*",
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
 }
