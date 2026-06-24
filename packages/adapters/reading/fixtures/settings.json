@@ -1,0 +1,13 @@
+{
+ "statusCode": 200,
+ "data": {
+  "settings": {
+   "countryId": "1",
+   "VistaUrl": "prod-au-vista.readingcinemas.com.au",
+   "currentVersion": "5.2",
+   "defaultCinema": "Auburn",
+   "enableTicketBooking": 1,
+   "token": "TEST_BOOTSTRAP_TOKEN"
+  }
+ }
+}

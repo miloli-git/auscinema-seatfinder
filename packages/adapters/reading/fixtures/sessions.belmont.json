@@ -1,0 +1,94 @@
+{
+ "statusCode": 200,
+ "data": [
+  {
+   "theater": "belmont",
+   "slug": "10143",
+   "name": "Minions & Monsters",
+   "youtube_id": "https://www.youtube.com/watch?v=ZSdOwt-G49w",
+   "extra_info": "",
+   "imageId": "113077",
+   "ratingIcon": "1283",
+   "director": "Pierre Coffin ",
+   "distributor": "Universal Pictures",
+   "distributorShortName": "UNI",
+   "language": "",
+   "featured": "",
+   "length": "90",
+   "amenities": "",
+   "release_date": "2026-06-25",
+   "status": "Coming soon",
+   "ratingName": "Mild threat, violence and coarse language",
+   "website": "",
+   "poster_image": "",
+   "film_image_medium_size": "https://d2apwscfoijj3f.cloudfront.net/wpdata/images/113077-m.jpg",
+   "film_image_large_size": "https://d2apwscfoijj3f.cloudfront.net/wpdata/images/113077-l.jpg",
+   "showdates": [
+    {
+     "date": "2026-06-25",
+     "showtypes": [
+      {
+       "type": "Standard",
+       "amenities": [
+        "Standard"
+       ],
+       "showtimes": [
+        {
+         "id": "190222",
+         "ScheduledFilmId": "HO00004380",
+         "date_time": "2026-06-25T10:00:00+08:00",
+         "auditorium": "",
+         "reservedSeating": 1,
+         "availableSeats": "304",
+         "enabled": true,
+         "caption": 1,
+         "type": "Standard",
+         "statusCode": "0",
+         "totalNumberOfSeats": "307",
+         "soldout": false
+        },
+        {
+         "id": "190225",
+         "ScheduledFilmId": "HO00004380",
+         "date_time": "2026-06-25T12:30:00+08:00",
+         "auditorium": "",
+         "reservedSeating": 1,
+         "availableSeats": "127",
+         "enabled": true,
+         "caption": 1,
+         "type": "Standard",
+         "statusCode": "0",
+         "totalNumberOfSeats": "128",
+         "soldout": false
+        }
+       ]
+      },
+      {
+       "type": "Gold",
+       "amenities": [
+        "Gold"
+       ],
+       "showtimes": [
+        {
+         "id": "190482",
+         "ScheduledFilmId": "HO00004380",
+         "date_time": "2026-06-25T13:30:00+08:00",
+         "auditorium": "",
+         "reservedSeating": 1,
+         "availableSeats": "46",
+         "enabled": true,
+         "caption": 1,
+         "type": "Gold",
+         "statusCode": "0",
+         "totalNumberOfSeats": "46",
+         "soldout": false,
+         "flag1": "{\"short\":\"GL 18+\",\"Description\":\"Patrons must be 18 or over to gain admittance to the Gold Lounge, or be accompanied by a parent or legally appointed guardian.\"}"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
