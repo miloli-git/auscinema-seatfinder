@@ -110,10 +110,52 @@ fixtures/` (`cinemas.json`, `sessions.midcin.json`, `seats.midcin-58337.json` (d
 wheelchair), `seats.broadw-456373.json` (recliner singles + sold)). Offline `node --test` parses
 them; `npm test -w @auscinema/adapter-hoyts` is green.
 
-## Reading Cinemas — ⚠️ planned (SPA, host unknown)
+## Reading Cinemas — ✅ implemented (Vista behind an AWS API-Gateway facade)
 
-- React SPA shell (~3KB) for all paths; API lives on another host. TODO: network capture to find
-  the API origin + session/seat endpoints.
+The readingcinemas.com.au React SPA (~3KB shell) reads `API_BASE_URL` from its `main.*.js` bundle:
+**`https://prod-api.readingcinemas.com.au`**. This is an AWS API-Gateway + Lambda facade over Vista
+(`data.settings.VistaUrl` = `prod-au-vista.readingcinemas.com.au`). The same API serves NZ/Angelika/
+State/US via `countryId` (AU=1, NZ=2, Angelika=3, State=4, US=5).
+
+### Auth — public bootstrap bearer token (no login, no subscription key)
+Every data route is behind a Lambda authorizer (raw `getcinemas` returns `401 {"Unauthorized"}`). The
+SPA boots by calling **`GET /settings/{countryId}`**, which returns a short-lived public Cognito access
+token at `data.settings.token`. That token is sent as `Authorization: Bearer <token>` on every other
+call. We fetch + cache it per adapter instance. Send a browser `User-Agent` + `Accept: application/json`.
+
+### Endpoints (all require the bearer token)
+- `GET /settings/1` → `{ data:{ settings:{ token, VistaUrl, defaultCinema, ... } } }` — bootstrap.
+- `GET /getcinemas?countryId=1` → `[ { slug, name, state, stateCode, latitude, prices, … } ]`. The
+  **cinema id is `slug`** (e.g. `auburn`); it keys the session + seat routes. 27 AU cinemas.
+- `GET /films?countryId=1&cinemaId={slug}&status=nowShowing` →
+  `{ data:[ { name, slug(=SPA film id), showdates:[ { date, showtypes:[ { type, amenities,
+  showtimes:[ { id, ScheduledFilmId(=Vista film id), date_time(+offset), auditorium, reservedSeating,
+  availableSeats, totalNumberOfSeats, type, soldout } ] } ] } ] } ] }`. Per-cinema feed carries ALL
+  movies + ALL dates; filter client-side by movie + date (cf. Hoyts). `ScheduledFilmId` is the portable
+  movie id; `slug` is the SPA film id used in the booking deep-link `/sessions/{sessionId}/{filmSlug}`.
+- `POST /ticketing/tickettypes` body
+  `{ cinemaId, sessionId, reservedSeating, requestType:"seatPlan", covidFlag:0, countryId:"1",
+  screenType, showLoyaltyTicket:true }` →
+  `{ data:{ ticketType:[…], seatLayout:[ rowObj{ "0":SeatCell,… } ], seatLayoutCategory:{cat:[rowIdx…]} } }`.
+  `requestType:"ticketTypesLength"` returns only a count; `requestType:"seatPlan"` returns the layout.
+  `SeatCell = { seatType:"Empty"|"Aisle"|"Sold"|"Companion"|"Special"|"Broken"|…, seatId, isAvailable,
+  isBooked, row, column, areaNumber, category, areaCategoryCode }`.
+
+### Geometry — EXPOSED (explicit grid coordinates)
+Each seat carries explicit Vista `row` and `column` ints — true geometry, not array order. Vista numbers
+`row` front→back **descending** (front row = highest) and `column` left→right **descending**; the adapter
+negates both so core gets higher=further-back and col increasing left→right (same encoding as Event).
+`seatType` "Empty" = a selectable seat; "Aisle" = structural gap → mapped to `spacer`. Status map:
+isBooked/"Sold"→sold, "Companion"→companion, "Special"→special, "Broken"/"House"→unavailable.
+
+### Adapter status
+`ReadingAdapter` **implemented** — `packages/adapters/reading/`. `Session.id` is encoded as
+`"{cinemaId}|{sessionId}|{screenType}|{reservedSeating}"` so `getSeatMap` can rebuild the seatPlan POST
+(the seat route needs more than a session id — cf. Hoyts). Areas are keyed by Vista `areaCategoryCode`.
+Fixtures: `packages/adapters/reading/fixtures/` (`settings.json` token-bootstrap, `cinemas.json`,
+`sessions.belmont.json`, `seats.belmont-190163.json` (Sold/Companion/Special/Broken/Aisle/Empty),
+`seats.auburn-128342.json`). Offline `node --test` parses them; `npm test -w @auscinema/adapter-reading`
+is green. Verified live end-to-end: 27 cinemas → sessions → 112-seat map with geometry.
 
 ## Village Cinemas — ⚠️ planned (Cloudflare-gated)
 

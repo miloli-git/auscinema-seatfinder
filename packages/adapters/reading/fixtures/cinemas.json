@@ -1,0 +1,238 @@
+[
+ {
+  "slug": "auburn",
+  "name": "Auburn",
+  "long_name": "Auburn",
+  "city": "Auburn",
+  "state": "New South Wales",
+  "stateCode": "NSW",
+  "zip": "2144",
+  "address": "100 Parramatta Road",
+  "address2": false,
+  "latitude": "-33.84730467",
+  "longitude": "151.0453498",
+  "phone": "(02) 9647 0900",
+  "fax": "",
+  "etix": 1,
+  "food_beverage": 1,
+  "multiple_ticket_type": 1,
+  "foodCounterContactNumber": "",
+  "theater_image": "https://d2apwscfoijj3f.cloudfront.net/wpdata/images/113802-m.jpg",
+  "dolbyAtmosImageUrl": "",
+  "pdfUrl": "",
+  "standardFlag": true,
+  "goldFlag": false,
+  "titanxcFlag": false,
+  "premiumFlag": true,
+  "titanluxeFlag": true,
+  "covidFlag": 1,
+  "logo_image": "",
+  "about_title": "",
+  "about_text": "",
+  "facebook_url": "https://www.facebook.com/ReadingCinemasAuburn",
+  "twitter_url": "",
+  "goldMinSeat": "",
+  "standardMinSeat": 20,
+  "premiumMinSeat": 20,
+  "TitanLuxeMinSeat": 20,
+  "TitanXcMinSeat": "",
+  "CloseKitchenCounter": 0,
+  "angBarPdf": "",
+  "stateCafePdf": "",
+  "sessionPdf": "",
+  "LicensePdf": "https://d2apwscfoijj3f.cloudfront.net/wpdata/files/1670281062_Online Alcohol Terms and Conditions 1.pdf",
+  "barcodePrint": "",
+  "amenities": [
+   {
+    "Title": "Group Bookings",
+    "Id": 4,
+    "Description": "<p>Group Bookings</p>\r\n"
+   },
+   {
+    "Title": "Recliner Seating",
+    "Id": 5,
+    "Description": "<p>Recliner Seating</p>\r\n"
+   },
+   {
+    "Title": "Titan Luxe",
+    "Id": 6,
+    "Description": "<p>Titan Luxe</p>\r\n"
+   }
+  ],
+  "prices": [
+   {
+    "name": "",
+    "prices": ""
+   }
+  ],
+  "loyalty_platform": "vista",
+  "reward_program": 0,
+  "country_name": "Australia",
+  "region": [],
+  "gmt_offset": "+10.00:00"
+ },
+ {
+  "slug": "belmont",
+  "name": "Belmont",
+  "long_name": "Belmont",
+  "city": "Belmont",
+  "state": "Western Australia",
+  "stateCode": "WA",
+  "zip": "6104",
+  "address": "Cnr Knutsford Ave & Fulham Street",
+  "address2": false,
+  "latitude": "-31.967618362",
+  "longitude": "115.93327045",
+  "phone": "(08) 6272 9900",
+  "fax": "",
+  "etix": 1,
+  "food_beverage": 1,
+  "multiple_ticket_type": 1,
+  "foodCounterContactNumber": "",
+  "theater_image": "https://d2apwscfoijj3f.cloudfront.net/wpdata/images/113755-m.jpg",
+  "dolbyAtmosImageUrl": "",
+  "pdfUrl": "https://d2apwscfoijj3f.cloudfront.net/wpdata/files/1716441501_A3 GL Menu 2024 WEB.pdf",
+  "standardFlag": false,
+  "goldFlag": true,
+  "titanxcFlag": true,
+  "premiumFlag": true,
+  "titanluxeFlag": false,
+  "covidFlag": 1,
+  "logo_image": "",
+  "about_title": "",
+  "about_text": "",
+  "facebook_url": "https://www.facebook.com/ReadingCinemasBelmont",
+  "twitter_url": "",
+  "goldMinSeat": 20,
+  "standardMinSeat": "",
+  "premiumMinSeat": 20,
+  "TitanLuxeMinSeat": "",
+  "TitanXcMinSeat": 20,
+  "CloseKitchenCounter": 0,
+  "angBarPdf": "",
+  "stateCafePdf": "",
+  "sessionPdf": "",
+  "LicensePdf": "https://d2apwscfoijj3f.cloudfront.net/wpdata/files/1670281062_Online Alcohol Terms and Conditions 1.pdf",
+  "barcodePrint": "",
+  "amenities": [
+   {
+    "Title": "Fully Licensed",
+    "Id": 2,
+    "Description": "<p>Fully Licensed</p>\r\n"
+   },
+   {
+    "Title": "Gold Lounge",
+    "Id": 3,
+    "Description": "<p>Gold Lounge</p>\r\n"
+   },
+   {
+    "Title": "Group Bookings",
+    "Id": 4,
+    "Description": "<p>Group Bookings</p>\r\n"
+   },
+   {
+    "Title": "Recliner Seating",
+    "Id": 5,
+    "Description": "<p>Recliner Seating</p>\r\n"
+   }
+  ],
+  "prices": [
+   {
+    "name": "",
+    "prices": ""
+   }
+  ],
+  "loyalty_platform": "vista",
+  "reward_program": 0,
+  "country_name": "Australia",
+  "region": [],
+  "gmt_offset": "+08.00:00"
+ },
+ {
+  "slug": "newmarket",
+  "name": "Newmarket",
+  "long_name": "Newmarket",
+  "city": "Brisbane",
+  "state": "Queensland",
+  "stateCode": "QLD",
+  "zip": "4051",
+  "address": "400 Newmarket Rd",
+  "address2": false,
+  "latitude": "-27.4371697",
+  "longitude": "153.0080622",
+  "phone": "(07) 3147 8220",
+  "fax": "",
+  "etix": 1,
+  "food_beverage": 1,
+  "multiple_ticket_type": 1,
+  "foodCounterContactNumber": "",
+  "theater_image": "https://d2apwscfoijj3f.cloudfront.net/wpdata/images/113774-m.jpg",
+  "dolbyAtmosImageUrl": "https://d2apwscfoijj3f.cloudfront.net/assets/images/dolbyatmos-icon.png",
+  "pdfUrl": "https://d2apwscfoijj3f.cloudfront.net/wpdata/files/1716441587_A3 GL Menu 2024 WEB.pdf",
+  "standardFlag": true,
+  "goldFlag": true,
+  "titanxcFlag": false,
+  "premiumFlag": false,
+  "titanluxeFlag": true,
+  "covidFlag": 1,
+  "logo_image": "",
+  "about_title": "",
+  "about_text": "",
+  "facebook_url": "https://www.facebook.com/Readingnewmarket",
+  "twitter_url": "",
+  "goldMinSeat": 20,
+  "standardMinSeat": 20,
+  "premiumMinSeat": "",
+  "TitanLuxeMinSeat": 20,
+  "TitanXcMinSeat": "",
+  "CloseKitchenCounter": 0,
+  "angBarPdf": "",
+  "stateCafePdf": "",
+  "sessionPdf": "",
+  "LicensePdf": "https://d2apwscfoijj3f.cloudfront.net/wpdata/files/1670281062_Online Alcohol Terms and Conditions 1.pdf",
+  "barcodePrint": "",
+  "amenities": [
+   {
+    "Title": "Dolby Atmos",
+    "Id": 1,
+    "Description": "<p>Dolby Atmos</p>\r\n"
+   },
+   {
+    "Title": "Fully Licensed",
+    "Id": 2,
+    "Description": "<p>Fully Licensed</p>\r\n"
+   },
+   {
+    "Title": "Gold Lounge",
+    "Id": 3,
+    "Description": "<p>Gold Lounge</p>\r\n"
+   },
+   {
+    "Title": "Group Bookings",
+    "Id": 4,
+    "Description": "<p>Group Bookings</p>\r\n"
+   },
+   {
+    "Title": "Recliner Seating",
+    "Id": 5,
+    "Description": "<p>Recliner Seating</p>\r\n"
+   },
+   {
+    "Title": "Titan Luxe",
+    "Id": 6,
+    "Description": "<p>Titan Luxe</p>\r\n"
+   }
+  ],
+  "prices": [
+   {
+    "name": "",
+    "prices": ""
+   }
+  ],
+  "loyalty_platform": "vista",
+  "reward_program": 0,
+  "country_name": "Australia",
+  "region": [],
+  "gmt_offset": "+10.00:00"
+ }
+]
