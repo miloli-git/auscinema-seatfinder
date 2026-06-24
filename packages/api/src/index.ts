@@ -510,6 +510,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
   app.get("/together", async (req: FastifyRequest) => {
     const q = req.query as Query;
     const chain = reqStr(q, "chain"); // 400 before any DB touch when missing
+    resolveAdapter(adapters, chain); // 400 on unknown chain (registry lookup only — no upstream call)
     const db = requirePool(); // 503 when the pool is not configured
 
     const movieId = optStr(q, "movieId");
@@ -525,8 +526,10 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const { where, params } = buildSessionFilter({ chain, movieId, cinemaIds, dateFrom, dateTo });
     const sessionsRes = await db.query<SessionRow>(
       `SELECT id, chain, movie_id, movie_name, cinema_id, cinema_name,
-              date::text AS date, start_time, format, screen, seats_available,
-              booking_url, seat_allocation, fetched_at
+              date::text AS date,
+              to_char(start_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS start_time,
+              format, screen, seats_available, booking_url, seat_allocation,
+              to_char(fetched_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS fetched_at
          FROM sessions
         WHERE ${where}`,
       params,
@@ -608,15 +611,24 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const where = chain !== undefined ? "WHERE chain = $1" : "";
     const params = chain !== undefined ? [chain] : [];
 
+    // Distinct by (chain, movie_id) / (chain, cinema_id) per contract — NOT by (id,name,chain), so a
+    // name that drifts for the same id across cached rows still collapses to one entry. DISTINCT ON
+    // picks one deterministic name per key (lowest non-null name), then the outer query sorts by name,id.
     const movies = await db.query<{ id: string; name: string | null; chain: string }>(
-      `SELECT DISTINCT movie_id AS id, movie_name AS name, chain
-         FROM sessions ${where}
+      `SELECT id, name, chain FROM (
+         SELECT DISTINCT ON (chain, movie_id) movie_id AS id, movie_name AS name, chain
+           FROM sessions ${where}
+          ORDER BY chain, movie_id, movie_name NULLS LAST
+       ) m
         ORDER BY name NULLS LAST, id`,
       params,
     );
     const cinemas = await db.query<{ id: string; name: string | null; chain: string }>(
-      `SELECT DISTINCT cinema_id AS id, cinema_name AS name, chain
-         FROM sessions ${where}
+      `SELECT id, name, chain FROM (
+         SELECT DISTINCT ON (chain, cinema_id) cinema_id AS id, cinema_name AS name, chain
+           FROM sessions ${where}
+          ORDER BY chain, cinema_id, cinema_name NULLS LAST
+       ) c
         ORDER BY name NULLS LAST, id`,
       params,
     );
