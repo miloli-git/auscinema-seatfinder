@@ -1,19 +1,15 @@
 import { useMemo } from "react";
 import type { ScoredSeatMap, Seat } from "../types";
+import { seatQuality } from "../format";
 
 interface Props {
   map: ScoredSeatMap;
   topN: number;
 }
 
-/** Lerp a 0–100 score onto a cool→hot fill. Higher score = brighter/greener. */
-function scoreFill(score: number): string {
-  const t = Math.max(0, Math.min(1, score / 100));
-  // weak (slate) -> strong (amber/green). Hue 210 (blue) -> 145 (green).
-  const hue = 210 - t * 65;
-  const light = 26 + t * 30;
-  const sat = 30 + t * 45;
-  return `hsl(${hue} ${sat}% ${light}%)`;
+/** SOLD / unavailable / special / companion all read as "not selectable" on the heatmap. */
+function isTaken(status: Seat["status"]): boolean {
+  return status === "sold" || status === "unavailable" || status === "special" || status === "companion";
 }
 
 export function SeatMapView({ map, topN }: Props) {
@@ -48,8 +44,6 @@ export function SeatMapView({ map, topN }: Props) {
   }
 
   const cols = bounds.maxCol - bounds.minCol + 1;
-
-  // Group seats by normalised row, indexed by column offset.
   const rows = new Map<number, (Seat | undefined)[]>();
   for (const s of map.seats) {
     const r = s.row - bounds.minRow;
@@ -61,82 +55,90 @@ export function SeatMapView({ map, topN }: Props) {
     arr[s.col - bounds.minCol] = s;
   }
   const orderedRows = [...rows.entries()].sort((a, b) => a[0] - b[0]);
-
-  const areaName = (areaId: string) =>
-    map.areas.find((a) => a.id === areaId)?.name ?? "";
+  const areaName = (areaId: string) => map.areas.find((a) => a.id === areaId)?.name ?? "";
 
   return (
-    <div className="seatmap">
-      <div className="seatmap__screen">SCREEN</div>
-
-      <div className="seatmap__grid" role="grid" aria-label="Seat map">
-        {orderedRows.map(([r, arr]) => {
-          const label = arr.find((s) => s)?.rowLabel ?? "";
-          return (
-            <div className="seatrow" key={r} role="row">
-              <span className="seatrow__label">{label}</span>
-              <div className="seatrow__seats" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-                {arr.map((seat, ci) => {
-                  if (!seat || seat.status === "spacer") {
-                    return <span key={ci} className="seat seat--gap" aria-hidden />;
-                  }
-                  const isAvail = seat.status === "available";
-                  const score = scoreById.get(seat.id);
-                  const isTop = topIds.has(seat.id);
-                  const style =
-                    isAvail && typeof score === "number"
-                      ? { background: scoreFill(score) }
-                      : undefined;
-                  const cls = [
-                    "seat",
-                    `seat--${seat.status}`,
-                    isTop ? "seat--top" : "",
-                    seat.paired ? "seat--paired" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ");
-                  const title = [
-                    seat.name ?? `${seat.rowLabel}${seat.col}`,
-                    areaName(seat.areaId),
-                    isAvail ? `score ${score ?? "-"}` : seat.status,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ");
-                  return (
-                    <span key={ci} className={cls} style={style} title={title} role="gridcell">
-                      {isTop ? "★" : ""}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+    <>
+      <div className="screen" aria-hidden="true">
+        SCREEN
       </div>
 
-      <div className="seatmap__footer">
-        <div className="legend">
-          <span className="legend__item">
-            <span className="swatch" style={{ background: scoreFill(95) }} /> top score
-          </span>
-          <span className="legend__item">
-            <span className="swatch" style={{ background: scoreFill(40) }} /> lower score
-          </span>
-          <span className="legend__item">
-            <span className="swatch swatch--sold" /> sold
-          </span>
-          <span className="legend__item">
-            <span className="swatch swatch--top" /> ★ best pick
-          </span>
+      <div className="mapscroll">
+        <div
+          className="grid"
+          role="img"
+          aria-label="Auditorium seat map. Best available seats are outlined; colour shows seat quality from green (best) to dim (poor)."
+        >
+          {orderedRows.map(([r, arr]) => {
+            const label = arr.find((s) => s)?.rowLabel ?? "";
+            return (
+              <div className="row" key={r}>
+                <span className="row__lab">{label}</span>
+                <div className="seats">
+                  {arr.map((seat, ci) => {
+                    if (!seat || seat.status === "spacer") {
+                      return <span key={ci} className="seat" data-q="gap" aria-hidden />;
+                    }
+                    if (isTaken(seat.status)) {
+                      return <span key={ci} className="seat" data-q="sold" aria-hidden />;
+                    }
+                    const score = scoreById.get(seat.id);
+                    const q = typeof score === "number" ? seatQuality(score) : "weak";
+                    const isTop = topIds.has(seat.id);
+                    const title = [
+                      seat.name ?? `${seat.rowLabel}${seat.col}`,
+                      areaName(seat.areaId),
+                      typeof score === "number" ? `score ${score}` : seat.status,
+                      isTop ? "best pick" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ");
+                    return (
+                      <span
+                        key={ci}
+                        className="seat"
+                        data-q={q}
+                        {...(isTop ? { "data-best": "" } : {})}
+                        {...(seat.paired ? { "data-paired": "" } : {})}
+                        title={title}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <div className="areas-list">
+      </div>
+
+      <div className="hero__foot">
+        <span className="ramp">
+          poor
+          <span className="ramp__bar" aria-hidden="true">
+            <i style={{ background: "var(--q-weak)" }} />
+            <i style={{ background: "var(--q-ok)" }} />
+            <i style={{ background: "var(--q-good)" }} />
+            <i style={{ background: "var(--q-great)" }} />
+            <i style={{ background: "var(--q-elite)" }} />
+          </span>
+          best
+        </span>
+        <span className="legend">
+          <span>
+            <span className="sw sw--best" /> best pick
+          </span>
+          <span>
+            <span className="sw sw--sold" /> sold
+          </span>
+        </span>
+        <span className="classes">
           {map.areas.map((a) => (
-            <span key={a.id} className="tag tag--area">
-              {a.name} <small>({a.kind})</small>
+            <span key={a.id} className="tag">
+              {a.name}
             </span>
           ))}
-        </div>
+        </span>
       </div>
-    </div>
+    </>
   );
 }

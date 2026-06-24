@@ -18,3 +18,7 @@ deploy/watch.config.json
 # local-only review output (never publish; issues are the public record)
 reviews/
 docs/session-log.md
+
+# design review: generated + local-only
+design/mock-v1.static.html
+design/critique-*.md

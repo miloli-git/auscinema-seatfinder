@@ -4,7 +4,7 @@ import { SessionCard } from "./components/SessionCard";
 import { SeatMapView } from "./components/SeatMapView";
 import { fetchBest, fetchSeatMap, type ScoringParams, API_BASE } from "./api";
 import type { BestResponse, ScoredSeatMap, Session } from "./types";
-import { withinWindow } from "./format";
+import { chainLabel, formatLabel, formatTime, withinWindow } from "./format";
 
 function scoringOf(v: FormValues): ScoringParams {
   return {
@@ -21,6 +21,8 @@ export function App() {
   const [result, setResult] = useState<BestResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refineOpen, setRefineOpen] = useState(true);
+  const [summary, setSummary] = useState("");
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [seatMap, setSeatMap] = useState<ScoredSeatMap | null>(null);
@@ -35,6 +37,28 @@ export function App() {
     if (!result) return [];
     return result.sessions.filter((r) => withinWindow(r.session, values.from, values.to));
   }, [result, values.from, values.to]);
+
+  const selectedRanked = useMemo(
+    () => visibleSessions.find((r) => r.session.id === selectedId) ?? null,
+    [visibleSessions, selectedId],
+  );
+
+  // Load (or switch to) a session's seat map. Hero model: always select, never toggle closed.
+  const openSession = async (session: Session, scoring: ScoringParams) => {
+    if (selectedId === session.id) return;
+    setSelectedId(session.id);
+    setSeatMap(null);
+    setSeatError(null);
+    setSeatLoading(true);
+    try {
+      const map = await fetchSeatMap(session.chain, session.id, scoring);
+      setSeatMap(map);
+    } catch (err) {
+      setSeatError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSeatLoading(false);
+    }
+  };
 
   const runSearch = async () => {
     setLoading(true);
@@ -55,6 +79,10 @@ export function App() {
         ...scoring,
       });
       setResult(res);
+      setRefineOpen(false);
+      // Auto-select the top-ranked visible session so the hero is never empty.
+      const first = res.sessions.find((r) => withinWindow(r.session, values.from, values.to));
+      if (first) void openSession(first.session, scoring);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -62,105 +90,129 @@ export function App() {
     }
   };
 
-  const selectSession = async (session: Session) => {
-    const sessionId = session.id;
-    if (selectedId === sessionId) {
-      setSelectedId(null);
-      setSeatMap(null);
-      return;
-    }
-    setSelectedId(sessionId);
-    setSeatMap(null);
-    setSeatError(null);
-    setSeatLoading(true);
-    try {
-      const map = await fetchSeatMap(session.chain, session.id, lastScoring);
-      setSeatMap(map);
-    } catch (err) {
-      setSeatError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSeatLoading(false);
-    }
-  };
+  const sel = selectedRanked?.session;
 
   return (
     <div className="app">
-      <header className="app__header">
+      <header className="topbar">
         <div className="brand">
           <span className="brand__mark">◐</span>
-          <div>
-            <h1 className="brand__title">AusCinema Seat Finder</h1>
-            <p className="brand__tag">
-              Rank sessions by the best seat in the house, then book on the chain.
-            </p>
-          </div>
+          <span className="brand__name">
+            AusCinema <b>Seat Finder</b>
+          </span>
         </div>
+        <button
+          type="button"
+          className="btn btn--ghost"
+          aria-expanded={refineOpen}
+          onClick={() => setRefineOpen((o) => !o)}
+        >
+          <span className="crumb">{summary || "Set up a search"}</span>
+          <span aria-hidden="true">· Refine {refineOpen ? "▴" : "▾"}</span>
+        </button>
       </header>
 
-      <main className="app__main">
-        <aside className="app__sidebar">
-          <QueryForm values={values} onChange={setValues} onSubmit={runSearch} loading={loading} />
-          <p className="api-base">API · {API_BASE || "same-origin (proxy)"}</p>
-        </aside>
+      <div className="refine" hidden={!refineOpen}>
+        <QueryForm
+          values={values}
+          onChange={setValues}
+          onSubmit={runSearch}
+          loading={loading}
+          onSummary={setSummary}
+        />
+        <p className="api-base">API · {API_BASE || "same-origin (proxy)"}</p>
+      </div>
 
-        <section className="app__results">
-          {error && (
-            <div className="banner banner--error" role="alert">
-              <strong>Search failed.</strong> {error}
+      {error && (
+        <div className="banner banner--error" role="alert">
+          <strong>Search failed.</strong> {error}
+        </div>
+      )}
+
+      {loading && <div className="empty">Searching sessions…</div>}
+
+      {!loading && !result && !error && (
+        <div className="empty">
+          <p>
+            <strong>Find a great seat.</strong>
+          </p>
+          <p className="hint">
+            Pick a chain, one or more cinemas, a date and a movie above, then search. Every session is
+            ranked by its best available seat, with a heat-mapped seat plan.
+          </p>
+        </div>
+      )}
+
+      {!loading && result && (
+        <div className="stage">
+          <section aria-label="Ranked sessions">
+            <div className="rail__head">
+              <h2>
+                {visibleSessions.length} session{visibleSessions.length === 1 ? "" : "s"}
+              </h2>
+              <span className="sub">best seat, ranked</span>
             </div>
-          )}
-
-          {!result && !error && !loading && (
-            <div className="empty">
-              <p>Pick a chain, one or more cinemas, a date and a movie, then search.</p>
-              <p className="hint">
-                Start with Event Cinemas, choose a cinema near you, set today's date, then pick
-                what's playing.
-              </p>
-            </div>
-          )}
-
-          {loading && <div className="empty">Searching sessions…</div>}
-
-          {result && (
-            <>
-              <div className="results__head">
-                <h2>
-                  {visibleSessions.length} session{visibleSessions.length === 1 ? "" : "s"}
-                </h2>
-                {result.skipped.length > 0 && (
-                  <span className="muted">{result.skipped.length} skipped (no seat allocation)</span>
-                )}
-              </div>
-
-              {visibleSessions.length === 0 && (
-                <p className="hint">No sessions match the time window.</p>
-              )}
-
-              <div className="results__list">
+            {visibleSessions.length === 0 ? (
+              <p className="hint">No sessions match the time window.</p>
+            ) : (
+              <div className="rail">
                 {visibleSessions.map((r) => (
-                  <div key={r.session.id}>
-                    <SessionCard
-                      ranked={r}
-                      selected={selectedId === r.session.id}
-                      onSelect={(session) => void selectSession(session)}
-                    />
-                    {selectedId === r.session.id && (
-                      <div className="seatpanel">
-                        {seatLoading && <p className="hint">Loading seat map…</p>}
-                        {seatError && (
-                          <p className="hint hint--warn">Seat map failed: {seatError}</p>
-                        )}
-                        {seatMap && <SeatMapView map={seatMap} topN={lastTopN} />}
-                      </div>
-                    )}
-                  </div>
+                  <SessionCard
+                    key={r.session.id}
+                    ranked={r}
+                    selected={selectedId === r.session.id}
+                    onSelect={(s) => void openSession(s, lastScoring)}
+                  />
                 ))}
               </div>
-            </>
-          )}
-        </section>
-      </main>
+            )}
+            {result.skipped.length > 0 && (
+              <p className="hint">{result.skipped.length} skipped (no seat allocation)</p>
+            )}
+          </section>
+
+          <section className="hero" aria-label="Seat map">
+            {sel ? (
+              <>
+                <div className="hero__head">
+                  <h3 className="hero__title">
+                    {formatTime(sel.startTime)} · {formatLabel(sel.format)}
+                    <small>
+                      {sel.cinemaName || sel.cinemaId}
+                      {sel.screenName ? ` · Screen ${sel.screenName}` : ""}
+                      {typeof sel.seatsAvailable === "number" ? ` · ${sel.seatsAvailable} seats free` : ""}
+                    </small>
+                  </h3>
+                  <a
+                    className="btn btn--primary hero__book"
+                    href={sel.bookingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Book on {chainLabel(sel.chain)} ↗
+                  </a>
+                </div>
+                {seatLoading && <p className="hero__msg hint">Loading seat map…</p>}
+                {seatError && <p className="hero__msg hint hint--warn">Seat map failed: {seatError}</p>}
+                {seatMap && !seatLoading && <SeatMapView map={seatMap} topN={lastTopN} />}
+              </>
+            ) : (
+              <div className="empty">Pick a session to see its seat map.</div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {sel && (
+        <div className="stickybook stickybook--on">
+          <span className="lbl">
+            Best seat <b>{selectedRanked?.bestScore}</b> · {formatTime(sel.startTime)}
+          </span>
+          <a className="btn btn--primary" href={sel.bookingUrl} target="_blank" rel="noopener noreferrer">
+            Book ↗
+          </a>
+        </div>
+      )}
     </div>
   );
 }

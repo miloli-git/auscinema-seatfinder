@@ -59,10 +59,22 @@ export function chainLabel(chain: Chain): string {
   return CHAIN_LABEL[chain];
 }
 
-/** Map a 0–100 score to a colour band class. */
-export function scoreBand(score: number): "elite" | "good" | "ok" | "weak" {
+/** Session score pill band (3 readable tiers for the ranked rail). */
+export function scoreBand(score: number): "elite" | "great" | "good" {
   if (score >= 85) return "elite";
-  if (score >= 70) return "good";
-  if (score >= 50) return "ok";
+  if (score >= 70) return "great";
+  return "good";
+}
+
+/**
+ * Seat-quality bucket for the heatmap. Five discrete steps read far better than a continuous
+ * blue->green lerp (the v0 problem: every available seat looked the same green). Maps to the
+ * --q-* tokens via a `data-q` attribute.
+ */
+export function seatQuality(score: number): "elite" | "great" | "good" | "ok" | "weak" {
+  if (score >= 88) return "elite";
+  if (score >= 74) return "great";
+  if (score >= 58) return "good";
+  if (score >= 40) return "ok";
   return "weak";
 }

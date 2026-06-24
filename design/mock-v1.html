@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AusCinema Seat Finder — rebuild mock v1</title>
+<style>
+/* tokens (inlined from tokens.css for a portable render) */
+:root{
+  --bg:#0a0c10;--bg-2:#0f1219;--panel:#141823;--panel-2:#1b2030;--line:#28303f;--line-2:#353f52;
+  --text:#eef2f8;--text-2:#aeb7c6;--muted:#818b9c;
+  --accent:#f5b941;--accent-ink:#160f00;--info:#5aa9ff;
+  --q-elite:#2fd27a;--q-great:#8fd14a;--q-good:#f5b941;--q-ok:#f08a4b;--q-weak:#4a566b;
+  --q-sold:#1c2330;--q-best-ring:#ffffff;
+  --error:#ff6b6b;--error-bg:rgba(255,107,107,.12);
+  --t-xs:12px;--t-sm:14px;--t-base:16px;--t-md:20px;--t-lg:25px;--t-xl:32px;--t-2xl:40px;
+  --font:ui-sans-serif,system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,monospace;
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-pill:999px;
+  --shadow:0 10px 34px rgba(0,0,0,.45);--ease:cubic-bezier(.22,1,.36,1);--tap:44px;
+}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%}
+body{
+  background:radial-gradient(1100px 520px at 88% -12%, #161b27 0%, var(--bg) 58%);
+  color:var(--text);font:var(--t-base)/1.55 var(--font);-webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:4px}
+
+/* shell */
+.wrap{max-width:1240px;margin:0 auto;padding:var(--sp-5) var(--sp-4) var(--sp-7)}
+.topbar{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap;margin-bottom:var(--sp-5)}
+.brand{display:flex;align-items:center;gap:var(--sp-3);margin-right:auto}
+.brand__mark{font-size:30px;color:var(--accent);line-height:1;filter:drop-shadow(0 0 10px rgba(245,185,65,.35))}
+.brand__name{font-size:var(--t-md);font-weight:750;letter-spacing:-.02em}
+.brand__name b{color:var(--accent);font-weight:750}
+
+/* compact search bar (progressive disclosure: detail tuning lives behind "Refine") */
+.searchbar{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-pill);padding:var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4)}
+.searchbar .crumb{font-size:var(--t-sm);color:var(--text-2);white-space:nowrap}
+.searchbar .crumb b{color:var(--text);font-weight:650}
+.searchbar .dot{color:var(--line-2)}
+.btn{font:inherit;border:1px solid transparent;border-radius:var(--r-pill);cursor:pointer;
+  min-height:var(--tap);padding:0 var(--sp-4);display:inline-flex;align-items:center;gap:var(--sp-2);
+  text-decoration:none;transition:filter .14s var(--ease),background .14s var(--ease),border-color .14s var(--ease)}
+.btn--ghost{background:var(--panel-2);border-color:var(--line);color:var(--text-2);font-size:var(--t-sm)}
+.btn--ghost:hover{border-color:var(--line-2);color:var(--text)}
+.btn--primary{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.btn--primary:hover{filter:brightness(1.07)}
+
+/* stage: ranked rail + hero seat map */
+.stage{display:grid;grid-template-columns:320px 1fr;gap:var(--sp-5);margin-top:var(--sp-5);align-items:start}
+@media (max-width:900px){.stage{grid-template-columns:1fr}}
+
+.rail__head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 var(--sp-3)}
+.rail__head h2{margin:0;font-size:var(--t-md)}
+.rail__head .sub{color:var(--muted);font-size:var(--t-xs)}
+.rail{display:flex;flex-direction:column;gap:var(--sp-2)}
+@media (max-width:900px){.rail{flex-direction:row;overflow-x:auto;padding-bottom:var(--sp-2);scroll-snap-type:x mandatory}}
+
+.sess{display:flex;align-items:center;gap:var(--sp-3);width:100%;text-align:left;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-3);
+  color:inherit;font:inherit;transition:border-color .14s var(--ease),background .14s var(--ease)}
+.sess:hover{border-color:var(--line-2)}
+.sess[aria-pressed="true"]{border-color:var(--accent);background:var(--panel-2)}
+@media (max-width:900px){.sess{min-width:230px;scroll-snap-align:start}}
+.scorepill{flex:none;width:52px;height:52px;border-radius:10px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;background:var(--panel-2);border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.scorepill b{font-size:var(--t-lg);font-weight:800;line-height:1}
+.scorepill span{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.scorepill[data-band="elite"]{background:rgba(47,210,122,.14);border-color:rgba(47,210,122,.5)}
+.scorepill[data-band="elite"] b{color:var(--q-elite)}
+.scorepill[data-band="great"]{background:rgba(143,209,74,.13);border-color:rgba(143,209,74,.45)}
+.scorepill[data-band="great"] b{color:var(--q-great)}
+.scorepill[data-band="good"] b{color:var(--q-good)}
+.sess__time{font-size:var(--t-md);font-weight:700;line-height:1.1}
+.sess__meta{display:flex;gap:var(--sp-2);align-items:center;margin-top:2px;flex-wrap:wrap}
+.tag{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:1px var(--sp-2);font-size:var(--t-xs)}
+.sess__sub{color:var(--muted);font-size:var(--t-xs);margin-top:3px}
+
+/* HERO seat map */
+.hero{background:linear-gradient(180deg,var(--panel) 0%,var(--bg-2) 100%);
+  border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden}
+.hero__head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);
+  padding:var(--sp-5) var(--sp-5) var(--sp-4)}
+.hero__title{margin:0;font-size:var(--t-lg);letter-spacing:-.01em}
+.hero__title small{display:block;color:var(--muted);font-size:var(--t-sm);font-weight:400;margin-top:2px}
+.hero__book{flex:none}
+@media (max-width:560px){.hero__book{display:none}}/* mobile uses the sticky bar */
+
+.screen{margin:0 var(--sp-5);text-align:center;letter-spacing:.55em;font-size:var(--t-xs);color:var(--info);
+  padding:var(--sp-2);background:linear-gradient(180deg,rgba(90,169,255,.22),transparent);
+  border-top:2px solid rgba(90,169,255,.55);border-radius:50% 50% 6px 6px/70% 70% 6px 6px}
+.mapscroll{overflow-x:auto;padding:var(--sp-4) var(--sp-5) 0;-webkit-overflow-scrolling:touch}
+.grid{display:flex;flex-direction:column;gap:5px;width:max-content;margin:0 auto}
+.row{display:flex;align-items:center;gap:var(--sp-2)}
+.row__lab{width:18px;text-align:center;color:var(--muted);font-size:var(--t-xs);flex:none}
+.seats{display:flex;gap:4px}
+.seat{width:22px;height:22px;border-radius:5px;flex:none}
+.seat[data-q="elite"]{background:var(--q-elite)}
+.seat[data-q="great"]{background:var(--q-great)}
+.seat[data-q="good"]{background:var(--q-good)}
+.seat[data-q="ok"]{background:var(--q-ok)}
+.seat[data-q="weak"]{background:var(--q-weak)}
+.seat[data-q="sold"]{background:var(--q-sold)}
+.seat[data-q="gap"]{background:transparent}
+.seat[data-best]{outline:2px solid var(--q-best-ring);outline-offset:1px;box-shadow:0 0 0 1px var(--bg-2)}
+
+.hero__foot{display:flex;flex-wrap:wrap;gap:var(--sp-4) var(--sp-5);align-items:center;
+  padding:var(--sp-4) var(--sp-5) var(--sp-5)}
+.ramp{display:flex;align-items:center;gap:var(--sp-2);font-size:var(--t-xs);color:var(--text-2)}
+.ramp__bar{display:flex;border-radius:var(--r-pill);overflow:hidden;border:1px solid var(--line)}
+.ramp__bar i{width:26px;height:12px;display:block}
+.legend{display:flex;gap:var(--sp-4);flex-wrap:wrap;font-size:var(--t-xs);color:var(--text-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:13px;height:13px;border-radius:4px;display:inline-block}
+.sw--sold{background:var(--q-sold)}
+.sw--best{outline:2px solid #fff;outline-offset:-1px;background:transparent}
+.classes{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-left:auto}
+
+/* mobile sticky book (thumb zone) */
+.stickybook{position:fixed;left:0;right:0;bottom:0;display:none;gap:var(--sp-3);align-items:center;
+  padding:var(--sp-3) var(--sp-4);background:rgba(10,12,16,.92);backdrop-filter:blur(8px);border-top:1px solid var(--line)}
+.stickybook .lbl{font-size:var(--t-sm);color:var(--text-2)}
+.stickybook .lbl b{color:var(--text)}
+.stickybook .btn{margin-left:auto;flex:none}
+@media (max-width:560px){.stickybook{display:flex} .wrap{padding-bottom:84px}}
+
+.note{margin:var(--sp-5) 0 0;color:var(--muted);font-size:var(--t-xs)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand"><span class="brand__mark">◐</span><span class="brand__name">AusCinema <b>Seat Finder</b></span></div>
+    <div class="searchbar" role="group" aria-label="Current search">
+      <span class="crumb"><b>Toy Story 5</b></span><span class="dot">·</span>
+      <span class="crumb">Event <b>George St</b></span><span class="dot">·</span>
+      <span class="crumb">Tonight</span>
+      <button class="btn btn--ghost" type="button">Refine ▾</button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <!-- ranked session rail -->
+    <section aria-label="Ranked sessions">
+      <div class="rail__head"><h2>6 sessions</h2><span class="sub">best seat, ranked</span></div>
+      <div class="rail" id="rail"></div>
+    </section>
+
+    <!-- HERO seat map -->
+    <section class="hero" aria-label="Seat map for selected session">
+      <div class="hero__head">
+        <h3 class="hero__title">7:00 PM · 4DX<small>George Street · Screen 8 · 120 seats free</small></h3>
+        <a class="btn btn--primary hero__book" href="#">Book on Event Cinemas ↗</a>
+      </div>
+      <div class="screen" aria-hidden="true">SCREEN</div>
+      <div class="mapscroll"><div class="grid" id="grid" role="img" aria-label="Auditorium seat map. Best available seats are outlined; colour shows seat quality from green (best) to dim (poor)."></div></div>
+      <div class="hero__foot">
+        <span class="ramp">poor
+          <span class="ramp__bar"><i style="background:var(--q-weak)"></i><i style="background:var(--q-ok)"></i><i style="background:var(--q-good)"></i><i style="background:var(--q-great)"></i><i style="background:var(--q-elite)"></i></span>
+          best</span>
+        <span class="legend"><span><span class="sw sw--best"></span>best pick</span><span><span class="sw sw--sold"></span>sold</span></span>
+        <span class="classes"><span class="tag">Standard</span><span class="tag">Recliner</span><span class="tag">Gold Class</span></span>
+      </div>
+    </section>
+  </div>
+
+  <p class="note">Rebuild mock v1 · seat-map-as-hero · heatmap computed from depth + centrality so quality reads at a glance. Mobile: rail scrolls horizontally, map scrolls inside its own box (no page overflow), book button sticks to the thumb zone.</p>
+</div>
+
+<div class="stickybook"><span class="lbl">Best seat <b>94</b> · 7:00 PM</span><a class="btn btn--primary" href="#">Book ↗</a></div>
+
+<script>
+// Ranked sessions (sample)
+const sessions=[
+  {t:"7:00 PM",fmt:"4DX",cin:"George Street",free:120,score:94,band:"elite"},
+  {t:"6:00 PM",fmt:"Gold Class",cin:"George Street",free:50,score:88,band:"great"},
+  {t:"8:30 PM",fmt:"Gold Class",cin:"George Street",free:49,score:88,band:"great"},
+  {t:"6:15 PM",fmt:"V-Max",cin:"George Street",free:144,score:86,band:"great"},
+  {t:"7:00 PM",fmt:"Standard",cin:"George Street",free:60,score:69,band:"good"},
+  {t:"9:10 PM",fmt:"Standard",cin:"George Street",free:31,score:61,band:"good"},
+];
+const rail=document.getElementById("rail");
+sessions.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.className="sess";b.type="button";b.setAttribute("aria-pressed",i===0?"true":"false");
+  b.innerHTML=`<span class="scorepill" data-band="${s.band}"><b>${s.score}</b><span>best</span></span>
+    <span><span class="sess__time">${s.t}</span>
+    <span class="sess__meta"><span class="tag">${s.fmt}</span></span>
+    <span class="sess__sub">${s.cin} · ${s.free} free</span></span>`;
+  b.onclick=()=>{document.querySelectorAll(".sess").forEach(x=>x.setAttribute("aria-pressed","false"));b.setAttribute("aria-pressed","true");};
+  rail.appendChild(b);
+});
+
+// Seat heatmap — compute a score per seat from depth + centrality (mirrors the real scorer),
+// then bucket into the quality ramp so "good seats glow". Deterministic, no randomness.
+const ROWS="ABCDEFGHJKLMNP".split(""), COLS=20, target=0.62;
+const grid=document.getElementById("grid");
+const bucket=v=>v>=.88?"elite":v>=.74?"great":v>=.58?"good":v>=.4?"ok":"weak";
+// a few deterministic "sold" + aisle gaps
+const sold=new Set(["A3","A4","B11","C11","D11","H8","H9","K2","M15","N6","N7","P12","F18","G18"]);
+const gapCols=new Set([10]); // centre aisle
+let best=[];
+ROWS.forEach((r,ri)=>{
+  const depth=ri/(ROWS.length-1);
+  for(let c=0;c<COLS;c++){
+    const centre=(COLS-1)/2, central=1-Math.abs(c-centre)/centre;
+    const score=Math.max(0,1-(Math.abs(depth-target)*1.15)-((1-central)*0.55));
+    best.push({r:r+(c+1),score,ri,c});
+  }
+});
+const top=new Set(best.filter(s=>!sold.has(s.r)).sort((a,b)=>b.score-a.score).slice(0,5).map(s=>s.r));
+ROWS.forEach((r,ri)=>{
+  const row=document.createElement("div");row.className="row";
+  row.innerHTML=`<span class="row__lab">${r}</span>`;
+  const seats=document.createElement("div");seats.className="seats";
+  const depth=ri/(ROWS.length-1);
+  for(let c=0;c<COLS;c++){
+    const id=r+(c+1), el=document.createElement("span");el.className="seat";
+    if(gapCols.has(c)){el.dataset.q="gap";}
+    else if(sold.has(id)){el.dataset.q="sold";}
+    else{
+      const centre=(COLS-1)/2, central=1-Math.abs(c-centre)/centre;
+      const score=Math.max(0,1-(Math.abs(depth-target)*1.15)-((1-central)*0.55));
+      el.dataset.q=bucket(score);
+      if(top.has(id))el.setAttribute("data-best","");
+    }
+    seats.appendChild(el);
+  }
+  row.appendChild(seats);grid.appendChild(row);
+});
+</script>
+</body>
+</html>
