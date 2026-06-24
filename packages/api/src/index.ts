@@ -15,6 +15,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import rateLimit from "@fastify/rate-limit";
 import {
   rankSeats,
+  scoreAvailableSeats,
   bestSeatScore,
   UpstreamError,
   type Chain,
@@ -328,7 +329,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const pref = parsePreference(q);
 
     const map = await adapter.getSeatMap(sessionId);
-    const scored = rankSeats(map, pref);
+    const scored = scoreAvailableSeats(map, pref);
     return { ...map, scored };
   });
 
