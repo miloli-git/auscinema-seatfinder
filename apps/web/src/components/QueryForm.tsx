@@ -63,9 +63,11 @@ interface Props {
   onChange: (v: FormValues) => void;
   onSubmit: () => void;
   loading: boolean;
+  /** Reports a one-line crumb summary of the current search for the collapsed bar. */
+  onSummary?: (summary: string) => void;
 }
 
-export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
+export function QueryForm({ values, onChange, onSubmit, loading, onSummary }: Props) {
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
   const [cinemaError, setCinemaError] = useState<string | null>(null);
   const [cinemaFilter, setCinemaFilter] = useState("");
@@ -134,8 +136,25 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movies]);
 
+  const chainLabelOf = (chain: string) => CHAINS.find((c) => c.value === chain)?.label ?? chain;
+  const cinemaName = (id: string): string => cinemas.find((x) => x.id === id)?.name ?? id;
+  const movieName = (id: string): string => movies.find((m) => m.id === id)?.name ?? "";
+
+  // Report a crumb summary upward whenever the selection resolves.
+  useEffect(() => {
+    const movie = movieName(values.movieId);
+    const cine =
+      selectedIds.length === 0
+        ? ""
+        : selectedIds.length === 1
+          ? cinemaName(selectedIds[0]!)
+          : `${selectedIds.length} cinemas`;
+    const parts = [movie, chainLabelOf(values.chain), cine, values.date].filter(Boolean);
+    onSummary?.(parts.join("  ·  "));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values.chain, values.movieId, values.cinemaIds, values.date, movies, cinemas]);
+
   const switchChain = (chain: string) => {
-    // Changing chain invalidates cinema + movie selections.
     onChange({ ...values, chain, cinemaIds: "", movieId: "" });
     setCinemaFilter("");
     setMovies([]);
@@ -145,7 +164,6 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
     const ids = selectedIds.includes(id)
       ? selectedIds.filter((c) => c !== id)
       : [...selectedIds, id];
-    // Clearing or changing cinemas invalidates the movie pick.
     onChange({ ...values, cinemaIds: ids.join(", "), movieId: "" });
   };
 
@@ -166,15 +184,9 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
     if (!q) return cinemas;
     return cinemas.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.region ? c.region.toLowerCase().includes(q) : false),
+        c.name.toLowerCase().includes(q) || (c.region ? c.region.toLowerCase().includes(q) : false),
     );
   }, [cinemas, cinemaFilter]);
-
-  const cinemaName = (id: string): string => {
-    const c = cinemas.find((x) => x.id === id);
-    return c ? c.name : id;
-  };
 
   const ready =
     Boolean(values.chain) &&
@@ -197,7 +209,12 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
         </select>
       </label>
 
-      <fieldset className="field cinemas">
+      <label className="field">
+        <span>Date</span>
+        <input type="date" value={values.date} onChange={(e) => set("date", e.target.value)} />
+      </label>
+
+      <fieldset className="field fieldset cinemas span-2">
         <legend>Cinemas</legend>
         {selectedIds.length > 0 && (
           <div className="chips">
@@ -214,17 +231,12 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
             ))}
           </div>
         )}
-        {cinemaError && (
-          <p className="hint hint--warn">Cinema list unavailable: {cinemaError}</p>
-        )}
-        {!cinemaError && cinemas.length === 0 && (
-          <p className="hint">Loading cinemas…</p>
-        )}
+        {cinemaError && <p className="hint hint--warn">Cinema list unavailable: {cinemaError}</p>}
+        {!cinemaError && cinemas.length === 0 && <p className="hint">Loading cinemas…</p>}
         {cinemas.length > 0 && (
           <>
             <input
               type="text"
-              className="cinemas__filter"
               placeholder="Filter cinemas by name…"
               value={cinemaFilter}
               onChange={(e) => setCinemaFilter(e.target.value)}
@@ -243,20 +255,13 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
                   </span>
                 </label>
               ))}
-              {filteredCinemas.length === 0 && (
-                <p className="hint">No cinemas match that filter.</p>
-              )}
+              {filteredCinemas.length === 0 && <p className="hint">No cinemas match that filter.</p>}
             </div>
           </>
         )}
       </fieldset>
 
-      <label className="field">
-        <span>Date</span>
-        <input type="date" value={values.date} onChange={(e) => set("date", e.target.value)} />
-      </label>
-
-      <label className="field">
+      <label className="field span-2">
         <span>Movie</span>
         <select
           value={values.movieId}
@@ -278,27 +283,24 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
             </option>
           ))}
         </select>
+        {movieError && <p className="hint hint--warn">Movie list failed: {movieError}</p>}
       </label>
-      {movieError && <p className="hint hint--warn">Movie list failed: {movieError}</p>}
-
-      <div className="field field--row">
-        <label className="field">
-          <span>From</span>
-          <input type="time" value={values.from} onChange={(e) => set("from", e.target.value)} />
-        </label>
-        <label className="field">
-          <span>To</span>
-          <input type="time" value={values.to} onChange={(e) => set("to", e.target.value)} />
-        </label>
-      </div>
-
-      <hr className="form__rule" />
-      <h3 className="form__subtitle">Seat preferences</h3>
 
       <label className="field">
+        <span>From</span>
+        <input type="time" value={values.from} onChange={(e) => set("from", e.target.value)} />
+      </label>
+      <label className="field">
+        <span>To</span>
+        <input type="time" value={values.to} onChange={(e) => set("to", e.target.value)} />
+      </label>
+
+      <h3 className="form__sub span-2">Seat preferences</h3>
+
+      <label className="field span-2">
         <span>
-          Target depth <em>{values.targetDepth.toFixed(2)}</em>
-          <small> (front to back)</small>
+          How far back <em>{Math.round(values.targetDepth * 100)}%</em>
+          <small>front → back</small>
         </span>
         <input
           type="range"
@@ -310,9 +312,9 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
         />
       </label>
 
-      <label className="field">
+      <label className="field span-2">
         <span>
-          Centrality vs depth <em>{Math.round(values.centralityWeight * 100)}% central</em>
+          Aisle ↔ centre <em>{Math.round(values.centralityWeight * 100)}% centre</em>
         </span>
         <input
           type="range"
@@ -325,13 +327,9 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
             onChange({ ...values, centralityWeight: c, depthWeight: Number((1 - c).toFixed(2)) });
           }}
         />
-        <small className="hint">
-          depth {Math.round(values.depthWeight * 100)}% · central{" "}
-          {Math.round(values.centralityWeight * 100)}%
-        </small>
       </label>
 
-      <fieldset className="field areas">
+      <fieldset className="field fieldset span-2">
         <legend>Seat classes</legend>
         <div className="chips">
           {SELECTABLE_AREA_KINDS.map((kind) => (

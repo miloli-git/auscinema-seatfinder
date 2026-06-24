@@ -1,0 +1,54 @@
+/* AusCinema Seat Finder — design tokens v1 (framework-free)
+ * Locked by design-review rebuild, 2026-06-24. Seat-map-as-hero direction.
+ * Dark-only by intent. No Inter (kills the overused-font tell); system stack + a real type scale. */
+
+:root {
+  /* Surfaces (darkest -> raised) */
+  --bg:        #0a0c10;
+  --bg-2:      #0f1219;
+  --panel:     #141823;
+  --panel-2:   #1b2030;
+  --line:      #28303f;
+  --line-2:    #353f52;
+
+  /* Text */
+  --text:      #eef2f8;
+  --text-2:    #aeb7c6;
+  --muted:     #818b9c;          /* AA on --bg (>= 4.5:1) */
+
+  /* Brand + accents */
+  --accent:    #f5b941;   /* amber — primary action, brand mark */
+  --accent-ink:#160f00;   /* text on amber */
+  --info:      #5aa9ff;   /* blue — focus, secondary */
+
+  /* Seat-quality ramp (the product thesis — must be legible at a glance) */
+  --q-elite:   #2fd27a;   /* 90-100 vivid green */
+  --q-great:   #8fd14a;   /* 75-89 lime */
+  --q-good:    #f5b941;   /* 60-74 amber */
+  --q-ok:      #f08a4b;   /* 40-59 orange */
+  --q-weak:    #4a566b;   /* <40 dim slate */
+  --q-sold:    #1c2330;   /* sold/unavailable */
+  --q-best-ring: #ffffff; /* best-pick outline */
+
+  /* Status */
+  --error:     #ff6b6b;
+  --error-bg:  rgba(255, 107, 107, 0.12);
+
+  /* Type scale (1.25 ratio, no flat hierarchy) */
+  --t-xs:  12px;
+  --t-sm:  14px;
+  --t-base:16px;
+  --t-md:  20px;
+  --t-lg:  25px;
+  --t-xl:  32px;
+  --t-2xl: 40px;
+  --font:  ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono:  ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  /* Space, radius, motion */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1); /* ease-out-quint, no bounce */
+  --tap: 44px; /* minimum touch target */
+}
