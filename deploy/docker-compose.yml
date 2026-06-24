@@ -1,0 +1,57 @@
+# Portable stack: API (Fastify) + web (Caddy serving the SPA and proxying the API behind
+# an access gate). Optional watcher service under the `alerts` profile.
+#
+# Quick start:
+#   cp .env.example .env        # then edit: set BASIC_AUTH_USER/HASH, SITE_ADDRESS
+#   docker compose up -d --build
+#   open http://localhost:8080  (or your SITE_ADDRESS)
+#
+# Enable seat-open alerts too:
+#   cp ../packages/watcher/watch.config.json.example watch.config.json   # edit watches
+#   docker compose --profile alerts up -d --build
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    environment:
+      PORT: "3001"
+      RATE_LIMIT_MAX: "${RATE_LIMIT_MAX:-120}"
+      RATE_LIMIT_WINDOW_MS: "${RATE_LIMIT_WINDOW_MS:-60000}"
+    expose:
+      - "3001"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    environment:
+      SITE_ADDRESS: "${SITE_ADDRESS:-:8080}"
+      UPSTREAM_API: "api:3001"
+      BASIC_AUTH_USER: "${BASIC_AUTH_USER:?set BASIC_AUTH_USER in .env}"
+      BASIC_AUTH_HASH: "${BASIC_AUTH_HASH:?run 'caddy hash-password' and set BASIC_AUTH_HASH in .env}"
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Optional: poll saved queries and webhook-alert when a wanted seat opens.
+  # Enable with: docker compose --profile alerts up -d --build
+  watcher:
+    profiles: ["alerts"]
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    command: ["node", "packages/watcher/dist/cli.js", "watch", "/config/watch.config.json"]
+    environment:
+      WATCHER_WEBHOOK: "${WATCHER_WEBHOOK:-}"
+    volumes:
+      - ./watch.config.json:/config/watch.config.json:ro
+      - watcher-state:/state
+    restart: unless-stopped
+
+volumes:
+  watcher-state:

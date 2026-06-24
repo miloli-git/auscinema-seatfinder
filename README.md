@@ -57,7 +57,15 @@ chain.
 npm install          # npm workspaces, Node 20+
 npm run build
 npm test
+npm run smoke        # optional: live end-to-end check across all four chains
 ```
+
+## Deploy / self-host
+
+A single Docker Compose stack (API + web + access gate, optional watcher) runs anywhere
+Docker runs. See [`deploy/README.md`](deploy/README.md). The gate is `basic_auth` out of the
+box and swaps to a self-hosted IdP (e.g. Authentik `forward_auth`) by editing the Caddyfile,
+no app changes.
 
 ## Licence
 

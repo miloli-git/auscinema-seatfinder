@@ -10,3 +10,7 @@ build/
 coverage/
 *.log
 .vite/
+
+# deploy secrets / runtime
+deploy/.env
+deploy/watch.config.json
