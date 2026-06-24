@@ -45,15 +45,70 @@ Fixtures: `packages/adapters/event/fixtures/`.
 
 ---
 
-## Hoyts — ⚠️ planned (own API, looks open)
+## Hoyts — ✅ proven, open (no auth / no subscription key)
 
-- Not Vista. `/Cinemas/GetSessions` → 404.
-- Own JSON API host `https://api.hoyts.com.au` (+ Azure APIM `https://apim-aea.hoyts.com.au`),
-  `/api/v1/...` routes. Returns clean JSON 404 (`{"statusCode":404,"message":"Resource not found"}`)
-  on unknown paths and answered **without** a key — likely open once routes are known.
-- TODO: CDP/DevTools network capture of hoyts.com.au booking flow to enumerate the session +
-  seat-map routes; confirm whether seat geometry is exposed (premium-class/centre scoring depends
-  on it).
+Not Vista. The `www.hoyts.com.au` Vue (Vite) SPA reads its API bases from an embedded
+`<script id="config-json">` → `config.urls` object and calls Azure APIM services with a plain
+browser `User-Agent` + `Accept: application/json`. **No `Ocp-Apim-Subscription-Key` is required**
+for the read endpoints below (route fragments were mined from the Vite chunks under
+`/vue/<build>/`, e.g. `chunk-DUm-K_rm.js`).
+
+Bases (`config.urls`):
+- `webApi` (cinemas/movies/sessions) = `https://apim-aea.hoyts.com.au/cinemaapi-au-live/api/`
+- `ticketingApi` (seat maps)         = `https://apim-aea.hoyts.com.au/ticketing-au-live/api/v1/`
+- `orderingApi` = `.../ordering-au-live/api/v1/`, `loyaltyApi` = `.../loyalty-au-live/api/v1/`,
+  `walletApi` = `https://api.hoyts.com.au/wallet/` (not needed for read-only seat finding).
+
+### Cinemas
+```
+GET cinemaapi-au-live/api/cinemas
+```
+- Open, 200. Bare array: `[{ id:"MIDCIN", slug, name, state, link:"/cinemas/midland-gate",
+  features:[...], latitude, longitude, timeZone, address:{...}, ... }]`.
+- `id` is an alpha cinema code (e.g. `MIDCIN`, `BROADW`, `BANKTN`), **not** numeric.
+
+### Sessions
+```
+GET cinemaapi-au-live/api/sessions/{cinemaId}?partnerId=ALL
+```
+- Open, 200. **Per-cinema, ALL movies + ALL dates — no server-side movie or date filter.**
+  Filter client-side. Bare array, each session:
+  `id` (int), `cinemaId`, `movieId` (= the **Vista id** `HO00008574`, matches `vistaId` in
+  `/movies/now-showing`), `date` (local, no tz), `utcDate`, `typeId`
+  (`STANDARD`/`XTREME`/`LUX`/...), `originalTags[]`, `allocatedSeating`, `discount`,
+  `screenName`, `operator`, `link` (`/orders/tickets?cinemaId=..&sessionId=..`).
+- No `seatsAvailable` count in this feed.
+
+### Seat map
+```
+GET ticketing-au-live/api/v1/ticket/seats/{cinemaId}/{sessionId}/
+```
+- Open, 200. **Keyed on BOTH cinemaId and sessionId** (session ids are cinema-scoped — a valid
+  sessionId under the wrong cinema returns `410 {"title":"Session sold out."}`). Shape:
+  `{ areas:[{id,code,name}], rows:[ { name:rowLabel, seats:[ Slot ] } ] }`.
+- `Slot` is one of: a **seat** `{areaId,name,number,rowNumber,id,typeId,sold?,unavailable?}`,
+  a **gap** `{typeId:"gap"}`, or a **group** `{group:[seat,seat],typeId}` (paired daybeds/lounges).
+  `sold`/`unavailable` appear **only when true**; an absent flag = available.
+- `typeId` seen: `daybed`, `recliner`, `lounge`, `wheelchair`, `standard`, `gap`.
+  `areas[].name`: `Daybed`, `Recliner`, `Standard`, `Lounge`, `Platinum`/`LUX`...
+- A fully sold-out session returns `410 "Session sold out."` for the whole map.
+
+### Seat-geometry verdict — ⚠️ NO explicit coordinates (index-based, approximate)
+Hoyts exposes **no row/column coordinates**. Physical position is implicit in array **order**:
+rows are listed front(screen)→back, seats left→right within each row (gaps included). The SPA
+itself computes the auditorium centre from array indices (`(cols-1)/2`, `(rows-1)/2`), so the
+adapter mirrors that: `row` = row index (front = 0, higher = further back), `col` = running slot
+index within the row (gaps and each group member consume a slot). **Centre/depth scoring works for
+Hoyts but is approximate (index-based, not metric)** — good enough and consistent with Hoyts' own
+layout. `Seat.name`/`number` give the printed label; `id` is the opaque seat id for booking.
+
+### Adapter status
+`HoytsAdapter` **implemented** — `packages/adapters/hoyts/`. Because `getSeatMap(sessionId)` only
+receives a session id but the seat route needs the cinema too, `Session.id` is encoded as
+`"{cinemaId}:{sessionId}"` and split back in `getSeatMap`. Fixtures: `packages/adapters/hoyts/
+fixtures/` (`cinemas.json`, `sessions.midcin.json`, `seats.midcin-58337.json` (daybed groups +
+wheelchair), `seats.broadw-456373.json` (recliner singles + sold)). Offline `node --test` parses
+them; `npm test -w @auscinema/adapter-hoyts` is green.
 
 ## Reading Cinemas — ⚠️ planned (SPA, host unknown)
 

@@ -1,0 +1,129 @@
+[
+ {
+  "id": "MIDCIN",
+  "loyaltyCode": 88,
+  "slug": "midland-gate",
+  "name": "ACE HOYTS Midland Gate",
+  "thumbnailImage": "cinemas/acehoyts-midlandgate-landingpage-cards-1314x888.jpg",
+  "features": [
+   "LUX",
+   "D-BOX",
+   "Xtremescreen",
+   "Daybeds",
+   "Lounge",
+   "Recliners",
+   "3D"
+  ],
+  "state": "WA",
+  "street": "Level 2, 274 Great Eastern Hwy",
+  "suburb": "Midland",
+  "phone": "(08) 6509 4050",
+  "latitude": -31.88893,
+  "longitude": 116.00864,
+  "timeZone": "W. Australia Standard Time",
+  "link": "/cinemas/midland-gate",
+  "treatCity": false,
+  "benAndJerry": false,
+  "deliveryToDoor": false,
+  "deliveryToSeat": false,
+  "address": {
+   "street": "Level 2, 274 Great Eastern Hwy",
+   "suburb": "Midland",
+   "state": "WA",
+   "postCode": "6056"
+  }
+ },
+ {
+  "id": "ROKCIN",
+  "loyaltyCode": 90,
+  "slug": "ace-rockingham",
+  "name": "ACE HOYTS Rockingham",
+  "thumbnailImage": "cinemas/rockingham---site-image-edit.jpg",
+  "features": [
+   "LUX",
+   "Xtremescreen",
+   "3D"
+  ],
+  "state": "WA",
+  "street": "Level 2, 1 Syren Street",
+  "suburb": "Rockingham",
+  "phone": "08 9466 4960",
+  "latitude": -32.2881253799473,
+  "longitude": 115.747787982843,
+  "timeZone": "W. Australia Standard Time",
+  "link": "/cinemas/ace-rockingham",
+  "treatCity": false,
+  "benAndJerry": false,
+  "deliveryToDoor": false,
+  "deliveryToSeat": false,
+  "address": {
+   "street": "Level 2, 1 Syren Street",
+   "suburb": "Rockingham",
+   "state": "WA",
+   "postCode": "6168"
+  }
+ },
+ {
+  "id": "ARNCIN",
+  "loyaltyCode": 81,
+  "slug": "arndale",
+  "name": "Arndale",
+  "thumbnailImage": "cinemas/arndale-landing-page.jpg",
+  "features": [
+   "D-BOX",
+   "Xtremescreen",
+   "Daybeds",
+   "Lounge",
+   "Recliners",
+   "3D"
+  ],
+  "state": "SA",
+  "street": "470 Torrens Rd",
+  "suburb": "Kilkenny",
+  "phone": "(08) 8427 1740",
+  "latitude": -34.873845,
+  "longitude": 138.549742,
+  "timeZone": "Cen. Australia Standard Time",
+  "link": "/cinemas/arndale",
+  "treatCity": false,
+  "benAndJerry": false,
+  "deliveryToDoor": false,
+  "deliveryToSeat": false,
+  "address": {
+   "street": "470 Torrens Rd",
+   "suburb": "Kilkenny",
+   "state": "SA",
+   "postCode": "5009"
+  }
+ },
+ {
+  "id": "BANKTN",
+  "loyaltyCode": 12,
+  "slug": "bankstown",
+  "name": "Bankstown",
+  "thumbnailImage": "cinemas/bankstown.jpg",
+  "features": [
+   "Daybeds",
+   "Recliners",
+   "3D"
+  ],
+  "state": "NSW",
+  "street": "63 The Mall",
+  "suburb": "Bankstown",
+  "phone": "(02) 9003 3800",
+  "latitude": -33.915519,
+  "longitude": 151.036901,
+  "timeZone": "AUS Eastern Standard Time",
+  "link": "/cinemas/bankstown",
+  "treatCity": false,
+  "benAndJerry": false,
+  "deliveryToDoor": false,
+  "deliveryToSeat": false,
+  "address": {
+   "street": "63 The Mall",
+   "suburb": "Bankstown",
+   "state": "NSW",
+   "postCode": "2200"
+  }
+ }
+]

@@ -1,0 +1,513 @@
+{
+ "areas": [
+  {
+   "id": 1,
+   "code": "0000000002",
+   "name": "Recliner"
+  }
+ ],
+ "rows": [
+  {
+   "name": "A",
+   "seats": [
+    {
+     "areaId": 1,
+     "name": "A1",
+     "number": "1",
+     "rowNumber": "A",
+     "id": 12,
+     "rowId": 6,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "A2",
+     "number": "2",
+     "rowNumber": "A",
+     "id": 11,
+     "rowId": 6,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "A3",
+     "number": "3",
+     "rowNumber": "A",
+     "id": 8,
+     "rowId": 6,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "A4",
+     "number": "4",
+     "rowNumber": "A",
+     "id": 7,
+     "rowId": 6,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "A5",
+     "number": "5",
+     "rowNumber": "A",
+     "id": 5,
+     "rowId": 6,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "A6",
+     "number": "6",
+     "rowNumber": "A",
+     "id": 4,
+     "rowId": 6,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "A7",
+     "number": "7",
+     "rowNumber": "A",
+     "id": 1,
+     "rowId": 6,
+     "typeId": "wheelchair"
+    },
+    {
+     "areaId": 1,
+     "name": "A8",
+     "number": "8",
+     "rowNumber": "A",
+     "id": 0,
+     "rowId": 6,
+     "typeId": "recliner"
+    }
+   ]
+  },
+  {
+   "name": "",
+   "seats": [
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    }
+   ]
+  },
+  {
+   "name": "B",
+   "seats": [
+    {
+     "areaId": 1,
+     "name": "B1",
+     "number": "1",
+     "rowNumber": "B",
+     "id": 12,
+     "rowId": 4,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "B2",
+     "number": "2",
+     "rowNumber": "B",
+     "id": 11,
+     "rowId": 4,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "B3",
+     "number": "3",
+     "rowNumber": "B",
+     "id": 8,
+     "rowId": 4,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "B4",
+     "number": "4",
+     "rowNumber": "B",
+     "id": 7,
+     "rowId": 4,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "B5",
+     "number": "5",
+     "rowNumber": "B",
+     "id": 5,
+     "rowId": 4,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "B6",
+     "number": "6",
+     "rowNumber": "B",
+     "id": 4,
+     "rowId": 4,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "B7",
+     "number": "7",
+     "rowNumber": "B",
+     "id": 1,
+     "rowId": 4,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "B8",
+     "number": "8",
+     "rowNumber": "B",
+     "id": 0,
+     "rowId": 4,
+     "typeId": "recliner"
+    }
+   ]
+  },
+  {
+   "name": "",
+   "seats": [
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    }
+   ]
+  },
+  {
+   "name": "C",
+   "seats": [
+    {
+     "areaId": 1,
+     "name": "C1",
+     "number": "1",
+     "rowNumber": "C",
+     "id": 12,
+     "rowId": 2,
+     "sold": true,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "C2",
+     "number": "2",
+     "rowNumber": "C",
+     "id": 11,
+     "rowId": 2,
+     "sold": true,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "C3",
+     "number": "3",
+     "rowNumber": "C",
+     "id": 8,
+     "rowId": 2,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "C4",
+     "number": "4",
+     "rowNumber": "C",
+     "id": 7,
+     "rowId": 2,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "C5",
+     "number": "5",
+     "rowNumber": "C",
+     "id": 5,
+     "rowId": 2,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "C6",
+     "number": "6",
+     "rowNumber": "C",
+     "id": 4,
+     "rowId": 2,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "C7",
+     "number": "7",
+     "rowNumber": "C",
+     "id": 1,
+     "rowId": 2,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "C8",
+     "number": "8",
+     "rowNumber": "C",
+     "id": 0,
+     "rowId": 2,
+     "typeId": "recliner"
+    }
+   ]
+  },
+  {
+   "name": "",
+   "seats": [
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    }
+   ]
+  },
+  {
+   "name": "D",
+   "seats": [
+    {
+     "areaId": 1,
+     "name": "D1",
+     "number": "1",
+     "rowNumber": "D",
+     "id": 12,
+     "rowId": 0,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "D2",
+     "number": "2",
+     "rowNumber": "D",
+     "id": 11,
+     "rowId": 0,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "D3",
+     "number": "3",
+     "rowNumber": "D",
+     "id": 8,
+     "rowId": 0,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "D4",
+     "number": "4",
+     "rowNumber": "D",
+     "id": 7,
+     "rowId": 0,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "D5",
+     "number": "5",
+     "rowNumber": "D",
+     "id": 5,
+     "rowId": 0,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "D6",
+     "number": "6",
+     "rowNumber": "D",
+     "id": 4,
+     "rowId": 0,
+     "typeId": "recliner"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "typeId": "gap"
+    },
+    {
+     "areaId": 1,
+     "name": "D7",
+     "number": "7",
+     "rowNumber": "D",
+     "id": 1,
+     "rowId": 0,
+     "typeId": "recliner"
+    },
+    {
+     "areaId": 1,
+     "name": "D8",
+     "number": "8",
+     "rowNumber": "D",
+     "id": 0,
+     "rowId": 0,
+     "typeId": "recliner"
+    }
+   ]
+  }
+ ]
+}
