@@ -70,6 +70,28 @@ services:
       - watcher-state:/state
     restart: unless-stopped
 
+  # "Seats Together" ingester. Same image as api; reaches the internal db over the compose
+  # network. NOT started by `up` (gated behind the `ingest` profile) and the default command is
+  # informational only — the checkpoint run is an explicit one-shot:
+  #   docker compose run --rm ingester node packages/ingester/dist/cli.js seed   /config/watches.json
+  #   docker compose run --rm ingester node packages/ingester/dist/cli.js ingest --once
+  # A scheduled hourly loop is `... ingest` (no --once); leave it off the live stack for now.
+  ingester:
+    profiles: ["ingest"]
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    command: ["node", "packages/ingester/dist/cli.js", "ingest"]
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
+      INGEST_WATCHES: "/config/watches.json"
+      INGEST_INTERVAL_MS: "${INGEST_INTERVAL_MS:-3600000}"
+    volumes:
+      - ./watches.json:/config/watches.json:ro
+    depends_on:
+      - db
+    restart: "no"
+
 volumes:
   watcher-state:
   pgdata:

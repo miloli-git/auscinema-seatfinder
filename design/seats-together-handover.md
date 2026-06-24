@@ -1,16 +1,21 @@
 # Seats Together — handover (resume in a new session)
 
-Last updated 2026-06-24. Read this + `design/seats-together-design.md` + epic #31 to resume.
+Last updated 2026-06-24. Read this with `design/seats-together-design.md`, `docs/session-log.md`,
+`docs/codex-review-loop.md`, and epic #31 to resume.
 
 ## Where we are
 Building the **Seats Together** feature (epic **#31**): for a movie, find sessions with N adjacent
 seats in the optimal zone, swept across cinemas × dates, served from a cached DB with a live
 re-verify on open. Design is locked (`design/seats-together-design.md`).
 
-- **ST-1 (#26) DONE.** `packages/core/src/blocks.ts` — `findAdjacentBlocks(seats, {minScore, size})`
+- **ST-1 (#26) DONE.** `packages/core/src/blocks.ts` - `findAdjacentBlocks(seats, {minScore, size})`
   + 7 tests (`blocks.test.ts`), exported from the core barrel. Core suite 16/16. Geometry-agnostic;
   keeps party-N / minScore tunable at query time.
-- **ST-2..5 (#27–#30) TODO.** Next = **ST-2 (#27)**, the db + ingester. Checkpoint is AFTER ST-2.
+- **ST-2 DB standup DONE.** Commit `c104eda` added `db/schema.sql`, Postgres compose service,
+  `deploy/.env.example`, and live NAS DB verification. The ingester half of #27 is next.
+- **ST-2 ingester TODO.** Build `packages/ingester`, run one manual sweep, verify rows, then stop
+  for Milo + Codex review before API/UI work.
+- **ST-3..5 (#28 to #30) TODO.**
 
 ## Branch / git state
 - All ST-1 work is on branch **`feat/seats-together`** (pushed to origin, **unmerged**), based off
@@ -21,15 +26,11 @@ re-verify on open. Design is locked (`design/seats-together-design.md`).
 
 ## Resume steps
 1. `cd F:\dev\auscinema-seatfinder && git checkout feat/seats-together` (pull latest).
-2. Re-read `design/seats-together-design.md` (locked decisions + schema) and issue **#27**.
-3. **Confirm with Milo the verify-DB approach (the one open question):** how to run ST-2's
-   "manual run, verify rows" checkpoint. Recommended **option 1 — throwaway Postgres via the NAS
-   docker test-runner** (`reference_nas_docker_test_runner`): a real sweep against the live chains
-   writing to a disposable pg, proving schema + upsert end-to-end WITHOUT touching the live deploy.
-   (Option 2 = stand up the real NAS Postgres early, bleeds ST-5 work into ST-2 — not preferred.)
-   Milo had not confirmed this when we paused.
-4. Build ST-2, then **STOP at the checkpoint** — show Milo the ingested rows before building the
-   API (#28) / UI (#29) on top of the cache.
+2. Re-read `design/seats-together-design.md` (locked decisions + schema), `docs/session-log.md`,
+   `docs/codex-review-loop.md`, and issue **#27**.
+3. Do not revisit the verify-DB option. Milo chose the real NAS Postgres path and DB standup is done.
+4. Build the ingester half of ST-2, then **STOP at the checkpoint**: show Milo the ingested rows and
+   write `reviews/checkpoints/ST-2-ingester.md` for Codex before building API (#28) or UI (#29).
 
 ## ST-2 scope (what to build)
 - **New `packages/ingester`** workspace: a worker that, per enabled watch, sweeps
@@ -43,6 +44,22 @@ re-verify on open. Design is locked (`design/seats-together-design.md`).
   `ingest_runs`. Store AVAILABLE seats only (a missing column = a break). Per-session upsert in a
   transaction (delete+insert that session's seats).
 - **pg client:** node-postgres (`pg`). `DATABASE_URL` from env.
+
+## Codex review harness
+
+Claude Code is the builder. Codex is the checkpoint reviewer. Codex cannot see Claude Code's
+in-memory session state, so Claude must write a durable checkpoint packet before requesting review.
+
+For the ST-2 ingester checkpoint:
+- Fill `reviews/checkpoints/ST-2-ingester.md`.
+- Include branch/base, changed files, commands, test output, manual DB evidence, known gaps, and
+  requested review focus.
+- Ask Codex to review the packet, current diff, and relevant files.
+- If Claude fixes any non-trivial finding, run a second Codex review on the amended code.
+- Promote only high-signal findings to GitHub issues. Raw review files stay local in `reviews/`.
+
+Primary Codex focus: transactionality, idempotence, failure isolation, available-only seat semantics,
+session ID namespace, polite upstream access, and proof that real adapter data reached Postgres.
 
 ## Locked decisions (don't relitigate)
 - Own Postgres instance in the seatfinder stack (not shared with PriceWatch).
