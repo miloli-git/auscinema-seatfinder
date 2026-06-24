@@ -114,8 +114,11 @@ async function withFetch(stub: typeof fetch, fn: () => Promise<void>): Promise<v
 
 test("defaultFetchJson: non-2xx -> UpstreamError{kind:http,status}", async () => {
   const adapter = new EventCinemasAdapter(); // real default fetchJson
-  const stub = (async () =>
-    new Response("nope", { status: 502, statusText: "Bad Gateway" })) as unknown as typeof fetch;
+  let calls = 0;
+  const stub = (async () => {
+    calls += 1;
+    return new Response("nope", { status: 502, statusText: "Bad Gateway" });
+  }) as unknown as typeof fetch;
   await withFetch(stub, async () => {
     await assert.rejects(
       () => adapter.getSeatMap("15433720"),
@@ -126,12 +129,15 @@ test("defaultFetchJson: non-2xx -> UpstreamError{kind:http,status}", async () =>
         return true;
       },
     );
+    assert.equal(calls, 1, "http errors should not be retried");
   });
 });
 
 test("defaultFetchJson: AbortError -> UpstreamError{kind:timeout}", async () => {
   const adapter = new EventCinemasAdapter();
+  let calls = 0;
   const stub = (async () => {
+    calls += 1;
     const e = new Error("aborted");
     e.name = "AbortError";
     throw e;
@@ -141,21 +147,42 @@ test("defaultFetchJson: AbortError -> UpstreamError{kind:timeout}", async () => 
       () => adapter.getSeatMap("15433720"),
       (err: unknown) => err instanceof UpstreamError && err.kind === "timeout",
     );
+    assert.equal(calls, 2, "timeout errors should be retried once");
   });
 });
 
 test("defaultFetchJson: invalid JSON -> UpstreamError{kind:parse}", async () => {
   const adapter = new EventCinemasAdapter();
-  const stub = (async () =>
-    new Response("<html>not json</html>", {
+  let calls = 0;
+  const stub = (async () => {
+    calls += 1;
+    return new Response("<html>not json</html>", {
       status: 200,
       headers: { "content-type": "application/json" },
-    })) as unknown as typeof fetch;
+    });
+  }) as unknown as typeof fetch;
   await withFetch(stub, async () => {
     await assert.rejects(
       () => adapter.getSeatMap("15433720"),
       (err: unknown) => err instanceof UpstreamError && err.kind === "parse",
     );
+    assert.equal(calls, 1, "parse errors should not be retried");
+  });
+});
+
+test("defaultFetchJson: raw network error retries once before unknown", async () => {
+  const adapter = new EventCinemasAdapter();
+  let calls = 0;
+  const stub = (async () => {
+    calls += 1;
+    throw new TypeError("socket closed");
+  }) as unknown as typeof fetch;
+  await withFetch(stub, async () => {
+    await assert.rejects(
+      () => adapter.getSeatMap("15433720"),
+      (err: unknown) => err instanceof UpstreamError && err.kind === "unknown",
+    );
+    assert.equal(calls, 2, "raw network errors should be retried once");
   });
 });
 

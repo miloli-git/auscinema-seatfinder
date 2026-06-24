@@ -3,7 +3,7 @@ import { QueryForm, DEFAULTS, type FormValues } from "./components/QueryForm";
 import { SessionCard } from "./components/SessionCard";
 import { SeatMapView } from "./components/SeatMapView";
 import { fetchBest, fetchSeatMap, type ScoringParams, API_BASE } from "./api";
-import type { BestResponse, ScoredSeatMap } from "./types";
+import type { BestResponse, ScoredSeatMap, Session } from "./types";
 import { withinWindow } from "./format";
 
 function scoringOf(v: FormValues): ScoringParams {
@@ -62,7 +62,8 @@ export function App() {
     }
   };
 
-  const selectSession = async (sessionId: string) => {
+  const selectSession = async (session: Session) => {
+    const sessionId = session.id;
     if (selectedId === sessionId) {
       setSelectedId(null);
       setSeatMap(null);
@@ -73,7 +74,7 @@ export function App() {
     setSeatError(null);
     setSeatLoading(true);
     try {
-      const map = await fetchSeatMap(values.chain, sessionId, lastScoring);
+      const map = await fetchSeatMap(session.chain, session.id, lastScoring);
       setSeatMap(map);
     } catch (err) {
       setSeatError(err instanceof Error ? err.message : String(err));
@@ -142,7 +143,7 @@ export function App() {
                     <SessionCard
                       ranked={r}
                       selected={selectedId === r.session.id}
-                      onSelect={() => void selectSession(r.session.id)}
+                      onSelect={(session) => void selectSession(session)}
                     />
                     {selectedId === r.session.id && (
                       <div className="seatpanel">

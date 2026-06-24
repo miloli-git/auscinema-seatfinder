@@ -163,7 +163,7 @@ const BROWSER_HEADERS: Record<string, string> = {
   Accept: "application/json",
 };
 
-/** Real network call: 15s timeout, one retry on network error. Failures throw a typed UpstreamError. */
+/** Real network call: 15s timeout, one retry on retryable network/timeout failure. */
 const defaultFetchJson: FetchJson = async (url, init) => {
   const attempt = async (): Promise<unknown> => {
     const controller = new AbortController();
@@ -198,15 +198,16 @@ const defaultFetchJson: FetchJson = async (url, init) => {
       if (isAbortError(err)) {
         throw new UpstreamError(`Reading request timed out (${url})`, { kind: "timeout", cause: err });
       }
-      throw err; // network error - retried below, then normalised
+      throw err; // raw network error retried below, then normalised
     } finally {
       clearTimeout(timer);
     }
   };
   try {
     return await attempt();
-  } catch {
-    // One retry on network/abort error (cheap, idempotent GET/POST of a read query).
+  } catch (err) {
+    if (!isRetryable(err)) throw err;
+    // One retry on retryable network/timeout failure (cheap, idempotent GET/POST of a read query).
     try {
       return await attempt();
     } catch (err) {
@@ -215,6 +216,10 @@ const defaultFetchJson: FetchJson = async (url, init) => {
     }
   }
 };
+
+function isRetryable(err: unknown): boolean {
+  return err instanceof UpstreamError ? err.kind === "timeout" : true;
+}
 
 // --- Parsing ----------------------------------------------------------------
 
