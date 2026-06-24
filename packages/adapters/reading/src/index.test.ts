@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { UpstreamError } from "@auscinema/core";
 import { ReadingAdapter, type FetchJson } from "./index.js";
 
 // Compiled test lives in dist/; fixtures are committed at ../fixtures relative to the package root.
@@ -23,6 +25,137 @@ function adapterRouting(routes: Record<string, string>): ReadingAdapter {
   };
   return new ReadingAdapter({ fetchJson });
 }
+
+function settingsWithToken(token: string): unknown {
+  return { data: { settings: { token } } };
+}
+
+function fakeJwt(expSeconds: number): string {
+  const payload = Buffer.from(JSON.stringify({ exp: expSeconds }), "utf8").toString("base64url");
+  return `header.${payload}.sig`;
+}
+
+function jwtExpiringIn(seconds: number): string {
+  return fakeJwt(Math.floor(Date.now() / 1000) + seconds);
+}
+
+test("token: reuses valid cached bootstrap token", async () => {
+  const token = jwtExpiringIn(60 * 60);
+  let settingsFetches = 0;
+  const dataTokens: string[] = [];
+  const fetchJson: FetchJson = async (url, init) => {
+    if (url.includes("/settings/")) {
+      settingsFetches += 1;
+      return settingsWithToken(token);
+    }
+    if (url.includes("getcinemas")) {
+      dataTokens.push(init?.token ?? "");
+      return loadFixture("cinemas.json");
+    }
+    throw new Error(`unexpected url: ${url}`);
+  };
+  const adapter = new ReadingAdapter({ fetchJson });
+
+  await adapter.listCinemas();
+  await adapter.listCinemas();
+
+  assert.equal(settingsFetches, 1);
+  assert.deepEqual(dataTokens, [token, token]);
+});
+
+test("token: refreshes a near-expiry cached bootstrap token", async () => {
+  const nearExpiryToken = jwtExpiringIn(30);
+  const freshToken = jwtExpiringIn(60 * 60);
+  const settingsTokens = [nearExpiryToken, freshToken];
+  let settingsFetches = 0;
+  const dataTokens: string[] = [];
+  const fetchJson: FetchJson = async (url, init) => {
+    if (url.includes("/settings/")) {
+      const token = settingsTokens[settingsFetches];
+      settingsFetches += 1;
+      assert.ok(token, "expected settings token");
+      return settingsWithToken(token);
+    }
+    if (url.includes("getcinemas")) {
+      dataTokens.push(init?.token ?? "");
+      return loadFixture("cinemas.json");
+    }
+    throw new Error(`unexpected url: ${url}`);
+  };
+  const adapter = new ReadingAdapter({ fetchJson });
+
+  await adapter.listCinemas();
+  await adapter.listCinemas();
+
+  assert.equal(settingsFetches, 2);
+  assert.deepEqual(dataTokens, [nearExpiryToken, freshToken]);
+});
+
+test("auth retry: refreshes token and retries data request once", async () => {
+  const expiredToken = jwtExpiringIn(-60);
+  const freshToken = jwtExpiringIn(60 * 60);
+  const settingsTokens = [expiredToken, freshToken];
+  let settingsFetches = 0;
+  let dataFetches = 0;
+  const dataTokens: string[] = [];
+  const dataUrls: string[] = [];
+  const fetchJson: FetchJson = async (url, init) => {
+    if (url.includes("/settings/")) {
+      const token = settingsTokens[settingsFetches];
+      settingsFetches += 1;
+      assert.ok(token, "expected settings token");
+      return settingsWithToken(token);
+    }
+    if (url.includes("getcinemas")) {
+      dataFetches += 1;
+      dataTokens.push(init?.token ?? "");
+      dataUrls.push(url);
+      if (dataFetches === 1) {
+        throw new UpstreamError("expired token", { kind: "auth", status: 401 });
+      }
+      return loadFixture("cinemas.json");
+    }
+    throw new Error(`unexpected url: ${url}`);
+  };
+  const adapter = new ReadingAdapter({ fetchJson });
+
+  const cinemas = await adapter.listCinemas();
+
+  assert.ok(cinemas.length > 0);
+  assert.equal(settingsFetches, 2);
+  assert.equal(dataFetches, 2);
+  assert.deepEqual(dataTokens, [expiredToken, freshToken]);
+  assert.equal(dataUrls[1], dataUrls[0]);
+});
+
+test("auth retry: second auth failure propagates", async () => {
+  const expiredToken = jwtExpiringIn(-60);
+  const freshToken = jwtExpiringIn(60 * 60);
+  const settingsTokens = [expiredToken, freshToken];
+  let settingsFetches = 0;
+  let dataFetches = 0;
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/settings/")) {
+      const token = settingsTokens[settingsFetches];
+      settingsFetches += 1;
+      assert.ok(token, "expected settings token");
+      return settingsWithToken(token);
+    }
+    if (url.includes("getcinemas")) {
+      dataFetches += 1;
+      throw new UpstreamError("expired token", { kind: "auth", status: 401 });
+    }
+    throw new Error(`unexpected url: ${url}`);
+  };
+  const adapter = new ReadingAdapter({ fetchJson });
+
+  await assert.rejects(
+    () => adapter.listCinemas(),
+    (err: unknown) => err instanceof UpstreamError && err.kind === "auth",
+  );
+  assert.equal(settingsFetches, 2);
+  assert.equal(dataFetches, 2);
+});
 
 test("listCinemas: bootstraps token then normalises id(slug), name, region, url", async () => {
   const adapter = adapterRouting({
