@@ -11,6 +11,22 @@
 #   docker compose --profile alerts up -d --build
 
 services:
+  # Postgres cache for "Seats Together" (cached adjacency discovery).
+  # Internal compose network only — not published, not tunneled. The DB is a
+  # rebuildable cache (low durability needs). schema.sql runs once on first boot
+  # (empty pgdata) and is re-appliable via psql. api DATABASE_URL + depends_on
+  # are DEFERRED to the ingester step (avoid bouncing the live api container).
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:?set POSTGRES_DB in .env}"
+      POSTGRES_USER: "${POSTGRES_USER:?set POSTGRES_USER in .env}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    restart: unless-stopped
+
   api:
     build:
       context: ..
@@ -56,3 +72,4 @@ services:
 
 volumes:
   watcher-state:
+  pgdata:
