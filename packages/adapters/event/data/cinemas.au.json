@@ -1,0 +1,387 @@
+{
+  "source": "https://www.eventcinemas.com.au/Cinemas (HTML; the /api/cinemas/JsonLd feed is dead/empty)",
+  "capturedAt": "2026-06-24",
+  "region": "AU",
+  "count": 54,
+  "note": "Dated snapshot. Event's /api/cinemas/JsonLd returns an empty @graph; the live list exists only in the /Cinemas page HTML. Refresh periodically. ids are the numeric cinemaIds used by GetSessions.",
+  "cinemas": [
+    {
+      "id": "5",
+      "name": "Drive In Blacktown",
+      "url": "/Cinema/Drive-In-Blacktown",
+      "lat": -33.80423,
+      "long": 150.90297
+    },
+    {
+      "id": "7",
+      "name": "Hurstville",
+      "url": "/Cinema/Hurstville",
+      "lat": -33.96552,
+      "long": 151.1049
+    },
+    {
+      "id": "9",
+      "name": "Tuggerah",
+      "url": "/Cinema/Tuggerah",
+      "lat": -33.3088094,
+      "long": 151.4118775
+    },
+    {
+      "id": "15",
+      "name": "George Street",
+      "url": "/Cinema/George-Street",
+      "lat": -33.87544,
+      "long": 151.20593
+    },
+    {
+      "id": "17",
+      "name": "Innaloo",
+      "url": "/Cinema/Innaloo",
+      "lat": -31.90433,
+      "long": 115.79702
+    },
+    {
+      "id": "19",
+      "name": "Liverpool",
+      "url": "/Cinema/Liverpool",
+      "lat": -33.9195089,
+      "long": 150.9236158
+    },
+    {
+      "id": "21",
+      "name": "Glendale",
+      "url": "/Cinema/Glendale",
+      "lat": -32.92945,
+      "long": 151.64198
+    },
+    {
+      "id": "22",
+      "name": "Marion",
+      "url": "/Cinema/Marion",
+      "lat": -35.01388,
+      "long": 138.54467
+    },
+    {
+      "id": "23",
+      "name": "Pacific Fair",
+      "url": "/Cinema/Pacific-Fair",
+      "lat": -28.03431,
+      "long": 153.43033
+    },
+    {
+      "id": "26",
+      "name": "Strathpine",
+      "url": "/Cinema/Strathpine",
+      "lat": -27.3069,
+      "long": 152.99332
+    },
+    {
+      "id": "28",
+      "name": "Carindale",
+      "url": "/Cinema/Carindale",
+      "lat": -27.5036171,
+      "long": 153.1028786
+    },
+    {
+      "id": "30",
+      "name": "Capalaba",
+      "url": "/Cinema/Capalaba",
+      "lat": -27.52208,
+      "long": 153.20113
+    },
+    {
+      "id": "34",
+      "name": "Robina",
+      "url": "/Cinema/Robina",
+      "lat": -28.07498,
+      "long": 153.38358
+    },
+    {
+      "id": "36",
+      "name": "Coffs Harbour",
+      "url": "/Cinema/Coffs-Harbour",
+      "lat": -30.28371,
+      "long": 153.12665
+    },
+    {
+      "id": "37",
+      "name": "Toowoomba Strand",
+      "url": "/Cinema/Toowoomba-Strand",
+      "lat": -27.5613,
+      "long": 151.95566
+    },
+    {
+      "id": "38",
+      "name": "Maroochydore Sunshine Plaza",
+      "url": "/Cinema/Maroochydore-Sunshine-Plaza",
+      "lat": -26.65695,
+      "long": 153.08758
+    },
+    {
+      "id": "43",
+      "name": "Casuarina",
+      "url": "/Cinema/Casuarina",
+      "lat": -12.37461,
+      "long": 130.88171
+    },
+    {
+      "id": "44",
+      "name": "Cairns Central",
+      "url": "/Cinema/Cairns-Central",
+      "lat": -16.92623,
+      "long": 145.77418
+    },
+    {
+      "id": "47",
+      "name": "Rockhampton North",
+      "url": "/Cinema/Rockhampton-North",
+      "lat": -23.35871,
+      "long": 150.50552
+    },
+    {
+      "id": "48",
+      "name": "Indooroopilly",
+      "url": "/Cinema/Indooroopilly",
+      "lat": -27.49952,
+      "long": 152.96768
+    },
+    {
+      "id": "49",
+      "name": "Mt Gravatt",
+      "url": "/Cinema/Mt-Gravatt",
+      "lat": -27.56003,
+      "long": 153.08108
+    },
+    {
+      "id": "50",
+      "name": "Mackay Mount Pleasant",
+      "url": "/Cinema/Mackay-Mount-Pleasant",
+      "lat": -21.12185,
+      "long": 149.15991
+    },
+    {
+      "id": "52",
+      "name": "Toowoomba Grand Central",
+      "url": "/Cinema/Toowoomba-Grand-Central",
+      "lat": -27.56065,
+      "long": 151.95052
+    },
+    {
+      "id": "53",
+      "name": "Castle Hill",
+      "url": "/Cinema/Castle-Hill",
+      "lat": -33.73217,
+      "long": 151.00581
+    },
+    {
+      "id": "55",
+      "name": "Macquarie",
+      "url": "/Cinema/Macquarie",
+      "lat": -33.77747,
+      "long": 151.11816
+    },
+    {
+      "id": "56",
+      "name": "Chermside",
+      "url": "/Cinema/Chermside",
+      "lat": -27.3836162,
+      "long": 153.0313487
+    },
+    {
+      "id": "58",
+      "name": "Burwood",
+      "url": "/Cinema/Burwood",
+      "lat": -33.87462,
+      "long": 151.10592
+    },
+    {
+      "id": "59",
+      "name": "Brisbane City",
+      "url": "/Cinema/Brisbane-City",
+      "lat": -27.46977,
+      "long": 153.02681
+    },
+    {
+      "id": "61",
+      "name": "Cairns Earlville",
+      "url": "/Cinema/Cairns-Earlville",
+      "lat": -16.9441302,
+      "long": 145.740042
+    },
+    {
+      "id": "62",
+      "name": "Hornsby",
+      "url": "/Cinema/Hornsby",
+      "lat": -33.70462,
+      "long": 151.09873
+    },
+    {
+      "id": "63",
+      "name": "Shellharbour",
+      "url": "/Cinema/Shellharbour",
+      "lat": -34.56412,
+      "long": 150.83522
+    },
+    {
+      "id": "64",
+      "name": "Bondi Junction",
+      "url": "/Cinema/Bondi-Junction",
+      "lat": -33.89147,
+      "long": 151.25047
+    },
+    {
+      "id": "65",
+      "name": "Campbelltown",
+      "url": "/Cinema/Campbelltown",
+      "lat": -34.07386,
+      "long": 150.79893
+    },
+    {
+      "id": "66",
+      "name": "Parramatta",
+      "url": "/Cinema/Parramatta",
+      "lat": -33.8177,
+      "long": 151.00212
+    },
+    {
+      "id": "69",
+      "name": "Top Ryde City",
+      "url": "/Cinema/Top-Ryde-City",
+      "lat": -33.8122433165,
+      "long": 151.1065471172
+    },
+    {
+      "id": "71",
+      "name": "Moonlight Cinema Adelaide",
+      "url": "/Cinema/Moonlight-Cinema-Adelaide",
+      "lat": -34.9143508,
+      "long": 138.6108231
+    },
+    {
+      "id": "72",
+      "name": "Moonlight Cinema Perth",
+      "url": "/Cinema/Moonlight-Cinema-Perth",
+      "lat": -31.962357,
+      "long": 15.822077
+    },
+    {
+      "id": "73",
+      "name": "Moonlight Cinema Melbourne",
+      "url": "/Cinema/Moonlight-Cinema-Melbourne",
+      "lat": -37.832022,
+      "long": 144.982538
+    },
+    {
+      "id": "74",
+      "name": "Moonlight Cinema Brisbane",
+      "url": "/Cinema/Moonlight-Cinema-Brisbane",
+      "lat": -27.4627340339,
+      "long": 153.0201308382
+    },
+    {
+      "id": "75",
+      "name": "Moonlight Cinema Sydney",
+      "url": "/Cinema/Moonlight-Cinema-Sydney",
+      "lat": -33.88994,
+      "long": 151.234875
+    },
+    {
+      "id": "77",
+      "name": "Noosa",
+      "url": "/Cinema/Noosa",
+      "lat": -26.394022,
+      "long": 153.090363
+    },
+    {
+      "id": "79",
+      "name": "Loganholme",
+      "url": "/Cinema/Loganholme",
+      "lat": -27.6828501,
+      "long": 153.1858235
+    },
+    {
+      "id": "81",
+      "name": "Townsville Central",
+      "url": "/Cinema/Townsville-Central",
+      "lat": -19.266097,
+      "long": 146.810661
+    },
+    {
+      "id": "82",
+      "name": "Miranda",
+      "url": "/Cinema/Miranda",
+      "lat": -34.034458,
+      "long": 151.1000177
+    },
+    {
+      "id": "83",
+      "name": "Springfield",
+      "url": "/Cinema/Springfield",
+      "lat": -27.678535,
+      "long": 152.904807
+    },
+    {
+      "id": "85",
+      "name": "Kotara",
+      "url": "/Cinema/Kotara",
+      "lat": -32.9420705,
+      "long": 151.7088893
+    },
+    {
+      "id": "86",
+      "name": "North Lakes",
+      "url": "/Cinema/North-Lakes",
+      "lat": -27.2422868,
+      "long": 153.019873
+    },
+    {
+      "id": "89",
+      "name": "Cairns Smithfield",
+      "url": "/Cinema/Cairns-Smithfield",
+      "lat": -16.838311,
+      "long": 145.691716
+    },
+    {
+      "id": "90",
+      "name": "Whitford",
+      "url": "/Cinema/Whitford",
+      "lat": -31.795581,
+      "long": 115.753984
+    },
+    {
+      "id": "91",
+      "name": "Palmerston",
+      "url": "/Cinema/Palmerston",
+      "lat": -12.4763285,
+      "long": 130.9800007
+    },
+    {
+      "id": "92",
+      "name": "Coomera",
+      "url": "/Cinema/Coomera",
+      "lat": -27.8559234,
+      "long": 153.3160207
+    },
+    {
+      "id": "93",
+      "name": "Kawana",
+      "url": "/Cinema/Kawana",
+      "lat": -26.702854,
+      "long": 153.1306191
+    },
+    {
+      "id": "94",
+      "name": "Ed Square",
+      "url": "/Cinema/Ed-Square",
+      "lat": -33.9703845,
+      "long": 150.857161
+    },
+    {
+      "id": "96",
+      "name": "IMAX Sydney",
+      "url": "/Cinema/IMAX-Sydney",
+      "lat": -33.8738855311,
+      "long": 151.2024315295
+    }
+  ]
+}

@@ -10,9 +10,18 @@ import type {
   ScreenFormat,
 } from "@auscinema/core";
 import { UpstreamError, isAbortError } from "@auscinema/core";
+import { readFileSync } from "node:fs";
 
 /** Injectable HTTP-JSON fetcher so parsing can run against fixtures without network. */
 export type FetchJson = (url: string) => Promise<unknown>;
+
+/**
+ * Dated AU cinema reference. Event's `/api/cinemas/JsonLd` feed is dead (empty `@graph`); the
+ * live list exists only in the `/Cinemas` page HTML. We bundle a dated snapshot
+ * (`data/cinemas.au.json`, see its `capturedAt`) and serve it — deterministic, no network.
+ * Refresh by re-running the capture. Resolved relative to the compiled module (dist → ../data).
+ */
+const CINEMAS_REF_URL = new URL("../data/cinemas.au.json", import.meta.url);
 
 /**
  * Event Cinemas adapter — the reference implementation.
@@ -22,7 +31,8 @@ export type FetchJson = (url: string) => Promise<unknown>;
  *       -> { Success, Data: { Movies:[ { Id, Name, CinemaModels:[ { Id, Name, Sessions:[ {Id,StartTime,...} ] } ] } ] } }
  *   - GET /Ticketing/Order/GetSeating?sessionId=15433720
  *       -> { Success, Data: { Seats:{ Rows:[ {RowName, Seats:[ {SeatId,SeatName,Status,AreaId,...} ]} ] }, Areas:[...] } }
- *   - GET /api/cinemas/JsonLd -> schema.org-ish list of cinemas
+ *   - Cinemas: served from a bundled dated snapshot (data/cinemas.au.json) — the live
+ *     /api/cinemas/JsonLd feed is dead (empty @graph); the real list is only in /Cinemas HTML.
  *
  * SeatId encodes physical geometry as "area|type|ROW|COLUMN" — the last two ints are the grid
  * coordinates that normalise into Seat.row / Seat.col. See docs/endpoints.md.
@@ -37,8 +47,7 @@ export class EventCinemasAdapter implements ChainAdapter {
   }
 
   async listCinemas(): Promise<Cinema[]> {
-    const raw = await this.fetchJson(`${this.base}/api/cinemas/JsonLd`);
-    return parseCinemas(raw);
+    return loadBundledCinemas();
   }
 
   async listSessions(query: SessionQuery): Promise<Session[]> {
@@ -254,31 +263,18 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
   };
 }
 
-function parseCinemas(raw: unknown): Cinema[] {
-  // /api/cinemas/JsonLd shape is schema.org-ish; parse defensively. Accept either a bare
-  // array, an { itemListElement: [...] } list, or a { Data: [...] } envelope.
-  let list: unknown[] = [];
-  if (Array.isArray(raw)) list = raw;
-  else if (isObj(raw)) {
-    if (Array.isArray(raw.itemListElement)) list = raw.itemListElement;
-    else if (Array.isArray(raw.Data)) list = raw.Data;
-    else if (isObj(raw.Data) && Array.isArray((raw.Data as Json).itemListElement))
-      list = (raw.Data as Json).itemListElement as unknown[];
-  }
+/** Load + normalise the bundled dated AU cinema reference into core `Cinema[]`. */
+function loadBundledCinemas(): Cinema[] {
+  const doc = JSON.parse(readFileSync(CINEMAS_REF_URL, "utf8")) as {
+    cinemas?: Array<{ id?: unknown; name?: unknown; url?: unknown }>;
+  };
   const out: Cinema[] = [];
-  for (const entry of list) {
-    if (!isObj(entry)) continue;
-    // schema.org ItemList wraps each cinema under `item`.
-    const node = isObj(entry.item) ? (entry.item as Json) : entry;
-    const id = String(num(node.Id) ?? str(node.Id) ?? str(node["@id"]) ?? str(node.identifier) ?? "");
-    const name = str(node.Name) ?? str(node.name) ?? "";
-    if (!id && !name) continue;
-    const region =
-      str(node.Region) ??
-      str(node.State) ??
-      (isObj(node.address) ? str((node.address as Json).addressRegion) : undefined);
-    const url = str(node.Url) ?? str(node.url);
-    out.push({ chain: "event", id, name, ...(region ? { region } : {}), ...(url ? { url } : {}) });
+  for (const c of doc.cinemas ?? []) {
+    const id = str(c.id) ?? (num(c.id) !== undefined ? String(num(c.id)) : "");
+    const name = str(c.name) ?? "";
+    if (!id || !name) continue;
+    const url = str(c.url);
+    out.push({ chain: "event", id, name, ...(url ? { url } : {}) });
   }
   return out;
 }

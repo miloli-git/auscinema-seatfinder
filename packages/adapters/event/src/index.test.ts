@@ -158,3 +158,17 @@ test("defaultFetchJson: invalid JSON -> UpstreamError{kind:parse}", async () => 
     );
   });
 });
+
+test("listCinemas: serves the bundled dated AU reference (>=40, incl Burwood=58)", async () => {
+  const adapter = new EventCinemasAdapter();
+  const cinemas = await adapter.listCinemas();
+  assert.ok(cinemas.length >= 40, `expected >=40 cinemas, got ${cinemas.length}`);
+  for (const c of cinemas) {
+    assert.equal(c.chain, "event");
+    assert.ok(c.id && /^\d+$/.test(c.id), `id should be numeric string, got "${c.id}"`);
+    assert.ok(c.name.length > 0);
+  }
+  const burwood = cinemas.find((c) => c.id === "58");
+  assert.ok(burwood, "Burwood (id 58) should be present");
+  assert.equal(burwood?.name, "Burwood");
+});

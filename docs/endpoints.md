@@ -36,12 +36,15 @@ GET /Ticketing/Order/GetSeating?sessionId={id}
 - `Data.Areas[]`: `Id`, `Name` (Double Daybed / Full Recliner / Platinum / Standard...), `Code`,
   colours/images. Map `Code`/`Name` → `SeatArea.kind`.
 
-### Cinemas
-```
-GET /api/cinemas/JsonLd
-```
+### Cinemas — ⚠️ JSON feed dead; use a dated HTML snapshot
+`GET /api/cinemas/JsonLd` now returns an empty `@graph` (98 bytes, no data) — broken/deprecated.
+The live cinema list (54 AU cinemas, numeric ids) exists only in the **`/Cinemas` page HTML**:
+each is a tag `id="cinema-select_{ID}_checkbox"` carrying `data-name`, `data-url`, `data-lat`,
+`data-long`. The numeric `{ID}` is the `cinemaId` used by `GetSessions` (e.g. 58 = Burwood).
+The adapter serves a **bundled dated snapshot** at `packages/adapters/event/data/cinemas.au.json`
+(`capturedAt`); refresh by re-scraping `/Cinemas`. `listCinemas()` is therefore offline/deterministic.
 
-Fixtures: `packages/adapters/event/fixtures/`.
+Fixtures: `packages/adapters/event/fixtures/`. Cinema reference: `packages/adapters/event/data/`.
 
 ---
 
