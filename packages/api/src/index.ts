@@ -15,10 +15,12 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import rateLimit from "@fastify/rate-limit";
 import {
   rankSeats,
+  scoreAvailableSeats,
   bestSeatScore,
   UpstreamError,
   type Chain,
   type ChainAdapter,
+  type ScoredSeat,
   type SeatPreference,
   type Session,
 } from "@auscinema/core";
@@ -115,11 +117,34 @@ function optFloat(q: Query, key: string): number | undefined {
   return n;
 }
 
+function optInt(q: Query, key: string): number | undefined {
+  const raw = optStr(q, key);
+  if (raw === undefined) return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.trunc(n) : undefined;
+}
+
+function optPositiveInt(q: Query, key: string): number | undefined {
+  const n = optInt(q, key);
+  return n !== undefined && n > 0 ? n : undefined;
+}
+
+function clampInt(n: number, min: number, max: number): number {
+  const int = Number.isFinite(n) ? Math.trunc(n) : min;
+  return Math.min(max, Math.max(min, int));
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error && err.message.length > 0 ? err.message : "unknown error";
+}
+
 function optBool(q: Query, key: string): boolean | undefined {
   const raw = optStr(q, key);
   if (raw === undefined) return undefined;
   return raw === "true" || raw === "1" || raw === "yes";
 }
+
+const MAX_BEST_TOP_N = 20;
 
 const AREA_KINDS: SeatPreference["allowedAreaKinds"] = [
   "standard",
@@ -184,11 +209,11 @@ export interface BuildServerOptions {
   sessionCacheTtlMs?: number;
   /** Concurrency for seat-map fetches in /best. Default 4. */
   bestConcurrency?: number;
-  /** Default number of top seats returned per session by /best. Default 5. */
+  /** Default number of top seats returned per session by /best. Clamped to 1..20. Default 5. */
   bestTopN?: number;
   /**
    * Max candidate sessions /best will fan out seat-map fetches for, after sorting by
-   * `seatsAvailable` desc. Overridable per-request via `?maxSessions=`. Default 40.
+   * `seatsAvailable` desc. Per-request `?maxSessions=` can lower this cap. Default 40.
    */
   maxSessions?: number;
   /**
@@ -216,10 +241,12 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
   const adapters: AdapterRegistry = { ...defaultAdapters(), ...(opts.adapters ?? {}) };
   const sessionCache = new TtlCache<Session[]>(opts.sessionCacheTtlMs ?? 5 * 60_000);
   const bestConcurrency = opts.bestConcurrency ?? 4;
-  const bestTopN = opts.bestTopN ?? 5;
-  const maxSessions = opts.maxSessions ?? 40;
+  const bestTopN = clampInt(opts.bestTopN ?? 5, 1, MAX_BEST_TOP_N);
+  const maxSessions = clampInt(opts.maxSessions ?? 40, 1, Number.MAX_SAFE_INTEGER);
 
-  const app = Fastify({ logger: opts.logger ?? false });
+  // Production traffic reaches Fastify through one Caddy hop on the Docker network.
+  // Keep the API port private when relying on X-Forwarded-For for per-client limits.
+  const app = Fastify({ logger: opts.logger ?? false, trustProxy: 1 });
 
   // Per-IP rate limit (configurable; disabled when `rateLimit === false`). The plugin THROWS the
   // result of errorResponseBuilder, so we return an Error carrying statusCode 429 and let the
@@ -302,7 +329,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const pref = parsePreference(q);
 
     const map = await adapter.getSeatMap(sessionId);
-    const scored = rankSeats(map, pref);
+    const scored = scoreAvailableSeats(map, pref);
     return { ...map, scored };
   });
 
@@ -314,13 +341,14 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     if (cinemaIds.length === 0) throw new HttpError(400, "missing required query param: cinemaIds");
     const date = reqStr(q, "date");
     const pref = parsePreference(q);
-    const topN = optFloat(q, "topN") ?? bestTopN;
-    const cap = Math.max(1, Math.floor(optFloat(q, "maxSessions") ?? maxSessions));
+    const topN = clampInt(optInt(q, "topN") ?? bestTopN, 1, MAX_BEST_TOP_N);
+    const requestedMaxSessions = optPositiveInt(q, "maxSessions");
+    const cap = Math.min(maxSessions, requestedMaxSessions ?? maxSessions);
 
     const sessions = await adapter.listSessions({ movieId, cinemaIds, date });
 
     // Sessions without seat allocation have no seat map to score - note and skip.
-    const skipped = sessions
+    const skipped: Array<{ sessionId: string; reason: string }> = sessions
       .filter((s) => !s.seatAllocation)
       .map((s) => ({ sessionId: s.id, reason: "seatAllocation=false" }));
 
@@ -333,16 +361,47 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const allocatable = candidates.slice(0, cap);
     const droppedSessions = candidates.length - allocatable.length;
 
-    const scored = await mapWithConcurrency(allocatable, bestConcurrency, async (session) => {
-      const map = await adapter.getSeatMap(session.id, { preview: true });
-      const ranked = rankSeats(map, pref);
-      return {
-        session,
-        bestScore: bestSeatScore(map, pref),
-        bookingUrl: session.bookingUrl,
-        topSeats: ranked.slice(0, topN),
-      };
+    type BestScoredSession = {
+      session: Session;
+      bestScore: number;
+      bookingUrl: string;
+      topSeats: ScoredSeat[];
+    };
+    type SeatMapError = { sessionId: string; error: string };
+    type SeatMapOutcome =
+      | { scored: BestScoredSession }
+      | { skipped: { sessionId: string; reason: string }; error: SeatMapError };
+
+    const outcomes = await mapWithConcurrency(allocatable, bestConcurrency, async (session): Promise<SeatMapOutcome> => {
+      try {
+        const map = await adapter.getSeatMap(session.id, { preview: true });
+        const ranked = rankSeats(map, pref);
+        return {
+          scored: {
+            session,
+            bestScore: bestSeatScore(map, pref),
+            bookingUrl: session.bookingUrl,
+            topSeats: ranked.slice(0, topN),
+          },
+        };
+      } catch (err) {
+        const message = errorMessage(err);
+        return {
+          skipped: { sessionId: session.id, reason: `seat map failed: ${message}` },
+          error: { sessionId: session.id, error: message },
+        };
+      }
     });
+    const scored: BestScoredSession[] = [];
+    const errors: SeatMapError[] = [];
+    for (const outcome of outcomes) {
+      if ("scored" in outcome) {
+        scored.push(outcome.scored);
+      } else {
+        skipped.push(outcome.skipped);
+        errors.push(outcome.error);
+      }
+    }
 
     scored.sort((a, b) => b.bestScore - a.bestScore);
     return {
@@ -350,6 +409,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       skipped,
       consideredSessions: allocatable.length,
       droppedSessions,
+      errors,
     };
     });
   });

@@ -104,6 +104,9 @@ export interface RankedSession {
 export interface BestResponse {
   sessions: RankedSession[];
   skipped: { sessionId: string; reason: string }[];
+  consideredSessions: number;
+  droppedSessions: number;
+  errors: { sessionId: string; error: string }[];
 }
 
 /** Allowed area-class filter values (subset users care about). */

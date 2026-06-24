@@ -1,4 +1,4 @@
-import type { ScreenFormat, Session } from "./types";
+import type { Chain, ScreenFormat, Session } from "./types";
 
 /** "2026-07-21T09:30" -> "9:30 AM". Falls back to the raw value if unparseable. */
 export function formatTime(startTime: string): string {
@@ -46,6 +46,17 @@ const FORMAT_LABEL: Record<ScreenFormat["kind"], string> = {
 
 export function formatLabel(f: ScreenFormat): string {
   return f.raw?.trim() || FORMAT_LABEL[f.kind];
+}
+
+const CHAIN_LABEL: Record<Chain, string> = {
+  event: "Event Cinemas",
+  hoyts: "Hoyts",
+  reading: "Reading",
+  village: "Village",
+};
+
+export function chainLabel(chain: Chain): string {
+  return CHAIN_LABEL[chain];
 }
 
 /** Map a 0–100 score to a colour band class. */

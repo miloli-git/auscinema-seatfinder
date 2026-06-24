@@ -1,10 +1,10 @@
 import type { RankedSession } from "../types";
-import { formatLabel, formatTime, scoreBand } from "../format";
+import { chainLabel, formatLabel, formatTime, scoreBand } from "../format";
 
 interface Props {
   ranked: RankedSession;
   selected: boolean;
-  onSelect: () => void;
+  onSelect: (session: RankedSession["session"]) => void;
 }
 
 export function SessionCard({ ranked, selected, onSelect }: Props) {
@@ -13,7 +13,7 @@ export function SessionCard({ ranked, selected, onSelect }: Props) {
 
   return (
     <article className={`card${selected ? " card--selected" : ""}`}>
-      <button className="card__main" onClick={onSelect} type="button">
+      <button className="card__main" onClick={() => onSelect(session)} type="button">
         <div className={`score score--${band}`}>
           <span className="score__num">{bestScore}</span>
           <span className="score__label">best seat</span>
@@ -38,7 +38,7 @@ export function SessionCard({ ranked, selected, onSelect }: Props) {
         target="_blank"
         rel="noopener noreferrer"
       >
-        Book on Event Cinemas ↗
+        Book on {chainLabel(session.chain)} ↗
       </a>
     </article>
   );

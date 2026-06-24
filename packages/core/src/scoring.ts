@@ -23,6 +23,19 @@ export interface ScoredSeat {
   score: number;
 }
 
+/** Whether a seat is eligible for ranked recommendations. */
+export function isSeatEligible(seat: Seat, map: SeatMap, pref?: SeatPreference): boolean {
+  if (seat.status !== "available") return false;
+
+  const allowedAreaKinds = pref?.allowedAreaKinds;
+  if (allowedAreaKinds && allowedAreaKinds.length > 0) {
+    const kind = areaKind(map, seat.areaId);
+    if (kind === undefined || !allowedAreaKinds.includes(kind)) return false;
+  }
+
+  return !(pref?.avoidPaired && seat.paired);
+}
+
 /**
  * Score a single seat 0–100 against a preference, using the seat map for geometry
  * (row extent for depth, per-row column extent for centrality).
@@ -34,19 +47,11 @@ export interface ScoredSeat {
  *   - combine weighted penalties -> 0..100
  */
 export function scoreSeat(seat: Seat, map: SeatMap, pref?: SeatPreference): number {
+  if (!isSeatEligible(seat, map, pref)) return 0;
+
   const targetDepth = pref?.targetDepth ?? 0.65;
   let depthWeight = pref?.depthWeight ?? 0.5;
   let centralityWeight = pref?.centralityWeight ?? 0.5;
-  const avoidPaired = pref?.avoidPaired ?? false;
-  const allowedAreaKinds = pref?.allowedAreaKinds;
-
-  // Gate: availability, area kind, paired.
-  if (seat.status !== "available") return 0;
-  if (allowedAreaKinds && allowedAreaKinds.length > 0) {
-    const kind = areaKind(map, seat.areaId);
-    if (kind === undefined || !allowedAreaKinds.includes(kind)) return 0;
-  }
-  if (avoidPaired && seat.paired) return 0;
 
   // Real seats only (drop spacers) for geometry.
   const realSeats = map.seats.filter((s) => s.status !== "spacer");
@@ -95,9 +100,19 @@ function areaKind(map: SeatMap, areaId: string): SeatArea["kind"] | undefined {
 }
 
 /**
- * Score every available seat in a map and return them best-first.
+ * Score every eligible seat in a map and return them best-first.
  */
 export function rankSeats(map: SeatMap, pref?: SeatPreference): ScoredSeat[] {
+  return map.seats
+    .filter((seat) => isSeatEligible(seat, map, pref))
+    .map((seat) => ({ seat, score: scoreSeat(seat, map, pref) }))
+    .sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Score every available seat in a map for display and return them best-first.
+ */
+export function scoreAvailableSeats(map: SeatMap, pref?: SeatPreference): ScoredSeat[] {
   return map.seats
     .filter((seat) => seat.status === "available")
     .map((seat) => ({ seat, score: scoreSeat(seat, map, pref) }))

@@ -18,13 +18,19 @@ export interface CheckDeps {
   concurrency?: number;
 }
 
+export interface CheckError {
+  watchId: string;
+  sessionId?: string;
+  error: string;
+}
+
 export interface CheckResult {
   /** Every above-threshold available seat found this run (incl. already-alerted). */
   hits: Hit[];
   /** The subset that was not previously alerted - what the notifier was sent. */
   newHits: Hit[];
   /** Per-watch errors; a failing watch doesn't abort the others. */
-  errors: { watchId: string; error: string }[];
+  errors: CheckError[];
 }
 
 /** Extract zero-padded "HH:MM" from an ISO-local start time, if present. */
@@ -72,6 +78,17 @@ interface WatchOutcome {
   hits: Hit[];
   /** sessionPrefix for every session whose seat map was successfully fetched this run. */
   checkedSessionPrefixes: string[];
+  errors: CheckError[];
+}
+
+interface SessionOutcome {
+  hits: Hit[];
+  prefix?: string;
+  error?: CheckError;
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 /** Run one watch, returning its hits + the sessions it actually checked (no state mutation). */
@@ -86,32 +103,40 @@ async function checkWatch(watch: Watch, deps: CheckDeps, concurrency: number): P
   });
   const candidates = candidateSessions(sessions, watch);
 
-  const perSession = await mapWithConcurrency(candidates, concurrency, async (session) => {
-    // Polite: use the cached preview availability feed for polling.
-    const map = await adapter.getSeatMap(session.id, { preview: true });
-    const ranked = rankSeats(map, watch.preference);
-    const hits: Hit[] = [];
-    for (const { seat, score } of ranked) {
-      if (score < watch.minScore) continue; // rankSeats is best-first → rest are lower
-      hits.push({
-        watchId: watch.id,
-        label,
-        chain: watch.chain,
-        sessionId: session.id,
-        seatId: seat.id,
-        ...(seat.name ? { seatName: seat.name } : {}),
-        score,
-        startTime: session.startTime,
-        format: session.format.raw || session.format.kind,
-        bookingUrl: session.bookingUrl,
-      });
+  const perSession = await mapWithConcurrency<Session, SessionOutcome>(candidates, concurrency, async (session) => {
+    try {
+      // Polite: use the cached preview availability feed for polling.
+      const map = await adapter.getSeatMap(session.id, { preview: true });
+      const ranked = rankSeats(map, watch.preference);
+      const hits: Hit[] = [];
+      for (const { seat, score } of ranked) {
+        if (score < watch.minScore) continue; // rankSeats is best-first -> rest are lower
+        hits.push({
+          watchId: watch.id,
+          label,
+          chain: watch.chain,
+          sessionId: session.id,
+          seatId: seat.id,
+          ...(seat.name ? { seatName: seat.name } : {}),
+          score,
+          startTime: session.startTime,
+          format: session.format.raw || session.format.kind,
+          bookingUrl: session.bookingUrl,
+        });
+      }
+      return { hits, prefix: WatchState.sessionPrefixOf(watch.id, session.id) };
+    } catch (err) {
+      return {
+        hits: [],
+        error: { watchId: watch.id, sessionId: session.id, error: errorMessage(err) },
+      };
     }
-    return { hits, prefix: WatchState.sessionPrefixOf(watch.id, session.id) };
   });
 
   return {
     hits: perSession.flatMap((p) => p.hits),
-    checkedSessionPrefixes: perSession.map((p) => p.prefix),
+    checkedSessionPrefixes: perSession.flatMap((p) => (p.prefix ? [p.prefix] : [])),
+    errors: perSession.flatMap((p) => (p.error ? [p.error] : [])),
   };
 }
 
@@ -132,8 +157,9 @@ export async function runCheck(config: WatcherConfig, deps: CheckDeps): Promise<
       // Record every (watch, session) actually checked - including sold-out ones with no
       // hits - so stale alerts for them can be pruned.
       for (const prefix of outcome.checkedSessionPrefixes) checkedSessionPrefixes.add(prefix);
+      errors.push(...outcome.errors);
     } catch (err) {
-      errors.push({ watchId: watch.id, error: (err as Error).message });
+      errors.push({ watchId: watch.id, error: errorMessage(err) });
     }
   }
 

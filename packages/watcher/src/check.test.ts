@@ -10,6 +10,7 @@ import type {
 } from "@auscinema/core";
 import { runCheck } from "./check.js";
 import { inTimeWindow } from "./check.js";
+import { shouldBackoffForCheckResult } from "./cli.js";
 import { WatchState } from "./state.js";
 import type { Notifier, Hit } from "./notifier.js";
 import type { AdapterRegistry } from "./registry.js";
@@ -178,6 +179,101 @@ test("timeWindow filtering excludes out-of-window sessions", async () => {
 
   assert.equal(res.hits.length, 1, "only the in-window session contributes a hit");
   assert.equal(res.newHits[0]!.sessionId, "Sevening");
+});
+
+test("one session getSeatMap throw does not discard another session hit", async () => {
+  const good = seat("good", "D3", 3, 2, "available");
+  const maps: Record<string, SeatMap> = {
+    Sgood: { ...mapWith(grid([good])), sessionId: "Sgood" },
+  };
+  const adapter = stubAdapter(
+    [session("Sbad", "2026-07-21T19:00"), session("Sgood", "2026-07-21T19:30")],
+    maps,
+  );
+  const registry: AdapterRegistry = { event: adapter };
+  const notifier = new CapturingNotifier();
+  const state = new WatchState();
+
+  const res = await runCheck(configOf(watch()), { registry, notifier, state });
+
+  assert.equal(res.hits.length, 1, "other session still contributes a hit");
+  assert.equal(res.newHits.length, 1);
+  assert.equal(res.newHits[0]!.sessionId, "Sgood");
+  assert.equal(notifier.calls.length, 1);
+  assert.deepEqual(res.errors, [{ watchId: "w1", sessionId: "Sbad", error: "no map for Sbad" }]);
+});
+
+test("a failed seat-map session is not pruned from state", async () => {
+  const failedKey = WatchState.keyOf("w1", "Sbad", "existing");
+  const checkedKey = WatchState.keyOf("w1", "Sgood", "stale");
+  const state = new WatchState([failedKey, checkedKey]);
+  const maps: Record<string, SeatMap> = {
+    Sgood: { ...mapWith(grid([seat("stale", "D3", 3, 2, "sold")])), sessionId: "Sgood" },
+  };
+  const adapter = stubAdapter(
+    [session("Sbad", "2026-07-21T19:00"), session("Sgood", "2026-07-21T19:30")],
+    maps,
+  );
+  const registry: AdapterRegistry = { event: adapter };
+  const notifier = new CapturingNotifier();
+
+  const res = await runCheck(configOf(watch()), { registry, notifier, state });
+
+  assert.equal(res.errors.length, 1);
+  assert.equal(res.errors[0]!.sessionId, "Sbad");
+  assert.equal(state.has(failedKey), true, "failed session's prior alert is retained");
+  assert.equal(state.has(checkedKey), false, "successfully checked stale session is pruned");
+});
+
+test("backoff classifier counts distinct failed watches, not error rows", () => {
+  assert.equal(
+    shouldBackoffForCheckResult(
+      {
+        hits: [],
+        newHits: [],
+        errors: [
+          { watchId: "w1", sessionId: "S1", error: "upstream" },
+          { watchId: "w1", sessionId: "S2", error: "upstream" },
+          { watchId: "w2", error: "upstream" },
+        ],
+      },
+      2,
+    ),
+    true,
+    "all watches failing triggers backoff",
+  );
+
+  assert.equal(
+    shouldBackoffForCheckResult(
+      {
+        hits: [],
+        newHits: [],
+        errors: [
+          { watchId: "w1", sessionId: "S1", error: "upstream" },
+          { watchId: "w1", sessionId: "S2", error: "upstream" },
+        ],
+      },
+      3,
+    ),
+    false,
+    "one failing watch with repeated session errors does not trigger majority backoff",
+  );
+
+  assert.equal(
+    shouldBackoffForCheckResult(
+      {
+        hits: [],
+        newHits: [],
+        errors: [
+          { watchId: "w1", error: "upstream" },
+          { watchId: "w2", error: "upstream" },
+        ],
+      },
+      3,
+    ),
+    true,
+    "a majority of watches failing triggers backoff",
+  );
 });
 
 test("inTimeWindow: boundaries inclusive, missing window passes", () => {

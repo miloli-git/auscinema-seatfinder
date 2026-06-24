@@ -10,6 +10,7 @@ import type {
   ScreenFormat,
 } from "@auscinema/core";
 import { UpstreamError, isAbortError } from "@auscinema/core";
+import { Buffer } from "node:buffer";
 
 /**
  * Injectable HTTP-JSON fetcher so parsing can run against fixtures without network.
@@ -27,7 +28,7 @@ export type FetchJson = (url: string, init?: FetchInit) => Promise<unknown>;
  * AUTH: every data route sits behind a Lambda authorizer requiring `Authorization: Bearer <token>`.
  * The token is a *public bootstrap* Cognito access token handed out by `GET /settings/{countryId}`
  * (`data.settings.token`). No login/subscription key is needed - the SPA fetches it on boot and
- * reuses it for all reads. We do the same and cache it for the adapter's lifetime.
+ * reuses it for all reads. We do the same and cache it until the JWT exp, with a safety skew.
  *
  * countryId is fixed to "1" (Australia; NZ=2, Angelika=3, State=4, US=5 share the same API).
  *
@@ -62,7 +63,7 @@ export class ReadingAdapter implements ChainAdapter {
   private readonly siteBase = "https://readingcinemas.com.au";
   private readonly countryId = "1";
   private readonly fetchJson: FetchJson;
-  private tokenCache?: string;
+  private tokenCache?: { token: string; expiresAt: number };
 
   constructor(opts?: { fetchJson?: FetchJson }) {
     this.fetchJson = opts?.fetchJson ?? defaultFetchJson;
@@ -70,7 +71,9 @@ export class ReadingAdapter implements ChainAdapter {
 
   /** Fetch + cache the public bootstrap bearer token from /settings/{countryId}. */
   private async token(): Promise<string> {
-    if (this.tokenCache) return this.tokenCache;
+    if (this.tokenCache && Date.now() < this.tokenCache.expiresAt - TOKEN_SKEW_MS) {
+      return this.tokenCache.token;
+    }
     const raw = await this.fetchJson(`${this.base}/settings/${this.countryId}`);
     const data = isObj(raw) && isObj(raw.data) ? raw.data : undefined;
     const settings = isObj(data?.settings) ? data.settings : undefined;
@@ -78,24 +81,34 @@ export class ReadingAdapter implements ChainAdapter {
     if (!tok) {
       throw new UpstreamError("Reading: no bootstrap token in /settings response", { kind: "auth" });
     }
-    this.tokenCache = tok;
+    this.tokenCache = { token: tok, expiresAt: tokenExpiresAt(tok, Date.now()) };
     return tok;
   }
 
-  async listCinemas(): Promise<Cinema[]> {
+  private async fetchAuthedJson(url: string, init?: Omit<FetchInit, "token">): Promise<unknown> {
     const token = await this.token();
-    const raw = await this.fetchJson(`${this.base}/getcinemas?countryId=${this.countryId}`, { token });
+    try {
+      return await this.fetchJson(url, { ...init, token });
+    } catch (err) {
+      if (!(err instanceof UpstreamError) || err.kind !== "auth") throw err;
+      this.tokenCache = undefined;
+      const freshToken = await this.token();
+      return await this.fetchJson(url, { ...init, token: freshToken });
+    }
+  }
+
+  async listCinemas(): Promise<Cinema[]> {
+    const raw = await this.fetchAuthedJson(`${this.base}/getcinemas?countryId=${this.countryId}`);
     return parseCinemas(raw, this.siteBase);
   }
 
   async listSessions(query: SessionQuery): Promise<Session[]> {
-    const token = await this.token();
     const out: Session[] = [];
     for (const cinemaId of query.cinemaIds) {
       const url =
         `${this.base}/films?countryId=${this.countryId}` +
         `&cinemaId=${encodeURIComponent(cinemaId)}&status=nowShowing`;
-      const raw = await this.fetchJson(url, { token });
+      const raw = await this.fetchAuthedJson(url);
       out.push(...parseSessions(raw, cinemaId, query, this.siteBase));
     }
     return out;
@@ -103,7 +116,6 @@ export class ReadingAdapter implements ChainAdapter {
 
   async getSeatMap(sessionId: string, _opts?: { preview?: boolean }): Promise<SeatMap> {
     const { cinemaId, sid, screenType, reservedSeating } = decodeSessionId(sessionId);
-    const token = await this.token();
     const body = {
       cinemaId,
       sessionId: sid,
@@ -114,10 +126,9 @@ export class ReadingAdapter implements ChainAdapter {
       screenType,
       showLoyaltyTicket: true,
     };
-    const raw = await this.fetchJson(`${this.base}/ticketing/tickettypes`, {
+    const raw = await this.fetchAuthedJson(`${this.base}/ticketing/tickettypes`, {
       method: "POST",
       body,
-      token,
     });
     return parseSeatMap(sessionId, raw);
   }
@@ -152,7 +163,7 @@ const BROWSER_HEADERS: Record<string, string> = {
   Accept: "application/json",
 };
 
-/** Real network call: 15s timeout, one retry on network error. Failures throw a typed UpstreamError. */
+/** Real network call: 15s timeout, one retry on retryable network/timeout failure. */
 const defaultFetchJson: FetchJson = async (url, init) => {
   const attempt = async (): Promise<unknown> => {
     const controller = new AbortController();
@@ -187,15 +198,16 @@ const defaultFetchJson: FetchJson = async (url, init) => {
       if (isAbortError(err)) {
         throw new UpstreamError(`Reading request timed out (${url})`, { kind: "timeout", cause: err });
       }
-      throw err; // network error - retried below, then normalised
+      throw err; // raw network error retried below, then normalised
     } finally {
       clearTimeout(timer);
     }
   };
   try {
     return await attempt();
-  } catch {
-    // One retry on network/abort error (cheap, idempotent GET/POST of a read query).
+  } catch (err) {
+    if (!isRetryable(err)) throw err;
+    // One retry on retryable network/timeout failure (cheap, idempotent GET/POST of a read query).
     try {
       return await attempt();
     } catch (err) {
@@ -205,6 +217,10 @@ const defaultFetchJson: FetchJson = async (url, init) => {
   }
 };
 
+function isRetryable(err: unknown): boolean {
+  return err instanceof UpstreamError ? err.kind === "timeout" : true;
+}
+
 // --- Parsing ----------------------------------------------------------------
 
 type Json = Record<string, unknown>;
@@ -212,6 +228,25 @@ const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null;
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
+const TOKEN_SKEW_MS = 60_000;
+const TOKEN_FALLBACK_TTL_MS = 5 * 60_000;
+
+function tokenExpiresAt(token: string, now: number): number {
+  const exp = jwtExp(token);
+  return exp === undefined ? now + TOKEN_FALLBACK_TTL_MS : exp * 1000;
+}
+
+function jwtExp(token: string): number | undefined {
+  const payload = token.split(".")[1];
+  if (!payload) return undefined;
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    const exp = isObj(decoded) ? num(decoded.exp) : undefined;
+    return exp !== undefined && Number.isFinite(exp) ? exp : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 function mapFormat(type: unknown): ScreenFormat {
   const raw = str(type) ?? "";

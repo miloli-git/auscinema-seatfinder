@@ -48,6 +48,7 @@ services:
     command: ["node", "packages/watcher/dist/cli.js", "watch", "/config/watch.config.json"]
     environment:
       WATCHER_WEBHOOK: "${WATCHER_WEBHOOK:-}"
+      WATCHER_STATE_PATH: "/state/watch.state.json"
     volumes:
       - ./watch.config.json:/config/watch.config.json:ro
       - watcher-state:/state

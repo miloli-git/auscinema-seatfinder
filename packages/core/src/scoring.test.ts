@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Seat, SeatMap } from "./types.ts";
-import { scoreSeat, rankSeats, bestSeatScore } from "./scoring.ts";
+import { scoreSeat, rankSeats, bestSeatScore, isSeatEligible, scoreAvailableSeats } from "./scoring.ts";
 
 /**
  * Build a synthetic 5-row x 5-col auditorium (rows 0..4 front->back, cols 0..4 left->right).
@@ -64,6 +64,52 @@ test("allowedAreaKinds zeroes a disallowed-area seat", () => {
   // Only goldclass allowed: the standard-area seat must zero out.
   assert.equal(scoreSeat(mainSeat, map, { allowedAreaKinds: ["goldclass"] }), 0);
   assert.ok(scoreSeat(goldSeat, map, { allowedAreaKinds: ["goldclass"] }) > 0);
+});
+
+test("rankSeats excludes seats gated out by allowedAreaKinds", () => {
+  const map = makeMap([{ id: "r4c4", areaId: "gold" }]);
+  const pref = { allowedAreaKinds: ["goldclass" as const] };
+  const gatedSeatId = "r3c2";
+
+  const ranked = rankSeats(map, pref);
+  const display = scoreAvailableSeats(map, pref);
+
+  assert.equal(ranked.some(({ seat }) => seat.id === gatedSeatId), false);
+  assert.equal(display.find(({ seat }) => seat.id === gatedSeatId)?.score, 0);
+});
+
+test("rankSeats excludes paired seats when avoidPaired is true", () => {
+  const map = makeMap([{ id: "r3c2", paired: true }]);
+  const pref = { avoidPaired: true };
+  const pairedSeatId = "r3c2";
+
+  const ranked = rankSeats(map, pref);
+  const display = scoreAvailableSeats(map, pref);
+
+  assert.equal(ranked.some(({ seat }) => seat.id === pairedSeatId), false);
+  assert.equal(display.find(({ seat }) => seat.id === pairedSeatId)?.score, 0);
+});
+
+test("isSeatEligible returns false for sold spacer and gated seats", () => {
+  const map = makeMap([
+    { id: "r1c1", status: "sold" },
+    { id: "r1c2", status: "spacer" },
+    { id: "r4c4", areaId: "gold" },
+  ]);
+
+  assert.equal(isSeatEligible(map.seats.find((s) => s.id === "r1c1")!, map), false);
+  assert.equal(isSeatEligible(map.seats.find((s) => s.id === "r1c2")!, map), false);
+  assert.equal(isSeatEligible(map.seats.find((s) => s.id === "r3c2")!, map, { allowedAreaKinds: ["goldclass"] }), false);
+  assert.equal(isSeatEligible(map.seats.find((s) => s.id === "r4c4")!, map, { allowedAreaKinds: ["goldclass"] }), true);
+});
+
+test("scoreAvailableSeats keeps gated available seats with score 0", () => {
+  const map = makeMap([{ id: "r4c4", areaId: "gold" }]);
+  const display = scoreAvailableSeats(map, { allowedAreaKinds: ["goldclass"] });
+
+  assert.equal(display.length, 25);
+  assert.equal(display.find(({ seat }) => seat.id === "r3c2")?.score, 0);
+  assert.equal(display.some(({ seat, score }) => seat.id === "r4c4" && score > 0), true);
 });
 
 test("bestSeatScore is 0 when no seats available", () => {
