@@ -105,7 +105,7 @@ export function rankSeats(map: SeatMap, pref?: SeatPreference): ScoredSeat[] {
 }
 
 /**
- * Best single seat score for a session — used to rank sessions against each other.
+ * Best single seat score for a session - used to rank sessions against each other.
  */
 export function bestSeatScore(map: SeatMap, pref?: SeatPreference): number {
   const ranked = rankSeats(map, pref);

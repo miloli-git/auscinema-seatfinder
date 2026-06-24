@@ -1,13 +1,13 @@
 # auscinema-seatfinder
 
-Find a cinema seat **you'd actually want to sit in** — not just any free seat — across major
+Find a cinema seat **you'd actually want to sit in** - not just any free seat - across major
 Australian cinema chains, then book on the cinema's own page.
 
 Most cinema sites tell you a seat is *available*. None tell you whether it's a *good* seat. This
 tool scores every available seat by geometry (how central in the row, how far back) and by seat
 class (recliner / Gold Class / Vmax / standard), ranks sessions by their best available seat, and
 can alert you when a seat worth taking opens up. Booking itself is always handed back to the
-official cinema page — this project never touches payment.
+official cinema page - this project never touches payment.
 
 > **Personal / educational project.** It reads the cinemas' own public web endpoints at a low
 > request rate, uses no authentication, and stores no personal data. It is not affiliated with or
@@ -61,4 +61,4 @@ npm test
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).

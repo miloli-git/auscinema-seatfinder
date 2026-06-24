@@ -94,7 +94,7 @@ function usable(s: Session): boolean {
 }
 
 async function smokeChain(name: string, adapter: ChainAdapter): Promise<ChainResult> {
-  const fail = (reason: string): ChainResult => ({ chain: name, ok: false, line: `FAIL ${name} — ${reason}` });
+  const fail = (reason: string): ChainResult => ({ chain: name, ok: false, line: `FAIL ${name} - ${reason}` });
   try {
     // 1. cinemas
     const cinemas = await adapter.listCinemas();
@@ -127,7 +127,7 @@ async function smokeChain(name: string, adapter: ChainAdapter): Promise<ChainRes
       return fail(`no allocated-seating sessions at ${cinema.name} in the next ${DATE_HORIZON_DAYS} days`);
     }
 
-    // 4. seat map + scoring — try a few sessions in case the first is genuinely sold out.
+    // 4. seat map + scoring - try a few sessions in case the first is genuinely sold out.
     const tried = sessions.slice(0, MAX_SESSIONS_PER_CHAIN);
     let lastReason = "no seat map with available seats";
     for (const session of tried) {
@@ -146,7 +146,7 @@ async function smokeChain(name: string, adapter: ChainAdapter): Promise<ChainRes
       const ranked = rankSeats(map);
       if (ranked.length === 0) {
         lastReason = `seat map fully sold out (${realSeats.length} seats, 0 available)`;
-        continue; // genuinely sold out — try another session
+        continue; // genuinely sold out - try another session
       }
       const top = ranked[0]!.score;
       const where = session.movieName ? `${cinema.name} (${session.movieName})` : cinema.name;
@@ -154,7 +154,7 @@ async function smokeChain(name: string, adapter: ChainAdapter): Promise<ChainRes
         chain: name,
         ok: true,
         line:
-          `PASS ${name} — ${cinemas.length} cinemas, ${sessions.length} sessions @ ${where} ${chosenDate}, ` +
+          `PASS ${name} - ${cinemas.length} cinemas, ${sessions.length} sessions @ ${where} ${chosenDate}, ` +
           `${realSeats.length}-seat map, top score ${top}`,
       };
     }
@@ -168,7 +168,7 @@ async function smokeChain(name: string, adapter: ChainAdapter): Promise<ChainRes
 
 async function main(): Promise<void> {
   const now = new Date();
-  console.log(`auscinema live smoke — ${now.toISOString()} (dates ${localDate(0)} .. ${localDate(DATE_HORIZON_DAYS)})\n`);
+  console.log(`auscinema live smoke - ${now.toISOString()} (dates ${localDate(0)} .. ${localDate(DATE_HORIZON_DAYS)})\n`);
 
   const chains: Array<[string, ChainAdapter]> = [
     ["event", new EventCinemasAdapter()],

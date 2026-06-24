@@ -8,7 +8,7 @@
   "watches": [
     {
       "id": "dune-event-george-st",
-      "label": "Dune Part Two — Event George St, Sat evening",
+      "label": "Dune Part Two - Event George St, Sat evening",
       "chain": "event",
       "movieId": "HO00001234",
       "cinemaIds": ["1001"],
@@ -25,7 +25,7 @@
     },
     {
       "id": "dune-hoyts-entertainment-quarter",
-      "label": "Dune Part Two — Hoyts EQ, any session",
+      "label": "Dune Part Two - Hoyts EQ, any session",
       "chain": "hoyts",
       "movieId": "HO00008574",
       "cinemaIds": ["EQCIN"],

@@ -20,13 +20,13 @@ export type FetchInit = { method?: "GET" | "POST"; body?: unknown; token?: strin
 export type FetchJson = (url: string, init?: FetchInit) => Promise<unknown>;
 
 /**
- * Reading Cinemas (AU) adapter — reverse-engineered. The readingcinemas.com.au React SPA is a
+ * Reading Cinemas (AU) adapter - reverse-engineered. The readingcinemas.com.au React SPA is a
  * thin shell; the real backend is an AWS API-Gateway facade over Vista
  * (`VistaUrl: prod-au-vista.readingcinemas.com.au`) at `https://prod-api.readingcinemas.com.au`.
  *
  * AUTH: every data route sits behind a Lambda authorizer requiring `Authorization: Bearer <token>`.
  * The token is a *public bootstrap* Cognito access token handed out by `GET /settings/{countryId}`
- * (`data.settings.token`). No login/subscription key is needed — the SPA fetches it on boot and
+ * (`data.settings.token`). No login/subscription key is needed - the SPA fetches it on boot and
  * reuses it for all reads. We do the same and cache it for the adapter's lifetime.
  *
  * countryId is fixed to "1" (Australia; NZ=2, Angelika=3, State=4, US=5 share the same API).
@@ -39,7 +39,7 @@ export type FetchJson = (url: string, init?: FetchInit) => Promise<unknown>;
  *       -> { data:[ { name, slug(=SPA film id), showdates:[ { date, showtypes:[ { type,
  *              showtimes:[ { id, ScheduledFilmId(=Vista film id), date_time, reservedSeating,
  *              availableSeats, totalNumberOfSeats, type, soldout } ] } ] } ] } ] }
- *       Per-cinema, ALL movies + ALL dates — we filter client-side by movieId + date (cf. Hoyts).
+ *       Per-cinema, ALL movies + ALL dates - we filter client-side by movieId + date (cf. Hoyts).
  *   - POST /ticketing/tickettypes  { cinemaId, sessionId, reservedSeating, requestType:"seatPlan",
  *              covidFlag:0, countryId:"1", screenType, showLoyaltyTicket:true }
  *       -> { data:{ ticketType:[...], seatLayout:[ row -> { colKey: SeatCell } ],
@@ -47,13 +47,13 @@ export type FetchJson = (url: string, init?: FetchInit) => Promise<unknown>;
  *     SeatCell: { seatType:"Empty"|"Aisle"|"Sold"|"Companion"|"Special"|"Broken"|..., seatId,
  *                 isAvailable, isBooked, row, column, areaNumber, category, areaCategoryCode }.
  *
- * GEOMETRY VERDICT: Reading EXPOSES explicit grid coordinates per seat (`row`, `column`) — true
+ * GEOMETRY VERDICT: Reading EXPOSES explicit grid coordinates per seat (`row`, `column`) - true
  * geometry, not just array order. Vista numbers `row` front->back DESCENDING (front row = highest)
  * and `column` left->right DESCENDING, so we negate both to honour the core contract (higher row =
  * further back, col increases left->right). Scoring is geometry-correct, not approximate.
  *
  * The seat route needs cinemaId + screenType + reservedSeating in addition to the session id, but
- * ChainAdapter.getSeatMap only receives a sessionId — so Session.id is encoded as
+ * ChainAdapter.getSeatMap only receives a sessionId - so Session.id is encoded as
  * "{cinemaId}|{sessionId}|{screenType}|{reservedSeating}" and split back here (cf. Hoyts' trick).
  */
 export class ReadingAdapter implements ChainAdapter {
@@ -187,7 +187,7 @@ const defaultFetchJson: FetchJson = async (url, init) => {
       if (isAbortError(err)) {
         throw new UpstreamError(`Reading request timed out (${url})`, { kind: "timeout", cause: err });
       }
-      throw err; // network error — retried below, then normalised
+      throw err; // network error - retried below, then normalised
     } finally {
       clearTimeout(timer);
     }
@@ -222,7 +222,7 @@ function mapFormat(type: unknown): ScreenFormat {
   else if (k.includes("gold")) kind = "goldclass";
   else if (k.includes("premium") || k.includes("titanluxe")) kind = "premium";
   else if (k.includes("standard")) kind = "standard";
-  else kind = "other"; // TitanXC and other large formats — no core bucket
+  else kind = "other"; // TitanXC and other large formats - no core bucket
   return { kind, raw };
 }
 

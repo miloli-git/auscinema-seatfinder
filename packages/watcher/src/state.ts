@@ -4,7 +4,7 @@
  */
 import { readFile, writeFile, rename } from "node:fs/promises";
 
-const SEP = ""; // unit separator — never appears in ids
+const SEP = ""; // unit separator - never appears in ids
 
 export class WatchState {
   private readonly keys: Set<string>;

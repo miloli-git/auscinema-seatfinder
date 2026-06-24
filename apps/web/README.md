@@ -2,7 +2,7 @@
 
 Seat-finder SPA (Vite + React + TypeScript). Ranks Event Cinemas sessions by the
 best available seat for your preferences, then deep-links into the chain's own
-booking flow. It does **not** book — booking is the link out.
+booking flow. It does **not** book - booking is the link out.
 
 ## Run it locally
 

@@ -2,7 +2,7 @@
 /**
  * Watcher CLI. Two modes:
  *
- *   auscinema-watch check [configPath]   single-shot — the NAS-cron entrypoint
+ *   auscinema-watch check [configPath]   single-shot - the NAS-cron entrypoint
  *   auscinema-watch watch [configPath]   loop on pollIntervalMs, backing off on errors
  *
  * Config path resolution: argv[3] -> $WATCHER_CONFIG -> ./watch.config.json

@@ -47,7 +47,7 @@ export type FetchLike = (
 ) => Promise<{ ok: boolean; status: number; statusText: string }>;
 
 /**
- * Generic webhook notifier — POSTs JSON to a configurable URL. Compatible with
+ * Generic webhook notifier - POSTs JSON to a configurable URL. Compatible with
  * Discord / Slack / ntfy style endpoints and any custom collector.
  */
 export class WebhookNotifier implements Notifier {
@@ -82,7 +82,7 @@ export class WebhookNotifier implements Notifier {
   }
 }
 
-/** Fallback notifier — prints to stdout when no webhook is configured. */
+/** Fallback notifier - prints to stdout when no webhook is configured. */
 export class ConsoleNotifier implements Notifier {
   constructor(private readonly log: (msg: string) => void = (m) => console.log(m)) {}
   async notify(hits: Hit[]): Promise<void> {

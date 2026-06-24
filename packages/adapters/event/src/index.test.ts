@@ -51,7 +51,7 @@ test("getSeatMap: decodes seats, areas and preserves spacers", async () => {
   // Spacers preserved as status "spacer" (not dropped).
   const spacers = map.seats.filter((s) => s.status === "spacer");
   assert.ok(spacers.length > 0, "spacers preserved");
-  // Row A starts with three spacers ("|0|11|20/19/18") — confirm they survive normalisation.
+  // Row A starts with three spacers ("|0|11|20/19/18") - confirm they survive normalisation.
   assert.ok(spacers.some((s) => s.id === "|0|11|20"), "row-A spacer preserved");
 
   // Wheelchair "Special" seat mapped to accessible + special status.
@@ -171,4 +171,39 @@ test("listCinemas: serves the bundled dated AU reference (>=40, incl Burwood=58)
   const burwood = cinemas.find((c) => c.id === "58");
   assert.ok(burwood, "Burwood (id 58) should be present");
   assert.equal(burwood?.name, "Burwood");
+});
+
+test("listSessions: filters to the requested movieId (Event ignores it server-side)", async () => {
+  // Event's GetSessions returns ALL movies at the cinema regardless of the movieId param,
+  // so the adapter must filter client-side. Synthetic two-movie payload.
+  const twoMovies = {
+    Success: true,
+    Data: {
+      Movies: [
+        {
+          Id: 100,
+          Name: "Wanted Movie",
+          CinemaModels: [
+            { Id: 58, Name: "Burwood", Sessions: [{ Id: 1, StartTime: "2026-06-24T10:00", SeatAllocation: true }] },
+          ],
+        },
+        {
+          Id: 200,
+          Name: "Other Movie",
+          CinemaModels: [
+            { Id: 58, Name: "Burwood", Sessions: [{ Id: 2, StartTime: "2026-06-24T11:00", SeatAllocation: true }] },
+          ],
+        },
+      ],
+    },
+  };
+  const adapter = new EventCinemasAdapter({ fetchJson: (async () => twoMovies) as FetchJson });
+
+  const filtered = await adapter.listSessions({ movieId: "100", cinemaIds: ["58"], date: "2026-06-24" });
+  assert.equal(filtered.length, 1, "should keep only the requested movie");
+  assert.equal(filtered[0]?.movieId, "100");
+  assert.equal(filtered[0]?.movieName, "Wanted Movie");
+
+  const all = await adapter.listSessions({ movieId: "", cinemaIds: ["58"], date: "2026-06-24" });
+  assert.equal(all.length, 2, "empty movieId returns all movies");
 });

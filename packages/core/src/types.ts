@@ -52,7 +52,7 @@ export interface Session {
 export type SeatStatus =
   | "available"
   | "sold"
-  | "spacer" // structural gap / aisle — not a seat
+  | "spacer" // structural gap / aisle - not a seat
   | "companion"
   | "special"
   | "unavailable";

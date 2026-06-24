@@ -43,7 +43,7 @@ async function getJson<T>(path: string, qs: URLSearchParams): Promise<T> {
       const body = (await res.json()) as { error?: string };
       if (body?.error) detail = body.error;
     } catch {
-      /* non-JSON error body — keep statusText */
+      /* non-JSON error body - keep statusText */
     }
     throw new Error(`${res.status}: ${detail}`);
   }

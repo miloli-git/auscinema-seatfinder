@@ -15,7 +15,7 @@ import { UpstreamError, isAbortError } from "@auscinema/core";
 export type FetchJson = (url: string) => Promise<unknown>;
 
 /**
- * Hoyts Cinemas adapter — reverse-engineered, open JSON API (no auth/subscription key).
+ * Hoyts Cinemas adapter - reverse-engineered, open JSON API (no auth/subscription key).
  *
  * The hoyts.com.au Vue SPA reads its base URLs from an embedded `config.urls` object and calls
  * Azure APIM services with a plain browser `User-Agent` + `Accept: application/json`. No
@@ -31,7 +31,7 @@ export type FetchJson = (url: string) => Promise<unknown>;
  *   - GET cinemaapi/sessions/{cinemaId}?partnerId=ALL
  *       -> [ { id, cinemaId, movieId:"HO00008574"(=vistaId), date(local), utcDate, typeId,
  *              originalTags:[...], allocatedSeating, screenName, link } ]
- *     NOTE: per-cinema, ALL movies + ALL dates — no server-side movie/date filter. We filter
+ *     NOTE: per-cinema, ALL movies + ALL dates - no server-side movie/date filter. We filter
  *     client-side by movieId (Hoyts uses the Vista id, e.g. "HO00008574") and date.
  *   - GET ticketing/ticket/seats/{cinemaId}/{sessionId}/
  *       -> { areas:[{id,code,name}], rows:[ { name(rowLabel), seats:[ Slot ] } ] }
@@ -41,14 +41,14 @@ export type FetchJson = (url: string) => Promise<unknown>;
  *     410 "Session sold out." is returned for fully-sold sessions.
  *
  * GEOMETRY VERDICT: Hoyts exposes NO explicit row/col coordinates. Physical position is implicit
- * in array ORDER — rows top(front)->bottom(back), and seats left->right within each row (gaps
+ * in array ORDER - rows top(front)->bottom(back), and seats left->right within each row (gaps
  * included). The SPA itself derives centre from array indices ((cols-1)/2, (rows-1)/2), so we do
  * the same: row = row index (front=0, increasing back), col = running slot index within the row.
  * Geometric centre/depth scoring is therefore APPROXIMATE for Hoyts (index-based, not metric),
  * but matches how Hoyts' own UI lays the auditorium out.
  *
  * The seat-map route is keyed on BOTH cinemaId and sessionId, but ChainAdapter.getSeatMap only
- * receives a sessionId — so Session.id is encoded as "cinemaId:sessionId" and split back here.
+ * receives a sessionId - so Session.id is encoded as "cinemaId:sessionId" and split back here.
  */
 export class HoytsAdapter implements ChainAdapter {
   readonly chain = "hoyts" as const;
@@ -121,7 +121,7 @@ const defaultFetchJson: FetchJson = async (url) => {
       if (isAbortError(err)) {
         throw new UpstreamError(`Hoyts request timed out (${url})`, { kind: "timeout", cause: err });
       }
-      throw err; // network error — retried below, then normalised
+      throw err; // network error - retried below, then normalised
     } finally {
       clearTimeout(timer);
     }
@@ -157,7 +157,7 @@ function mapFormat(typeId: unknown): ScreenFormat {
   else if (k.includes("lux") || k.includes("platinum")) kind = "premium";
   else if (k.includes("gold")) kind = "goldclass";
   else if (k.includes("standard")) kind = "standard";
-  else kind = "other"; // XTREME, DBOX, 3D etc. — Hoyts large/premium formats with no core bucket
+  else kind = "other"; // XTREME, DBOX, 3D etc. - Hoyts large/premium formats with no core bucket
   return { kind, raw };
 }
 
@@ -181,7 +181,7 @@ function parseSessions(raw: unknown, query: SessionQuery, siteBase: string): Ses
       movieName: "", // sessions feed carries no title; resolve via /movies/* if needed
       cinemaId,
       cinemaName: "",
-      startTime: date, // local, no tz — matches core contract
+      startTime: date, // local, no tz - matches core contract
       format: mapFormat(s.typeId),
       screenName: str(s.screenName),
       seatsAvailable: undefined, // not exposed by the sessions feed
@@ -252,7 +252,7 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
   const seats: Seat[] = [];
   const rows = arr(root?.rows);
   // Row coord: index in the rows array. Hoyts lists front(screen)->back, and core wants
-  // HIGHER row = further back — so the index works directly (row 0 = front).
+  // HIGHER row = further back - so the index works directly (row 0 = front).
   rows.forEach((row, rowIdx) => {
     if (!isObj(row)) return;
     const rowLabel = str(row.name) ?? "";

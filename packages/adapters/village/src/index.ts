@@ -19,39 +19,39 @@ import { UpstreamError, isAbortError } from "@auscinema/core";
 export type FetchJson = (url: string) => Promise<unknown>;
 
 /**
- * Village Cinemas (AU) adapter — reverse-engineered.
+ * Village Cinemas (AU) adapter - reverse-engineered.
  *
  * villagecinemas.com.au is a Next.js (App Router) site that *is* fronted by Cloudflare, but the
- * interstitial only guards the document routes — the JSON route handlers under `/api/...` answer a
+ * interstitial only guards the document routes - the JSON route handlers under `/api/...` answer a
  * plain browser `User-Agent` with no challenge, no auth, no subscription key. Three open feeds give
  * the whole chain:
  *
- *   - Sessions (the showtimes index): `GET /api/algolia/sessions/hits` — a server-side proxy over
+ *   - Sessions (the showtimes index): `GET /api/algolia/sessions/hits` - a server-side proxy over
  *     the site's Algolia "sessions" index. Unfiltered it returns ALL sessions (~11k, capped at 1000
  *     per call); facet filters narrow it server-side. Facet param = `f.<code>` where the codes are
  *     `c`=cinema.cinemaId, `m`=movie.movieHoCode, `d`=date, `x`=experience.vistaAttributeCode
  *     (mined from the bundle's `{accessibility:"a",cinemaIds:"c",dates:"d",...,movieHoCodes:"m"}`
  *     map and the `f.` prefix). Repeating a param ORs values within a facet; different facets AND.
  *     So one call with every `f.c`, plus `f.m` + `f.d`, returns exactly the wanted sessions. Each
- *     hit carries the full `cinema` object (id/name/state/suburb/coords) and `movie.movieHoCode` —
+ *     hit carries the full `cinema` object (id/name/state/suburb/coords) and `movie.movieHoCode` -
  *     so listCinemas just dedupes the cinema objects out of one unfiltered hits call (all 23 AU
  *     cinemas appear in the first 1000 hits).
  *
- *   - Seat map: `GET /api/session/seat-map?cinemaId={id}&sessionId={id}` — returns a bare array of
+ *   - Seat map: `GET /api/session/seat-map?cinemaId={id}&sessionId={id}` - returns a bare array of
  *     area objects, each `{ areaCategoryCode, areaNumber, description, rows:[ { physicalName, name,
  *     seats:[ Cell ] } ] }`. The seat route needs BOTH cinemaId and sessionId, but
- *     ChainAdapter.getSeatMap only receives a session id — so Session.id is encoded as
+ *     ChainAdapter.getSeatMap only receives a session id - so Session.id is encoded as
  *     "{cinemaId}|{sessionId}" and split back here (cf. Hoyts/Reading).
  *
  * Cinema id is the Vista 3-digit site code (e.g. "027" = Albury, "272" = Airport West).
- * movieId is the Vista HO code (`movie.movieHoCode`, e.g. "HO00016727") — the portable movie id.
+ * movieId is the Vista HO code (`movie.movieHoCode`, e.g. "HO00016727") - the portable movie id.
  *
- * GEOMETRY VERDICT: Village (Vista) EXPOSES explicit grid coordinates per seat — `position.row` and
- * `position.column` ints — true geometry, not array order. Vista numbers `position.row` front->back
+ * GEOMETRY VERDICT: Village (Vista) EXPOSES explicit grid coordinates per seat - `position.row` and
+ * `position.column` ints - true geometry, not array order. Vista numbers `position.row` front->back
  * DESCENDING (front row = highest) and `position.column` left->right DESCENDING, so we negate both
  * to honour the core contract (higher row = further back, col increases left->right; same encoding
  * as Event/Reading). Structural gaps are emitted as cells with `status:-1` and an empty `seatId`
- * (e.g. id "A-empty-1") — we map those to `spacer` so column geometry stays aligned.
+ * (e.g. id "A-empty-1") - we map those to `spacer` so column geometry stays aligned.
  */
 export class VillageAdapter implements ChainAdapter {
   readonly chain = "village" as const;
@@ -130,7 +130,7 @@ const defaultFetchJson: FetchJson = async (url) => {
       if (isAbortError(err)) {
         throw new UpstreamError(`Village request timed out (${url})`, { kind: "timeout", cause: err });
       }
-      throw err; // network error — retried below, then normalised
+      throw err; // network error - retried below, then normalised
     } finally {
       clearTimeout(timer);
     }
@@ -171,7 +171,7 @@ function mapFormat(attr: string, label: string): ScreenFormat {
   else if (k.includes("vmax")) kind = "vmax";
   else if (k.includes("vpremium") || k.includes("premium") || k.includes("suite")) kind = "premium";
   else if (k.includes("standard")) kind = "standard";
-  else kind = "other"; // 4DX / Europa / Vjunior / Drive-In / VR Cinema — no core bucket
+  else kind = "other"; // 4DX / Europa / Vjunior / Drive-In / VR Cinema - no core bucket
   return { kind, raw };
 }
 
@@ -190,7 +190,7 @@ function parseSessions(raw: unknown, query: SessionQuery, base: string): Session
     const cinemaId = str(cinema.cinemaId) ?? "";
     const movieId = str(movie.movieHoCode) ?? "";
     const date = str(hit.date) ?? "";
-    // Defensive client-side filter — the feed is authoritative, but never trust a proxy blindly.
+    // Defensive client-side filter - the feed is authoritative, but never trust a proxy blindly.
     if (wantCinemas.size && cinemaId && !wantCinemas.has(cinemaId)) continue;
     if (query.movieId && movieId && movieId !== query.movieId) continue;
     if (query.date && date && !date.startsWith(query.date)) continue;
@@ -291,7 +291,7 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
         const pos = isObj(cell.position) ? cell.position : {};
         const physRow = num(pos.row);
         const physCol = num(pos.column);
-        // Vista grid: row front->back DESCENDING, column left->right DESCENDING — negate both so
+        // Vista grid: row front->back DESCENDING, column left->right DESCENDING - negate both so
         // core gets higher=further-back, col increasing left->right (cf. Event/Reading).
         const coreRow = physRow !== undefined ? -physRow : 0;
         const coreCol = physCol !== undefined ? -physCol : 0;

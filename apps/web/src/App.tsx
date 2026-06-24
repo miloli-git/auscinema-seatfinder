@@ -27,7 +27,7 @@ export function App() {
   const [seatLoading, setSeatLoading] = useState(false);
   const [seatError, setSeatError] = useState<string | null>(null);
 
-  // Snapshot of the scoring used for the last search — seat maps reuse it.
+  // Snapshot of the scoring used for the last search - seat maps reuse it.
   const [lastScoring, setLastScoring] = useState<ScoringParams>(scoringOf(DEFAULTS));
   const [lastTopN, setLastTopN] = useState(DEFAULTS.topN);
 

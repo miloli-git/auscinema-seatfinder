@@ -18,23 +18,23 @@ export type FetchJson = (url: string) => Promise<unknown>;
 /**
  * Dated AU cinema reference. Event's `/api/cinemas/JsonLd` feed is dead (empty `@graph`); the
  * live list exists only in the `/Cinemas` page HTML. We bundle a dated snapshot
- * (`data/cinemas.au.json`, see its `capturedAt`) and serve it — deterministic, no network.
+ * (`data/cinemas.au.json`, see its `capturedAt`) and serve it - deterministic, no network.
  * Refresh by re-running the capture. Resolved relative to the compiled module (dist → ../data).
  */
 const CINEMAS_REF_URL = new URL("../data/cinemas.au.json", import.meta.url);
 
 /**
- * Event Cinemas adapter — the reference implementation.
+ * Event Cinemas adapter - the reference implementation.
  *
  * Backend (reverse-engineered, no auth, send a browser UA + `X-Requested-With: XMLHttpRequest`):
  *   - GET /Cinemas/GetSessions?cinemaIds=58&movieId=19797&date=2026-07-21
  *       -> { Success, Data: { Movies:[ { Id, Name, CinemaModels:[ { Id, Name, Sessions:[ {Id,StartTime,...} ] } ] } ] } }
  *   - GET /Ticketing/Order/GetSeating?sessionId=15433720
  *       -> { Success, Data: { Seats:{ Rows:[ {RowName, Seats:[ {SeatId,SeatName,Status,AreaId,...} ]} ] }, Areas:[...] } }
- *   - Cinemas: served from a bundled dated snapshot (data/cinemas.au.json) — the live
+ *   - Cinemas: served from a bundled dated snapshot (data/cinemas.au.json) - the live
  *     /api/cinemas/JsonLd feed is dead (empty @graph); the real list is only in /Cinemas HTML.
  *
- * SeatId encodes physical geometry as "area|type|ROW|COLUMN" — the last two ints are the grid
+ * SeatId encodes physical geometry as "area|type|ROW|COLUMN" - the last two ints are the grid
  * coordinates that normalise into Seat.row / Seat.col. See docs/endpoints.md.
  */
 export class EventCinemasAdapter implements ChainAdapter {
@@ -56,7 +56,11 @@ export class EventCinemasAdapter implements ChainAdapter {
       `${this.base}/Cinemas/GetSessions?cinemaIds=${encodeURIComponent(ids)}` +
       `&movieId=${encodeURIComponent(query.movieId)}&date=${encodeURIComponent(query.date)}`;
     const raw = await this.fetchJson(url);
-    return parseSessions(raw);
+    const sessions = parseSessions(raw);
+    // Event's GetSessions IGNORES the movieId param - it returns every movie playing at the
+    // cinema/date. Filter to the requested movie client-side (empty movieId = all movies).
+    const want = query.movieId.trim();
+    return want ? sessions.filter((s) => s.movieId === want) : sessions;
   }
 
   async getSeatMap(sessionId: string, _opts?: { preview?: boolean }): Promise<SeatMap> {
@@ -101,7 +105,7 @@ const defaultFetchJson: FetchJson = async (url) => {
       if (isAbortError(err)) {
         throw new UpstreamError(`Event request timed out (${url})`, { kind: "timeout", cause: err });
       }
-      throw err; // network error — retried below, then normalised
+      throw err; // network error - retried below, then normalised
     } finally {
       clearTimeout(timer);
     }

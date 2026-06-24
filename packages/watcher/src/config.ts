@@ -1,7 +1,7 @@
 /**
  * Watcher configuration: one or more saved seat-watches plus globals.
  *
- * Loaded from a JSON file (see watch.config.json.example). Validated leniently —
+ * Loaded from a JSON file (see watch.config.json.example). Validated leniently -
  * enough to fail fast with a clear message, not a full schema engine.
  */
 import { readFile } from "node:fs/promises";

@@ -12,7 +12,7 @@ function loadFixture(name: string): unknown {
 
 /**
  * Route the injected fetcher by URL so a single adapter can satisfy the token bootstrap
- * (/settings) plus the data route under test — no network.
+ * (/settings) plus the data route under test - no network.
  */
 function adapterRouting(routes: Record<string, string>): ReadingAdapter {
   const fetchJson: FetchJson = async (url) => {

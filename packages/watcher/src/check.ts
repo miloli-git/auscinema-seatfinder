@@ -21,7 +21,7 @@ export interface CheckDeps {
 export interface CheckResult {
   /** Every above-threshold available seat found this run (incl. already-alerted). */
   hits: Hit[];
-  /** The subset that was not previously alerted — what the notifier was sent. */
+  /** The subset that was not previously alerted - what the notifier was sent. */
   newHits: Hit[];
   /** Per-watch errors; a failing watch doesn't abort the others. */
   errors: { watchId: string; error: string }[];
@@ -129,8 +129,8 @@ export async function runCheck(config: WatcherConfig, deps: CheckDeps): Promise<
     try {
       const outcome = await checkWatch(watch, deps, concurrency);
       allHits.push(...outcome.hits);
-      // Record every (watch, session) actually checked — including sold-out ones with no
-      // hits — so stale alerts for them can be pruned.
+      // Record every (watch, session) actually checked - including sold-out ones with no
+      // hits - so stale alerts for them can be pruned.
       for (const prefix of outcome.checkedSessionPrefixes) checkedSessionPrefixes.add(prefix);
     } catch (err) {
       errors.push({ watchId: watch.id, error: (err as Error).message });

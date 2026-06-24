@@ -1,5 +1,5 @@
 /**
- * API service — thin Fastify front for the chain adapters and the seat scorer.
+ * API service - thin Fastify front for the chain adapters and the seat scorer.
  *
  *   GET /healthz
  *   GET /cinemas?chain=event
@@ -43,7 +43,7 @@ class HttpError extends Error {
 
 export type AdapterRegistry = Partial<Record<Chain, ChainAdapter>>;
 
-/** Default registry — event/hoyts/reading/village all wired. */
+/** Default registry - event/hoyts/reading/village all wired. */
 function defaultAdapters(): AdapterRegistry {
   return {
     event: new EventCinemasAdapter(),
@@ -303,7 +303,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
 
     const sessions = await adapter.listSessions({ movieId, cinemaIds, date });
 
-    // Sessions without seat allocation have no seat map to score — note and skip.
+    // Sessions without seat allocation have no seat map to score - note and skip.
     const skipped = sessions
       .filter((s) => !s.seatAllocation)
       .map((s) => ({ sessionId: s.id, reason: "seatAllocation=false" }));

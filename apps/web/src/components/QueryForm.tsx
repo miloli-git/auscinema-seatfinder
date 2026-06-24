@@ -143,14 +143,14 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
             {cinemas.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
-                {c.region ? ` (${c.region})` : ""} — {c.id}
+                {c.region ? ` (${c.region})` : ""} - {c.id}
               </option>
             ))}
           </select>
         </label>
       )}
       {cinemaError && (
-        <p className="hint hint--warn">Cinema list unavailable — enter IDs by hand.</p>
+        <p className="hint hint--warn">Cinema list unavailable - enter IDs by hand.</p>
       )}
 
       <label className="field">

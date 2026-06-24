@@ -11,7 +11,7 @@ export interface SessionQuery {
 
 /**
  * The single contract every chain adapter implements. Scoring, the API service and the
- * watcher depend only on this — never on a chain's raw payloads.
+ * watcher depend only on this - never on a chain's raw payloads.
  */
 export interface ChainAdapter {
   readonly chain: Chain;
