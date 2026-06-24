@@ -15,7 +15,7 @@ services:
   # Internal compose network only — not published, not tunneled. The DB is a
   # rebuildable cache (low durability needs). schema.sql runs once on first boot
   # (empty pgdata) and is re-appliable via psql. api DATABASE_URL + depends_on
-  # are DEFERRED to the ingester step (avoid bouncing the live api container).
+  # are wired (ST-3 #28) so /together + /catalog can read the cache.
   db:
     image: postgres:16-alpine
     environment:
@@ -35,8 +35,13 @@ services:
       PORT: "3001"
       RATE_LIMIT_MAX: "${RATE_LIMIT_MAX:-120}"
       RATE_LIMIT_WINDOW_MS: "${RATE_LIMIT_WINDOW_MS:-60000}"
+      # Cache pool for /together + /catalog (the "Seats Together" reads). Internal compose network
+      # only. Wiring this in #28 recreates the live api container once (expected).
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
     expose:
       - "3001"
+    depends_on:
+      - db
     restart: unless-stopped
 
   web:
