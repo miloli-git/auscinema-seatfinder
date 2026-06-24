@@ -68,9 +68,16 @@ requested (party, minScore); rank by best block avg, then earliest start; return
 Pure DB + cheap compute, no upstream.
 
 ## Infra
-Postgres + an `ingester` worker added to `deploy/docker-compose.yml` (PriceWatch precedent). Ingester
-runs on an internal interval loop (watcher-style `watch` mode) or a NAS cron; cadence per-watch
-(default hourly). Secrets via `.env`. Deploys on the NAS behind the existing tunnel.
+**Own Postgres instance** in the seatfinder compose stack (decided — not shared with PriceWatch; keeps
+`deploy/` "copy + compose up" portable, no cross-stack coupling; the DB is a rebuildable cache so
+durability needs are low). Added to `deploy/docker-compose.yml`:
+- `db` (`postgres:16-alpine`): `POSTGRES_DB/USER/PASSWORD` from `.env`; named volume `pgdata` on the
+  raptor pool; **internal compose network only — not published, not tunneled.**
+- `ingester` worker (same image as `api`): `DATABASE_URL=postgres://seatfinder:…@db:5432/seatfinder`;
+  watcher-style `watch` loop (or NAS cron), cadence per-watch (default hourly).
+- `api` gains the same `DATABASE_URL` + `depends_on: [db]`.
+
+Deploys on the NAS behind the existing tunnel; only `web` (9015) stays public.
 
 ## Phasing (tests at each step)
 1. **Core** — `findAdjacentBlocks` + unit tests (true-geometry + index-geometry + aisle-break cases).
@@ -81,7 +88,8 @@ runs on an internal interval loop (watcher-style `watch` mode) or a NAS cron; ca
    with the block highlighted, "as of" stamp.
 5. **Deploy** — Postgres + ingester in compose on NAS, schedule, live verify (browser smoke).
 
-## Open / recommended defaults (flag if you disagree)
+## Decisions (locked)
+- **DB: own Postgres instance** in the seatfinder stack (not shared) — see Infra.
 - Watchlist source: `watches.json` seeded into the DB (no management UI in v1).
 - Ingester cadence: hourly per watch; sessions list refreshed each run, seat maps re-scored each run.
 - Single chain per watch (movieId is chain-bound; cross-chain by title is out of scope v1).
