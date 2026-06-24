@@ -5,6 +5,7 @@
   "references": [
     { "path": "../core" },
     { "path": "../adapters/event" },
-    { "path": "../adapters/hoyts" }
+    { "path": "../adapters/hoyts" },
+    { "path": "../adapters/reading" }
   ]
 }

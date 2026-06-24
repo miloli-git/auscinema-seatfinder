@@ -1,10 +1,11 @@
 /**
  * Chain -> adapter registry. Adapters are constructed in-process (no HTTP API hop).
- * event + hoyts are wired today; reading/village slot in when their adapters land.
+ * event + hoyts + reading are wired today; village slots in when its adapter lands.
  */
 import type { Chain, ChainAdapter } from "@auscinema/core";
 import { EventCinemasAdapter } from "@auscinema/adapter-event";
 import { HoytsAdapter } from "@auscinema/adapter-hoyts";
+import { ReadingAdapter } from "@auscinema/adapter-reading";
 
 export type AdapterRegistry = Partial<Record<Chain, ChainAdapter>>;
 
@@ -13,6 +14,7 @@ export function defaultRegistry(): AdapterRegistry {
   return {
     event: new EventCinemasAdapter(),
     hoyts: new HoytsAdapter(),
+    reading: new ReadingAdapter(),
   };
 }
 

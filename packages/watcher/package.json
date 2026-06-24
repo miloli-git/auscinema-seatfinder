@@ -23,7 +23,8 @@
   "dependencies": {
     "@auscinema/core": "*",
     "@auscinema/adapter-event": "*",
-    "@auscinema/adapter-hoyts": "*"
+    "@auscinema/adapter-hoyts": "*",
+    "@auscinema/adapter-reading": "*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0"

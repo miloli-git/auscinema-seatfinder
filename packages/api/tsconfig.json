@@ -2,5 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "rootDir": "src", "outDir": "dist", "types": ["node"] },
   "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../adapters/event" }]
+  "references": [
+    { "path": "../core" },
+    { "path": "../adapters/event" },
+    { "path": "../adapters/hoyts" },
+    { "path": "../adapters/reading" }
+  ]
 }

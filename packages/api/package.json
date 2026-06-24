@@ -11,6 +11,8 @@
   "dependencies": {
     "@auscinema/core": "*",
     "@auscinema/adapter-event": "*",
+    "@auscinema/adapter-hoyts": "*",
+    "@auscinema/adapter-reading": "*",
     "fastify": "^5.0.0"
   },
   "devDependencies": {

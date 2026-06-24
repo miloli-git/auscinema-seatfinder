@@ -21,6 +21,8 @@ import {
   type Session,
 } from "@auscinema/core";
 import { EventCinemasAdapter } from "@auscinema/adapter-event";
+import { HoytsAdapter } from "@auscinema/adapter-hoyts";
+import { ReadingAdapter } from "@auscinema/adapter-reading";
 
 // --- Errors -----------------------------------------------------------------
 
@@ -38,9 +40,13 @@ class HttpError extends Error {
 
 export type AdapterRegistry = Partial<Record<Chain, ChainAdapter>>;
 
-/** Default registry — only `event` is wired today; hoyts/reading/village slot in later. */
+/** Default registry — event/hoyts/reading wired; village slots in once cracked. */
 function defaultAdapters(): AdapterRegistry {
-  return { event: new EventCinemasAdapter() };
+  return {
+    event: new EventCinemasAdapter(),
+    hoyts: new HoytsAdapter(),
+    reading: new ReadingAdapter(),
+  };
 }
 
 function resolveAdapter(registry: AdapterRegistry, chainRaw: unknown): ChainAdapter {
