@@ -23,11 +23,18 @@
 	}
 
 	# API routes -> Fastify service. Keep in sync with the app's route list.
+	# handle blocks are required: without them, the SPA `try_files` below rewrites
+	# /cinemas etc. to /index.html in the rewrite phase (which runs before reverse_proxy),
+	# so the @api matcher no longer matches and every API call returns the SPA shell.
 	@api path /healthz /cinemas /sessions /seatmap /best /movies
-	reverse_proxy @api {$UPSTREAM_API:api:3001}
+	handle @api {
+		reverse_proxy {$UPSTREAM_API:api:3001}
+	}
 
 	# Everything else: the SPA, with client-side routing fallback.
-	root * /srv
-	try_files {path} /index.html
-	file_server
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
 }
