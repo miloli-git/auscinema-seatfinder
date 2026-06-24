@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/adapters/event" },
+    { "path": "packages/adapters/hoyts" },
+    { "path": "packages/adapters/reading" },
+    { "path": "packages/adapters/village" },
+    { "path": "packages/api" }
+  ]
+}
