@@ -38,6 +38,23 @@ function tinySeatMap(sessionId: string, chain: Chain): SeatMap {
   };
 }
 
+function manySeatMap(sessionId: string, chain: Chain, count: number): SeatMap {
+  return {
+    chain,
+    sessionId,
+    areas: [{ id: "1", name: "Standard", kind: "standard" }],
+    seats: Array.from({ length: count }, (_, i) => ({
+      id: `${sessionId}-s${i + 1}`,
+      name: `A${i + 1}`,
+      rowLabel: "A",
+      row: i,
+      col: i,
+      status: "available",
+      areaId: "1",
+    })),
+  };
+}
+
 function makeSession(id: string, chain: Chain, seatsAvailable?: number): Session {
   return {
     chain,
@@ -247,6 +264,26 @@ test("rate limit: disabled (rateLimit:false) lets many requests through", async 
   }
 });
 
+test("rate limit: forwarded clients behind Caddy get separate buckets", async () => {
+  const server = buildServer({
+    adapters: { event: stubEventAdapter() },
+    rateLimit: { max: 1, windowMs: 60_000 },
+    logger: false,
+  });
+
+  const firstClient = { "x-forwarded-for": "203.0.113.10" };
+  const secondClient = { "x-forwarded-for": "203.0.113.11" };
+
+  const first = await server.inject({ method: "GET", url: "/healthz", headers: firstClient });
+  assert.equal(first.statusCode, 200);
+
+  const sameClient = await server.inject({ method: "GET", url: "/healthz", headers: firstClient });
+  assert.equal(sameClient.statusCode, 429);
+
+  const otherClient = await server.inject({ method: "GET", url: "/healthz", headers: secondClient });
+  assert.equal(otherClient.statusCode, 200);
+});
+
 // --- Gap 2: /best session cap (no silent truncation) ------------------------
 
 test("/best caps fan-out to maxSessions and reports droppedSessions", async () => {
@@ -278,7 +315,7 @@ test("/best caps fan-out to maxSessions and reports droppedSessions", async () =
   assert.deepEqual([...seatMapCalls].sort(), ["s-hi", "s-mid"]);
 });
 
-test("/best ?maxSessions= query override beats the server default", async () => {
+test("/best ?maxSessions= query override can lower the server cap", async () => {
   const seatMapCalls: string[] = [];
   const sessions = [
     makeSession("a", "event", 50),
@@ -299,6 +336,70 @@ test("/best ?maxSessions= query override beats the server default", async () => 
   assert.equal(seatMapCalls.length, 1);
 });
 
+test("/best ?maxSessions= cannot exceed the server cap and ignores junk", async () => {
+  const seatMapCalls: string[] = [];
+  const sessions = [
+    makeSession("a", "event", 50),
+    makeSession("b", "event", 40),
+    makeSession("c", "event", 30),
+  ];
+  const adapter = fakeAdapter({ sessions, seatMapCalls });
+  const server = buildServer({ adapters: { event: adapter }, maxSessions: 2, logger: false });
+
+  const huge = await server.inject({
+    method: "GET",
+    url: "/best?chain=event&movieId=m1&cinemaIds=c1&date=2026-07-21&maxSessions=10000",
+  });
+  assert.equal(huge.statusCode, 200);
+  const hugeBody = huge.json() as { consideredSessions: number; droppedSessions: number };
+  assert.equal(hugeBody.consideredSessions, 2);
+  assert.equal(hugeBody.droppedSessions, 1);
+  assert.equal(seatMapCalls.length, 2);
+
+  seatMapCalls.length = 0;
+  const junk = await server.inject({
+    method: "GET",
+    url: "/best?chain=event&movieId=m1&cinemaIds=c1&date=2026-07-21&maxSessions=bogus",
+  });
+  assert.equal(junk.statusCode, 200);
+  const junkBody = junk.json() as { consideredSessions: number; droppedSessions: number };
+  assert.equal(junkBody.consideredSessions, 2);
+  assert.equal(junkBody.droppedSessions, 1);
+  assert.equal(seatMapCalls.length, 2);
+});
+
+test("/best clamps topN to the supported range", async () => {
+  const adapter = fakeAdapter({
+    sessions: [makeSession("s1", "event", 100)],
+    getSeatMap: async (sessionId) => manySeatMap(sessionId, "event", 25),
+  });
+  const server = buildServer({ adapters: { event: adapter }, logger: false });
+
+  const low = await server.inject({
+    method: "GET",
+    url: "/best?chain=event&movieId=m1&cinemaIds=c1&date=2026-07-21&topN=-1",
+  });
+  assert.equal(low.statusCode, 200);
+  const lowBody = low.json() as { sessions: Array<{ topSeats: unknown[] }> };
+  assert.equal(lowBody.sessions[0]!.topSeats.length, 1);
+
+  const fractional = await server.inject({
+    method: "GET",
+    url: "/best?chain=event&movieId=m1&cinemaIds=c1&date=2026-07-21&topN=2.8",
+  });
+  assert.equal(fractional.statusCode, 200);
+  const fractionalBody = fractional.json() as { sessions: Array<{ topSeats: unknown[] }> };
+  assert.equal(fractionalBody.sessions[0]!.topSeats.length, 2);
+
+  const high = await server.inject({
+    method: "GET",
+    url: "/best?chain=event&movieId=m1&cinemaIds=c1&date=2026-07-21&topN=10000",
+  });
+  assert.equal(high.statusCode, 200);
+  const highBody = high.json() as { sessions: Array<{ topSeats: unknown[] }> };
+  assert.equal(highBody.sessions[0]!.topSeats.length, 20);
+});
+
 // --- Gap 3: UpstreamError -> 502/503 mapping --------------------------------
 
 test("UpstreamError(kind:http) from adapter -> 502, not 500", async () => {
@@ -316,19 +417,35 @@ test("UpstreamError(kind:http) from adapter -> 502, not 500", async () => {
   assert.equal(typeof (res.json() as { error?: string }).error, "string");
 });
 
-test("UpstreamError(kind:timeout) -> 503", async () => {
+test("/best records seat map failures and continues scoring other sessions", async () => {
   const adapter = fakeAdapter({
-    getSeatMap: async () => {
-      throw new UpstreamError("upstream timed out", { kind: "timeout" });
+    getSeatMap: async (sessionId) => {
+      if (sessionId === "bad") {
+        throw new UpstreamError("upstream timed out", { kind: "timeout" });
+      }
+      return tinySeatMap(sessionId, "event");
     },
-    sessions: [makeSession("s1", "event", 100)],
+    sessions: [makeSession("bad", "event", 100), makeSession("good", "event", 90)],
   });
   const server = buildServer({ adapters: { event: adapter }, logger: false });
   const res = await server.inject({
     method: "GET",
     url: "/best?chain=event&movieId=m1&cinemaIds=c1&date=2026-07-21",
   });
-  assert.equal(res.statusCode, 503);
+  assert.equal(res.statusCode, 200);
+  const body = res.json() as {
+    sessions: Array<{ session: { id: string } }>;
+    skipped: Array<{ sessionId: string; reason: string }>;
+    errors: Array<{ sessionId: string; error: string }>;
+  };
+  assert.deepEqual(
+    body.sessions.map((s) => s.session.id),
+    ["good"],
+  );
+  assert.deepEqual(body.errors, [{ sessionId: "bad", error: "upstream timed out" }]);
+  assert.deepEqual(body.skipped, [
+    { sessionId: "bad", reason: "seat map failed: upstream timed out" },
+  ]);
 });
 
 test("a non-UpstreamError still maps to 500", async () => {
