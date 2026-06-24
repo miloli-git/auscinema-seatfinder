@@ -157,8 +157,72 @@ Fixtures: `packages/adapters/reading/fixtures/` (`settings.json` token-bootstrap
 `seats.auburn-128342.json`). Offline `node --test` parses them; `npm test -w @auscinema/adapter-reading`
 is green. Verified live end-to-end: 27 cinemas → sessions → 112-seat map with geometry.
 
-## Village Cinemas — ⚠️ planned (Cloudflare-gated)
+## Village Cinemas — ✅ implemented (Cloudflare guards the SPA, NOT the JSON API)
 
-- Next.js app behind Cloudflare ("Just a moment…" 403 on root and `WSVistaWebClient` paths).
-  `/Cinemas/GetSessions` returned a Next.js HTML shell, not JSON. TODO: get past CF (Scrapling/
-  Patchright) and locate the JSON feed — likely `/_next/data/.../*.json` or a Vista OCAPI behind CF.
+`villagecinemas.com.au` is a Next.js (App Router) site fronted by Cloudflare, but **the CF
+interstitial only guards the document routes** (and the legacy `WSVistaWebClient`/`/Cinemas/...`
+paths — which are dead anyway). The site's own **JSON route handlers under `/api/...` answer a plain
+browser `User-Agent` with no challenge, no auth, no subscription key.** No stealth browser was
+needed. The backend is Vista (payment widget host `villag-wpm.app.vista.co`), surfaced through
+Next.js route handlers plus an **Algolia** "sessions" search index. Endpoint paths + the Algolia
+facet-param map were mined from the JS chunks (`baseUrl:"/api"` RTK slice; endpoint enum
+`SEAT_MAP`/`ALGOLIA_SESSIONS_HITS`/...; facet code map `{cinemaIds:"c",dates:"d",movieHoCodes:"m",
+experiences:"x",...}` with the `f.` prefix). Send a browser `User-Agent` + `Accept: application/json`.
+
+Ids: **cinema id is the Vista 3-digit site code** (e.g. `027` Albury, `272` Airport West, `351`).
+**movieId is the Vista HO code** `movie.movieHoCode` (e.g. `HO00016727`) — the portable movie id.
+
+### Sessions — Algolia index proxy (open)
+```
+GET /api/algolia/sessions/hits[?f.c={cinemaId}&f.c={cinemaId2}&f.m={movieHoCode}&f.d={YYYY-MM-DD}]
+```
+- Open, 200. Response `{ hits:[ Hit ], nbHits, nbPages, page }`. **Unfiltered returns ALL sessions
+  (~11k, capped at 1000 per call)**; pass facet filters to narrow server-side. Facet param =
+  `f.<code>`: `c`=`cinema.cinemaId`, `m`=`movie.movieHoCode`, `d`=`date`,
+  `x`=`experience.vistaAttributeCode`. **Repeating a param ORs values within a facet; different
+  facets AND** — so one call with every `f.c` plus `f.m`+`f.d` returns exactly the wanted sessions.
+- `Hit`: `sessionId`, `showtime` (local ISO + offset, e.g. `2026-06-24T15:30:00.000000+10:00`),
+  `date`, `seatsAvailable` (live), `isAllocatedSeating` (false ⇒ unreserved, seat map skipped),
+  `experience` (`{vistaAttributeCode, label}` — Standard/Gold Class/IMAX/Vmax/Vpremium/4DX/...),
+  `seatingAttributes`/`secondaryAttributes`, and the **full `cinema` object** (`cinemaId`, `name`,
+  `suburb`, `state`, `address`, `coordinates`, `cinemaOperatorCode`) + **full `movie`**
+  (`movieHoCode`, `title`, ...). No screen/auditorium label in the feed.
+- A companion facets feed exists at `/api/algolia/sessions/facets` (counts only, no names) — not
+  needed; the hits feed carries everything.
+
+### Cinemas — derived from the hits feed (no dedicated all-cinemas route)
+There is no plain "list all cinemas" JSON route (`/api/cinema/get-cinemas-by-movie` requires a
+movie). Instead **`listCinemas` dedupes the `cinema` objects out of one unfiltered hits call** — all
+**23 AU cinemas** appear within the first 1000 hits (cross-checked against the facets' distinct
+`cinema.cinemaId` set: identical 23).
+
+### Seat map — Vista layout (open)
+```
+GET /api/session/seat-map?cinemaId={cinemaId}&sessionId={sessionId}
+```
+- Open, 200. **Keyed on BOTH cinemaId + sessionId.** Bare **array of areas**:
+  `[{ areaCategoryCode, areaNumber, description, rows:[ { physicalName, id, name, seats:[ Cell ] } ] }]`.
+- `Cell`: `{ id, seatId(e.g. "A5"), row(label "A"), position:{ row:int, column:int }, status:int,
+  seatStatus:"available"|"unavailable", description, areaCategoryCode, isStandard, isWheelChair,
+  isCarerSeat, isRecliner, isLounge, isSofa, isDayBed, isBeanBag }`.
+- Status: `seatStatus:"available"` ⇒ available; `seatStatus:"unavailable"` on a **real seat**
+  (has `seatId`, `status:0`) ⇒ **sold/booked**; `isCarerSeat` ⇒ companion. **Structural gaps/aisles**
+  are cells with `status:-1`, empty `seatId`, id like `"A-empty-1"` ⇒ mapped to `spacer`.
+  Missing/bogus `sessionId` returns `[]`; missing required params returns `400 {"title":"Input error"}`.
+
+### Geometry — EXPOSED (explicit grid coordinates)
+Each seat carries `position.row` and `position.column` ints — true geometry, not array order. Vista
+numbers `position.row` front→back **DESCENDING** (front row = highest) and `position.column`
+left→right **DESCENDING**; the adapter negates both so core gets higher=further-back and col
+increasing left→right (same encoding as Event/Reading). Scoring is geometry-correct, not approximate.
+
+### Adapter status
+`VillageAdapter` **implemented** — `packages/adapters/village/`. GET-only injectable `fetchJson`
+(no token, no POST). The seat route needs cinemaId + sessionId but `getSeatMap` only receives a
+session id — so `Session.id` is encoded as `"{cinemaId}|{sessionId}"` and split back there
+(cf. Hoyts/Reading). Areas keyed by Vista `areaCategoryCode`. Fixtures:
+`packages/adapters/village/fixtures/` (`sessions.json` (5 hits over 2 cinemas, movie+date filtered),
+`seats.albury-400853.json` (available/sold/spacer/wheelchair/carer), `seats.vpremium-329077.json`).
+Offline `node --test` parses them; `npm test -w @auscinema/adapter-village` is green; wired into the
+API + watcher registries. **Verified live end-to-end: 23 cinemas → 395 sessions @ cinema 027 →
+112-seat map with geometry (79 available / 10 sold / 21 spacers / 2 companion).**
