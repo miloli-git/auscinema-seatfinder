@@ -17,7 +17,9 @@ import {
   rankSeats,
   scoreAvailableSeats,
   bestSeatScore,
+  findAdjacentBlocks,
   UpstreamError,
+  type BlockSeat,
   type Chain,
   type ChainAdapter,
   type ScoredSeat,
@@ -28,6 +30,7 @@ import { EventCinemasAdapter } from "@auscinema/adapter-event";
 import { HoytsAdapter } from "@auscinema/adapter-hoyts";
 import { ReadingAdapter } from "@auscinema/adapter-reading";
 import { VillageAdapter } from "@auscinema/adapter-village";
+import { createPoolFromEnv, type Pool } from "./db.js";
 
 // --- Errors -----------------------------------------------------------------
 
@@ -200,11 +203,92 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+// --- DB-backed "Seats Together" reads (/together, /catalog) -----------------
+
+/** Snake_case projection of a `sessions` row (date + timestamps cast to text/ISO in SQL). */
+interface SessionRow {
+  id: string;
+  chain: string;
+  movie_id: string;
+  movie_name: string | null;
+  cinema_id: string;
+  cinema_name: string | null;
+  date: string;
+  start_time: string | null;
+  format: string | null;
+  screen: string | null;
+  seats_available: number | null;
+  booking_url: string | null;
+  seat_allocation: boolean | null;
+  fetched_at: string;
+}
+
+interface SeatRow {
+  session_id: string;
+  seat_id: string;
+  row_label: string | null;
+  row: number;
+  col: number;
+  score: number;
+}
+
+/** Camel-case session metadata returned in /together results. */
+function mapSession(r: SessionRow) {
+  return {
+    id: r.id,
+    chain: r.chain,
+    movieId: r.movie_id,
+    movieName: r.movie_name,
+    cinemaId: r.cinema_id,
+    cinemaName: r.cinema_name,
+    date: r.date,
+    startTime: r.start_time,
+    format: r.format,
+    screen: r.screen,
+    seatsAvailable: r.seats_available,
+    bookingUrl: r.booking_url,
+    seatAllocation: r.seat_allocation,
+  };
+}
+
+/**
+ * Build the parameterised WHERE clause for the session filter. chain is required; movieId, cinemaIds,
+ * dateFrom, dateTo are optional. Every user value is a bound parameter ($n) — column names are static
+ * literals, so there is no injection surface.
+ */
+function buildSessionFilter(opts: {
+  chain: string;
+  movieId?: string;
+  cinemaIds?: string[];
+  dateFrom?: string;
+  dateTo?: string;
+}): { where: string; params: unknown[] } {
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+  const add = (sql: string, value: unknown): void => {
+    params.push(value);
+    clauses.push(sql.replace("$?", `$${params.length}`));
+  };
+
+  add("chain = $?", opts.chain);
+  if (opts.movieId !== undefined) add("movie_id = $?", opts.movieId);
+  if (opts.cinemaIds && opts.cinemaIds.length > 0) add("cinema_id = ANY($?::text[])", opts.cinemaIds);
+  if (opts.dateFrom !== undefined) add("date >= $?", opts.dateFrom);
+  if (opts.dateTo !== undefined) add("date <= $?", opts.dateTo);
+
+  return { where: clauses.join(" AND "), params };
+}
+
 // --- Server -----------------------------------------------------------------
 
 export interface BuildServerOptions {
   /** Override/extend the chain adapter registry (e.g. inject a stub in tests). */
   adapters?: AdapterRegistry;
+  /**
+   * Postgres pool backing /together + /catalog (the cached "Seats Together" reads). When omitted,
+   * those two endpoints respond 503; the live endpoints (/seatmap etc.) never touch it.
+   */
+  pool?: Pool;
   /** Session-listing cache TTL in milliseconds. Default 5 minutes. */
   sessionCacheTtlMs?: number;
   /** Concurrency for seat-map fetches in /best. Default 4. */
@@ -243,6 +327,13 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
   const bestConcurrency = opts.bestConcurrency ?? 4;
   const bestTopN = clampInt(opts.bestTopN ?? 5, 1, MAX_BEST_TOP_N);
   const maxSessions = clampInt(opts.maxSessions ?? 40, 1, Number.MAX_SAFE_INTEGER);
+  const pool = opts.pool;
+
+  /** The DB-backed endpoints require a pool; absent one is a 503 (db not wired/up). */
+  const requirePool = (): Pool => {
+    if (!pool) throw new HttpError(503, "database not configured");
+    return pool;
+  };
 
   // Production traffic reaches Fastify through one Caddy hop on the Docker network.
   // Keep the API port private when relying on X-Forwarded-For for per-client limits.
@@ -412,6 +503,134 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       errors,
     };
     });
+
+  // --- DB-backed cache reads (NO upstream) ---------------------------------
+
+  // GET /together — sessions with `party` adjacent in-zone seats, ranked best-first. Pure DB read.
+  app.get("/together", async (req: FastifyRequest) => {
+    const q = req.query as Query;
+    const chain = reqStr(q, "chain"); // 400 before any DB touch when missing
+    const db = requirePool(); // 503 when the pool is not configured
+
+    const movieId = optStr(q, "movieId");
+    const cinemaIds = (() => {
+      const raw = optStr(q, "cinemaIds");
+      return raw === undefined ? undefined : csv(raw);
+    })();
+    const dateFrom = optStr(q, "dateFrom");
+    const dateTo = optStr(q, "dateTo");
+    const party = Math.max(1, optInt(q, "party") ?? 2);
+    const minScore = optInt(q, "minScore") ?? 74;
+
+    const { where, params } = buildSessionFilter({ chain, movieId, cinemaIds, dateFrom, dateTo });
+    const sessionsRes = await db.query<SessionRow>(
+      `SELECT id, chain, movie_id, movie_name, cinema_id, cinema_name,
+              date::text AS date, start_time, format, screen, seats_available,
+              booking_url, seat_allocation, fetched_at
+         FROM sessions
+        WHERE ${where}`,
+      params,
+    );
+    const sessions = sessionsRes.rows;
+    if (sessions.length === 0) return { party, minScore, count: 0, results: [] };
+
+    const ids = sessions.map((s) => s.id);
+    const seatsRes = await db.query<SeatRow>(
+      `SELECT session_id, seat_id, row_label, row, col, score
+         FROM session_seats
+        WHERE session_id = ANY($1::text[])`,
+      [ids],
+    );
+    const seatsBySession = new Map<string, BlockSeat[]>();
+    for (const s of seatsRes.rows) {
+      let arr = seatsBySession.get(s.session_id);
+      if (!arr) {
+        arr = [];
+        seatsBySession.set(s.session_id, arr);
+      }
+      arr.push({ id: s.seat_id, rowLabel: s.row_label ?? "", row: s.row, col: s.col, score: s.score });
+    }
+
+    type Result = {
+      session: ReturnType<typeof mapSession>;
+      block: ReturnType<typeof findAdjacentBlocks>[number];
+      approximateAdjacency: boolean;
+      fetchedAt: string;
+      _start: string | null;
+    };
+    const results: Result[] = [];
+    for (const row of sessions) {
+      const seats = seatsBySession.get(row.id);
+      if (!seats || seats.length === 0) continue;
+      const blocks = findAdjacentBlocks(seats, { minScore, size: party });
+      const best = blocks[0];
+      if (!best) continue;
+      results.push({
+        session: mapSession(row),
+        block: best,
+        approximateAdjacency: row.chain === "hoyts",
+        fetchedAt: row.fetched_at,
+        _start: row.start_time,
+      });
+    }
+
+    // Rank: best-block avgScore DESC, then earliest startTime ASC (nulls last), then session id ASC.
+    results.sort((a, b) => {
+      if (b.block.avgScore !== a.block.avgScore) return b.block.avgScore - a.block.avgScore;
+      const sa = a._start;
+      const sb = b._start;
+      if (sa !== sb) {
+        if (sa === null) return 1;
+        if (sb === null) return -1;
+        return sa < sb ? -1 : 1;
+      }
+      return a.session.id < b.session.id ? -1 : a.session.id > b.session.id ? 1 : 0;
+    });
+
+    return {
+      party,
+      minScore,
+      count: results.length,
+      results: results.map(({ session, block, approximateAdjacency, fetchedAt }) => ({
+        session,
+        block,
+        approximateAdjacency,
+        fetchedAt,
+      })),
+    };
+  });
+
+  // GET /catalog — distinct movies / cinemas / dates in the cache, to populate the web pickers.
+  app.get("/catalog", async (req: FastifyRequest) => {
+    const q = req.query as Query;
+    const db = requirePool();
+    const chain = optStr(q, "chain");
+    const where = chain !== undefined ? "WHERE chain = $1" : "";
+    const params = chain !== undefined ? [chain] : [];
+
+    const movies = await db.query<{ id: string; name: string | null; chain: string }>(
+      `SELECT DISTINCT movie_id AS id, movie_name AS name, chain
+         FROM sessions ${where}
+        ORDER BY name NULLS LAST, id`,
+      params,
+    );
+    const cinemas = await db.query<{ id: string; name: string | null; chain: string }>(
+      `SELECT DISTINCT cinema_id AS id, cinema_name AS name, chain
+         FROM sessions ${where}
+        ORDER BY name NULLS LAST, id`,
+      params,
+    );
+    const dates = await db.query<{ date: string }>(
+      `SELECT DISTINCT date::text AS date FROM sessions ${where} ORDER BY date`,
+      params,
+    );
+
+    return {
+      movies: movies.rows,
+      cinemas: cinemas.rows,
+      dates: dates.rows.map((r) => r.date),
+    };
+  });
   });
 
   return app;
@@ -421,7 +640,10 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
 
 async function start(): Promise<void> {
   const port = Number(process.env.PORT) || 3001;
-  const app = buildServer({ logger: true });
+  // Wire the cache pool from DATABASE_URL when present; absent it, /together + /catalog return 503
+  // and the live endpoints still work.
+  const pool = createPoolFromEnv();
+  const app = buildServer({ logger: true, pool });
   try {
     await app.listen({ port, host: "0.0.0.0" });
   } catch (err) {
