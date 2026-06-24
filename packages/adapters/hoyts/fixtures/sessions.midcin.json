@@ -1,0 +1,173 @@
+[
+ {
+  "id": 58340,
+  "cinemaId": "MIDCIN",
+  "movieId": "HO00008574",
+  "date": "2026-06-24T10:30:00",
+  "utcDate": "2026-06-24T02:30:00+00:00",
+  "typeId": "XTREME",
+  "originalTags": [
+   "DAYBEDS",
+   "RC",
+   "XTREME",
+   "AD",
+   "CC",
+   "PRAMS"
+  ],
+  "disabled": false,
+  "allocatedSeating": true,
+  "discount": false,
+  "screenName": "Xtremescreen 02",
+  "operator": "MID",
+  "link": "/orders/tickets?cinemaId=MIDCIN&sessionId=58340"
+ },
+ {
+  "id": 58715,
+  "cinemaId": "MIDCIN",
+  "movieId": "HO00008574",
+  "date": "2026-06-24T10:30:00",
+  "utcDate": "2026-06-24T02:30:00+00:00",
+  "typeId": "STANDARD",
+  "originalTags": [
+   "DAYBEDS",
+   "RC",
+   "AD",
+   "CC",
+   "SS"
+  ],
+  "disabled": false,
+  "allocatedSeating": true,
+  "discount": false,
+  "screenName": "Cinema 04",
+  "operator": "MID",
+  "link": "/orders/tickets?cinemaId=MIDCIN&sessionId=58715"
+ },
+ {
+  "id": 58343,
+  "cinemaId": "MIDCIN",
+  "movieId": "HO00008574",
+  "date": "2026-06-24T11:30:00",
+  "utcDate": "2026-06-24T03:30:00+00:00",
+  "typeId": "XTREME",
+  "originalTags": [
+   "DBOX Rows",
+   "DAYBEDS",
+   "RC",
+   "XTREME",
+   "AD",
+   "CC"
+  ],
+  "disabled": false,
+  "allocatedSeating": true,
+  "discount": false,
+  "screenName": "Xtremescreen 03",
+  "operator": "MID",
+  "link": "/orders/tickets?cinemaId=MIDCIN&sessionId=58343"
+ },
+ {
+  "id": 58345,
+  "cinemaId": "MIDCIN",
+  "movieId": "HO00008574",
+  "date": "2026-06-24T13:00:00",
+  "utcDate": "2026-06-24T05:00:00+00:00",
+  "typeId": "XTREME",
+  "originalTags": [
+   "DAYBEDS",
+   "RC",
+   "XTREME",
+   "AD",
+   "CC"
+  ],
+  "disabled": false,
+  "allocatedSeating": true,
+  "discount": false,
+  "screenName": "Xtremescreen 02",
+  "operator": "MID",
+  "link": "/orders/tickets?cinemaId=MIDCIN&sessionId=58345"
+ },
+ {
+  "id": 58346,
+  "cinemaId": "MIDCIN",
+  "movieId": "HO00008574",
+  "date": "2026-06-24T13:00:00",
+  "utcDate": "2026-06-24T05:00:00+00:00",
+  "typeId": "LUX",
+  "originalTags": [
+   "PRC",
+   "LUX",
+   "18+",
+   "AD",
+   "CC"
+  ],
+  "disabled": false,
+  "allocatedSeating": true,
+  "discount": false,
+  "screenName": "HOYTS LUX 02",
+  "operator": "MIDLP",
+  "link": "/orders/tickets?cinemaId=MIDCIN&sessionId=58346"
+ },
+ {
+  "id": 58353,
+  "cinemaId": "MIDCIN",
+  "movieId": "HO00008574",
+  "date": "2026-06-24T14:00:00",
+  "utcDate": "2026-06-24T06:00:00+00:00",
+  "typeId": "XTREME",
+  "originalTags": [
+   "DBOX Rows",
+   "DAYBEDS",
+   "RC",
+   "XTREME",
+   "AD",
+   "CC"
+  ],
+  "disabled": false,
+  "allocatedSeating": true,
+  "discount": false,
+  "screenName": "Xtremescreen 03",
+  "operator": "MID",
+  "link": "/orders/tickets?cinemaId=MIDCIN&sessionId=58353"
+ },
+ {
+  "id": 58354,
+  "cinemaId": "MIDCIN",
+  "movieId": "HO00008574",
+  "date": "2026-06-24T15:30:00",
+  "utcDate": "2026-06-24T07:30:00+00:00",
+  "typeId": "XTREME",
+  "originalTags": [
+   "DAYBEDS",
+   "RC",
+   "XTREME",
+   "AD",
+   "CC"
+  ],
+  "disabled": false,
+  "allocatedSeating": true,
+  "discount": false,
+  "screenName": "Xtremescreen 02",
+  "operator": "MID",
+  "link": "/orders/tickets?cinemaId=MIDCIN&sessionId=58354"
+ },
+ {
+  "id": 58355,
+  "cinemaId": "MIDCIN",
+  "movieId": "HO00008574",
+  "date": "2026-06-24T15:30:00",
+  "utcDate": "2026-06-24T07:30:00+00:00",
+  "typeId": "LUX",
+  "originalTags": [
+   "PRC",
+   "LUX",
+   "18+",
+   "AD",
+   "CC"
+  ],
+  "disabled": false,
+  "allocatedSeating": true,
+  "discount": false,
+  "screenName": "HOYTS LUX 02",
+  "operator": "MIDLP",
+  "link": "/orders/tickets?cinemaId=MIDCIN&sessionId=58355"
+ }
+]
