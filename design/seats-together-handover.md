@@ -19,8 +19,14 @@ re-verify on open. Design is locked (`design/seats-together-design.md`).
     `--once` + scheduled modes, `watches.json` seed. 16/16 tests on a disposable pg. Codex SHIP (R2).
   - **Checkpoint passed** (live `ingest --once`, Event / George St): 60 sessions, 10,207
     session_seats, idempotent re-run (counts stable). Real session data verified.
-- **ST-3..5 (#28–#30) TODO.** Next = **ST-3 (#28)**: `/together` + `/catalog` API over the DB +
-  wire `api`'s `DATABASE_URL` + `depends_on:[db]`.
+- **ST-3 (#28) DONE — shipped to `main`** (PR #34, `4c52580`). `packages/api` gained `GET /together`
+  (filter → join `session_seats` → `findAdjacentBlocks` → rank by block avg then earliest start, no
+  upstream) + `GET /catalog` (distinct movies/cinemas/dates). `/seatmap` untouched. `api` now wired:
+  `DATABASE_URL` + `depends_on:[db]`. 36/36 tests on a disposable pg, Codex SHIP (R2). Live gate green:
+  all 4 endpoints 200 on NAS; top result Minions & Monsters V-Max, real adjacent block (row K, avg 97).
+- **ST-4..5 (#29–#30) TODO.** Next = **ST-4 (#29)**: the web "Seats Together" mode — catalog pickers
+  → instant ranked `/together` → open a result → live `/seatmap` confirm with the block highlighted →
+  book on the chain. **This step NEEDS a browser smoke** (SPA render) as its acceptance gate.
 
 ## Key facts / gotchas (reality, not plan)
 - **`session_seats` stores ALL available *scored* seats** (NOT in-zone-only) so (party N, minScore Q)
@@ -29,8 +35,8 @@ re-verify on open. Design is locked (`design/seats-together-design.md`).
 - **v1 limitation (known, documented):** `session_seats` has no watch dimension, so if two watches
   ever cover the *same* session with different scoring configs, last-writer-wins by watch id. Fine
   while watches don't overlap (single chain per watch). Revisit only if overlap is needed.
-- `api`'s `DATABASE_URL` is **not yet wired** — lands with #28 (avoided bouncing live `api` during
-  ST-2). Wiring it in #28 will recreate the live `api` container once (expected).
+- `api` is now wired to the DB (`DATABASE_URL` + `depends_on:[db]`, since #28). `/together` + `/catalog`
+  are DB-only (no upstream); `/seatmap` remains the live on-open confirm.
 - The `ingester` compose service is **profile-gated and NOT running** on the live stack — the
   checkpoint was a one-shot `docker compose run --rm`. Scheduling the loop lands in ST-5 (#30) deploy.
 
