@@ -17,3 +17,4 @@ deploy/watch.config.json
 
 # local-only review output (never publish; issues are the public record)
 reviews/
+docs/session-log.md
