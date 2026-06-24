@@ -111,9 +111,10 @@ export function App() {
 
           {!result && !error && !loading && (
             <div className="empty">
-              <p>Enter a movie, one or more cinema IDs and a date, then search.</p>
+              <p>Pick a chain, one or more cinemas, a date and a movie, then search.</p>
               <p className="hint">
-                Try the Event fixture: movie <code>19797</code>, cinema <code>58</code>.
+                Start with Event Cinemas, choose a cinema near you, set today's date, then pick
+                what's playing.
               </p>
             </div>
           )}

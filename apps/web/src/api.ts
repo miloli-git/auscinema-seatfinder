@@ -1,4 +1,4 @@
-import type { BestResponse, Cinema, ScoredSeatMap, AreaKind } from "./types";
+import type { BestResponse, Cinema, Movie, ScoredSeatMap, AreaKind } from "./types";
 
 // Empty => same-origin relative requests, served via the Vite dev/preview proxy
 // (see vite.config.ts) or a reverse proxy in production. Set VITE_API_BASE to an
@@ -53,6 +53,15 @@ async function getJson<T>(path: string, qs: URLSearchParams): Promise<T> {
 export function fetchCinemas(chain: string): Promise<Cinema[]> {
   const qs = new URLSearchParams({ chain });
   return getJson<Cinema[]>("/cinemas", qs);
+}
+
+export function fetchMovies(
+  chain: string,
+  cinemaIds: string,
+  date: string,
+): Promise<Movie[]> {
+  const qs = new URLSearchParams({ chain, cinemaIds, date });
+  return getJson<Movie[]>("/movies", qs);
 }
 
 export function fetchBest(q: BestQuery): Promise<BestResponse> {

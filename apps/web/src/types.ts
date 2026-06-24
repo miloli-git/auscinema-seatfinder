@@ -12,6 +12,12 @@ export interface Cinema {
   url?: string;
 }
 
+/** GET /movies response item = a distinct movie playing at the cinema/date. */
+export interface Movie {
+  id: string;
+  name: string;
+}
+
 export interface ScreenFormat {
   kind: "standard" | "premium" | "goldclass" | "imax" | "vmax" | "other";
   raw: string;

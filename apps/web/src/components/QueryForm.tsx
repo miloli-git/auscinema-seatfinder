@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import type { AreaKind, Cinema } from "../types";
+import { useEffect, useMemo, useState } from "react";
+import type { AreaKind, Cinema, Movie } from "../types";
 import { SELECTABLE_AREA_KINDS } from "../types";
-import { fetchCinemas } from "../api";
+import { fetchCinemas, fetchMovies } from "../api";
 
 export interface FormValues {
   chain: string;
@@ -33,6 +33,13 @@ export const DEFAULTS: FormValues = {
   avoidPaired: false,
 };
 
+const CHAINS: { value: string; label: string }[] = [
+  { value: "event", label: "Event Cinemas" },
+  { value: "hoyts", label: "Hoyts" },
+  { value: "reading", label: "Reading Cinemas" },
+  { value: "village", label: "Village Cinemas" },
+];
+
 const AREA_LABEL: Record<AreaKind, string> = {
   standard: "Standard",
   recliner: "Recliner",
@@ -42,6 +49,14 @@ const AREA_LABEL: Record<AreaKind, string> = {
   companion: "Companion",
   other: "Other",
 };
+
+/** Parse the comma-separated cinemaIds string into a clean id list. */
+function idList(cinemaIds: string): string[] {
+  return cinemaIds
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 interface Props {
   values: FormValues;
@@ -53,12 +68,21 @@ interface Props {
 export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
   const [cinemaError, setCinemaError] = useState<string | null>(null);
+  const [cinemaFilter, setCinemaFilter] = useState("");
+
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [moviesLoading, setMoviesLoading] = useState(false);
+  const [movieError, setMovieError] = useState<string | null>(null);
 
   const set = <K extends keyof FormValues>(key: K, val: FormValues[K]) =>
     onChange({ ...values, [key]: val });
 
+  const selectedIds = useMemo(() => idList(values.cinemaIds), [values.cinemaIds]);
+
+  // Refetch cinemas whenever the chain changes.
   useEffect(() => {
     let live = true;
+    setCinemas([]);
     fetchCinemas(values.chain)
       .then((list) => {
         if (live) {
@@ -74,6 +98,57 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
     };
   }, [values.chain]);
 
+  // Fetch the movie list once chain + at least one cinema + date are chosen.
+  useEffect(() => {
+    if (!values.chain || selectedIds.length === 0 || !values.date) {
+      setMovies([]);
+      setMovieError(null);
+      setMoviesLoading(false);
+      return;
+    }
+    let live = true;
+    setMoviesLoading(true);
+    setMovieError(null);
+    fetchMovies(values.chain, selectedIds.join(","), values.date)
+      .then((list) => {
+        if (!live) return;
+        setMovies(list);
+        setMoviesLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (!live) return;
+        setMovies([]);
+        setMovieError(err instanceof Error ? err.message : String(err));
+        setMoviesLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [values.chain, values.cinemaIds, values.date, selectedIds.length]);
+
+  // Drop the selected movie if it falls out of the available list (e.g. cinema/date change).
+  useEffect(() => {
+    if (values.movieId && movies.length > 0 && !movies.some((m) => m.id === values.movieId)) {
+      set("movieId", "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movies]);
+
+  const switchChain = (chain: string) => {
+    // Changing chain invalidates cinema + movie selections.
+    onChange({ ...values, chain, cinemaIds: "", movieId: "" });
+    setCinemaFilter("");
+    setMovies([]);
+  };
+
+  const toggleCinema = (id: string) => {
+    const ids = selectedIds.includes(id)
+      ? selectedIds.filter((c) => c !== id)
+      : [...selectedIds, id];
+    // Clearing or changing cinemas invalidates the movie pick.
+    onChange({ ...values, cinemaIds: ids.join(", "), movieId: "" });
+  };
+
   const toggleArea = (kind: AreaKind) => {
     const next = values.allowedAreaKinds.includes(kind)
       ? values.allowedAreaKinds.filter((k) => k !== kind)
@@ -81,21 +156,31 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
     set("allowedAreaKinds", next);
   };
 
-  const addCinema = (id: string) => {
-    if (!id) return;
-    const ids = values.cinemaIds
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (!ids.includes(id)) set("cinemaIds", [...ids, id].join(", "));
-  };
-
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit();
   };
 
-  const ready = values.movieId.trim() && values.cinemaIds.trim() && values.date.trim();
+  const filteredCinemas = useMemo(() => {
+    const q = cinemaFilter.trim().toLowerCase();
+    if (!q) return cinemas;
+    return cinemas.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.region ? c.region.toLowerCase().includes(q) : false),
+    );
+  }, [cinemas, cinemaFilter]);
+
+  const cinemaName = (id: string): string => {
+    const c = cinemas.find((x) => x.id === id);
+    return c ? c.name : id;
+  };
+
+  const ready =
+    Boolean(values.chain) &&
+    selectedIds.length > 0 &&
+    Boolean(values.date) &&
+    Boolean(values.movieId);
 
   return (
     <form className="form" onSubmit={submit}>
@@ -103,60 +188,98 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
 
       <label className="field">
         <span>Chain</span>
-        <select value={values.chain} onChange={(e) => set("chain", e.target.value)}>
-          <option value="event">Event Cinemas</option>
+        <select value={values.chain} onChange={(e) => switchChain(e.target.value)}>
+          {CHAINS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
         </select>
       </label>
 
-      <label className="field">
-        <span>Movie ID</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="e.g. 19797"
-          value={values.movieId}
-          onChange={(e) => set("movieId", e.target.value)}
-        />
-      </label>
-
-      <label className="field">
-        <span>Cinema IDs</span>
-        <input
-          type="text"
-          placeholder="comma-separated, e.g. 58, 65"
-          value={values.cinemaIds}
-          onChange={(e) => set("cinemaIds", e.target.value)}
-        />
-      </label>
-
-      {cinemas.length > 0 && (
-        <label className="field">
-          <span>Add cinema</span>
-          <select
-            value=""
-            onChange={(e) => {
-              addCinema(e.target.value);
-              e.target.value = "";
-            }}
-          >
-            <option value="">Pick from list…</option>
-            {cinemas.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.region ? ` (${c.region})` : ""} - {c.id}
-              </option>
+      <fieldset className="field cinemas">
+        <legend>Cinemas</legend>
+        {selectedIds.length > 0 && (
+          <div className="chips">
+            {selectedIds.map((id) => (
+              <button
+                type="button"
+                key={id}
+                className="chip chip--on"
+                onClick={() => toggleCinema(id)}
+                title="Remove"
+              >
+                {cinemaName(id)} ✕
+              </button>
             ))}
-          </select>
-        </label>
-      )}
-      {cinemaError && (
-        <p className="hint hint--warn">Cinema list unavailable - enter IDs by hand.</p>
-      )}
+          </div>
+        )}
+        {cinemaError && (
+          <p className="hint hint--warn">Cinema list unavailable: {cinemaError}</p>
+        )}
+        {!cinemaError && cinemas.length === 0 && (
+          <p className="hint">Loading cinemas…</p>
+        )}
+        {cinemas.length > 0 && (
+          <>
+            <input
+              type="text"
+              className="cinemas__filter"
+              placeholder="Filter cinemas by name…"
+              value={cinemaFilter}
+              onChange={(e) => setCinemaFilter(e.target.value)}
+            />
+            <div className="checklist">
+              {filteredCinemas.map((c) => (
+                <label key={c.id} className="checklist__item">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(c.id)}
+                    onChange={() => toggleCinema(c.id)}
+                  />
+                  <span>
+                    {c.name}
+                    {c.region ? ` (${c.region})` : ""}
+                  </span>
+                </label>
+              ))}
+              {filteredCinemas.length === 0 && (
+                <p className="hint">No cinemas match that filter.</p>
+              )}
+            </div>
+          </>
+        )}
+      </fieldset>
 
       <label className="field">
         <span>Date</span>
         <input type="date" value={values.date} onChange={(e) => set("date", e.target.value)} />
       </label>
+
+      <label className="field">
+        <span>Movie</span>
+        <select
+          value={values.movieId}
+          onChange={(e) => set("movieId", e.target.value)}
+          disabled={selectedIds.length === 0 || !values.date || moviesLoading}
+        >
+          <option value="">
+            {selectedIds.length === 0 || !values.date
+              ? "Pick cinemas and a date first"
+              : moviesLoading
+                ? "Loading movies…"
+                : movies.length === 0
+                  ? "No movies playing - try another date/cinema"
+                  : "Pick a movie…"}
+          </option>
+          {movies.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {movieError && <p className="hint hint--warn">Movie list failed: {movieError}</p>}
 
       <div className="field field--row">
         <label className="field">
@@ -175,7 +298,7 @@ export function QueryForm({ values, onChange, onSubmit, loading }: Props) {
       <label className="field">
         <span>
           Target depth <em>{values.targetDepth.toFixed(2)}</em>
-          <small> (front → back)</small>
+          <small> (front to back)</small>
         </span>
         <input
           type="range"

@@ -175,6 +175,42 @@ test("GET /best orders sessions by best seat; unknown chain -> 400", async () =>
   assert.equal(unknown.statusCode, 400);
 });
 
+// --- /movies route (distinct movies, deduped + sorted) ---------------------
+
+test("/movies dedupes by movieId and sorts by name; missing param -> 400", async () => {
+  const seen: SessionQuery[] = [];
+  const sessions: Session[] = [
+    { ...makeSession("s1", "event", 100), movieId: "m-zoo", movieName: "Zootopia" },
+    { ...makeSession("s2", "event", 90), movieId: "m-zoo", movieName: "Zootopia" },
+    { ...makeSession("s3", "event", 80), movieId: "m-alien", movieName: "Alien" },
+  ];
+  const adapter = fakeAdapter({
+    listSessions: async (q) => {
+      seen.push(q);
+      return sessions;
+    },
+  });
+  const server = buildServer({ adapters: { event: adapter }, logger: false });
+
+  const ok = await server.inject({
+    method: "GET",
+    url: "/movies?chain=event&cinemaIds=c1,c2&date=2026-07-21",
+  });
+  assert.equal(ok.statusCode, 200);
+  const body = ok.json() as Array<{ id: string; name: string }>;
+  assert.deepEqual(body, [
+    { id: "m-alien", name: "Alien" },
+    { id: "m-zoo", name: "Zootopia" },
+  ]);
+  // Called with empty movieId (all movies) and the parsed cinemaIds.
+  assert.equal(seen[0]!.movieId, "");
+  assert.deepEqual(seen[0]!.cinemaIds, ["c1", "c2"]);
+
+  const missing = await server.inject({ method: "GET", url: "/movies?chain=event&date=2026-07-21" });
+  assert.equal(missing.statusCode, 400);
+  assert.ok((missing.json() as { error: string }).error.length > 0);
+});
+
 // --- Gap 1: rate limiting ---------------------------------------------------
 
 test("rate limit: Nth request over the limit -> 429 with {error} shape", async () => {
