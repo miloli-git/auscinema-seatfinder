@@ -1,0 +1,4 @@
+# Runtime artifacts — the live config and the de-dupe state are machine-local.
+watch.config.json
+watch.state.json
+*.state.json
