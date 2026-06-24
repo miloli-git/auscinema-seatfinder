@@ -9,6 +9,7 @@ import type {
   SeatStatus,
   ScreenFormat,
 } from "@auscinema/core";
+import { UpstreamError, isAbortError } from "@auscinema/core";
 
 /** Injectable HTTP-JSON fetcher so parsing can run against fixtures without network. */
 export type FetchJson = (url: string) => Promise<unknown>;
@@ -65,15 +66,33 @@ const BROWSER_HEADERS: Record<string, string> = {
   Accept: "application/json",
 };
 
-/** Real network call: 15s timeout, one retry on network error. */
+/** Real network call: 15s timeout, one retry on network error. Failures throw a typed UpstreamError. */
 const defaultFetchJson: FetchJson = async (url) => {
   const attempt = async (): Promise<unknown> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15_000);
     try {
       const res = await fetch(url, { headers: BROWSER_HEADERS, signal: controller.signal });
-      if (!res.ok) throw new Error(`Event request failed: ${res.status} ${res.statusText} (${url})`);
-      return await res.json();
+      if (!res.ok) {
+        throw new UpstreamError(`Event request failed: ${res.status} ${res.statusText} (${url})`, {
+          kind: "http",
+          status: res.status,
+        });
+      }
+      try {
+        return await res.json();
+      } catch (err) {
+        throw new UpstreamError(`Event response was not valid JSON (${url})`, {
+          kind: "parse",
+          cause: err,
+        });
+      }
+    } catch (err) {
+      if (err instanceof UpstreamError) throw err;
+      if (isAbortError(err)) {
+        throw new UpstreamError(`Event request timed out (${url})`, { kind: "timeout", cause: err });
+      }
+      throw err; // network error — retried below, then normalised
     } finally {
       clearTimeout(timer);
     }
@@ -82,7 +101,12 @@ const defaultFetchJson: FetchJson = async (url) => {
     return await attempt();
   } catch {
     // One retry on network/abort error (cheap, idempotent GET).
-    return await attempt();
+    try {
+      return await attempt();
+    } catch (err) {
+      if (err instanceof UpstreamError) throw err;
+      throw new UpstreamError(`Event request failed (${url})`, { kind: "unknown", cause: err });
+    }
   }
 };
 

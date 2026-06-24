@@ -9,6 +9,7 @@ import type {
   SeatStatus,
   ScreenFormat,
 } from "@auscinema/core";
+import { UpstreamError, isAbortError } from "@auscinema/core";
 
 /**
  * Injectable HTTP-JSON fetcher so parsing can run against fixtures without network.
@@ -74,7 +75,9 @@ export class ReadingAdapter implements ChainAdapter {
     const data = isObj(raw) && isObj(raw.data) ? raw.data : undefined;
     const settings = isObj(data?.settings) ? data.settings : undefined;
     const tok = str(settings?.token);
-    if (!tok) throw new Error("Reading: no bootstrap token in /settings response");
+    if (!tok) {
+      throw new UpstreamError("Reading: no bootstrap token in /settings response", { kind: "auth" });
+    }
     this.tokenCache = tok;
     return tok;
   }
@@ -149,7 +152,7 @@ const BROWSER_HEADERS: Record<string, string> = {
   Accept: "application/json",
 };
 
-/** Real network call: 15s timeout, one retry on network error. */
+/** Real network call: 15s timeout, one retry on network error. Failures throw a typed UpstreamError. */
 const defaultFetchJson: FetchJson = async (url, init) => {
   const attempt = async (): Promise<unknown> => {
     const controller = new AbortController();
@@ -163,8 +166,28 @@ const defaultFetchJson: FetchJson = async (url, init) => {
         opts.body = JSON.stringify(init.body);
       }
       const res = await fetch(url, opts);
-      if (!res.ok) throw new Error(`Reading request failed: ${res.status} ${res.statusText} (${url})`);
-      return await res.json();
+      if (!res.ok) {
+        // 401/403 on a data route = the bootstrap token was rejected/expired -> auth.
+        const kind = res.status === 401 || res.status === 403 ? "auth" : "http";
+        throw new UpstreamError(`Reading request failed: ${res.status} ${res.statusText} (${url})`, {
+          kind,
+          status: res.status,
+        });
+      }
+      try {
+        return await res.json();
+      } catch (err) {
+        throw new UpstreamError(`Reading response was not valid JSON (${url})`, {
+          kind: "parse",
+          cause: err,
+        });
+      }
+    } catch (err) {
+      if (err instanceof UpstreamError) throw err;
+      if (isAbortError(err)) {
+        throw new UpstreamError(`Reading request timed out (${url})`, { kind: "timeout", cause: err });
+      }
+      throw err; // network error — retried below, then normalised
     } finally {
       clearTimeout(timer);
     }
@@ -173,7 +196,12 @@ const defaultFetchJson: FetchJson = async (url, init) => {
     return await attempt();
   } catch {
     // One retry on network/abort error (cheap, idempotent GET/POST of a read query).
-    return await attempt();
+    try {
+      return await attempt();
+    } catch (err) {
+      if (err instanceof UpstreamError) throw err;
+      throw new UpstreamError(`Reading request failed (${url})`, { kind: "unknown", cause: err });
+    }
   }
 };
 

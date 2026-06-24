@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { UpstreamError } from "@auscinema/core";
 import { EventCinemasAdapter, type FetchJson } from "./index.js";
 
 // Compiled test lives in dist/; fixtures are committed at ../fixtures relative to the package root.
@@ -96,4 +97,64 @@ test("listSessions: maps cinema 58 sessions with ids, times and format", async (
   assert.equal(first.seatAllocation, true);
   assert.equal(first.bookingUrl, "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433720");
   assert.ok(first.attributes?.includes("NFT"));
+});
+
+// --- default HTTP path: failures normalise to typed UpstreamError -----------
+
+/** Run `fn` with globalThis.fetch swapped for `stub`, always restoring the original. */
+async function withFetch(stub: typeof fetch, fn: () => Promise<void>): Promise<void> {
+  const original = globalThis.fetch;
+  globalThis.fetch = stub;
+  try {
+    await fn();
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+test("defaultFetchJson: non-2xx -> UpstreamError{kind:http,status}", async () => {
+  const adapter = new EventCinemasAdapter(); // real default fetchJson
+  const stub = (async () =>
+    new Response("nope", { status: 502, statusText: "Bad Gateway" })) as unknown as typeof fetch;
+  await withFetch(stub, async () => {
+    await assert.rejects(
+      () => adapter.getSeatMap("15433720"),
+      (err: unknown) => {
+        assert.ok(err instanceof UpstreamError, "expected UpstreamError");
+        assert.equal(err.kind, "http");
+        assert.equal(err.status, 502);
+        return true;
+      },
+    );
+  });
+});
+
+test("defaultFetchJson: AbortError -> UpstreamError{kind:timeout}", async () => {
+  const adapter = new EventCinemasAdapter();
+  const stub = (async () => {
+    const e = new Error("aborted");
+    e.name = "AbortError";
+    throw e;
+  }) as unknown as typeof fetch;
+  await withFetch(stub, async () => {
+    await assert.rejects(
+      () => adapter.getSeatMap("15433720"),
+      (err: unknown) => err instanceof UpstreamError && err.kind === "timeout",
+    );
+  });
+});
+
+test("defaultFetchJson: invalid JSON -> UpstreamError{kind:parse}", async () => {
+  const adapter = new EventCinemasAdapter();
+  const stub = (async () =>
+    new Response("<html>not json</html>", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })) as unknown as typeof fetch;
+  await withFetch(stub, async () => {
+    await assert.rejects(
+      () => adapter.getSeatMap("15433720"),
+      (err: unknown) => err instanceof UpstreamError && err.kind === "parse",
+    );
+  });
 });

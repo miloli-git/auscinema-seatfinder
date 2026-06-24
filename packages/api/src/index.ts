@@ -12,9 +12,11 @@
  */
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import rateLimit from "@fastify/rate-limit";
 import {
   rankSeats,
   bestSeatScore,
+  UpstreamError,
   type Chain,
   type ChainAdapter,
   type SeatPreference,
@@ -184,8 +186,30 @@ export interface BuildServerOptions {
   bestConcurrency?: number;
   /** Default number of top seats returned per session by /best. Default 5. */
   bestTopN?: number;
+  /**
+   * Max candidate sessions /best will fan out seat-map fetches for, after sorting by
+   * `seatsAvailable` desc. Overridable per-request via `?maxSessions=`. Default 40.
+   */
+  maxSessions?: number;
+  /**
+   * Per-IP rate limit. `false` disables it (e.g. in tests). When omitted, a default of
+   * 120 requests/minute applies, overridable via env (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`).
+   */
+  rateLimit?: false | { max: number; windowMs: number };
   /** Forwarded to Fastify (e.g. `{ logger: false }`). */
   logger?: boolean;
+}
+
+/** Resolve the effective rate-limit config from opts then env, defaulting to 120/min. */
+function resolveRateLimit(opt: BuildServerOptions["rateLimit"]): { max: number; windowMs: number } | false {
+  if (opt === false) return false;
+  if (opt) return opt;
+  const max = Number(process.env.RATE_LIMIT_MAX);
+  const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS);
+  return {
+    max: Number.isFinite(max) && max > 0 ? max : 120,
+    windowMs: Number.isFinite(windowMs) && windowMs > 0 ? windowMs : 60_000,
+  };
 }
 
 export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
@@ -193,11 +217,34 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
   const sessionCache = new TtlCache<Session[]>(opts.sessionCacheTtlMs ?? 5 * 60_000);
   const bestConcurrency = opts.bestConcurrency ?? 4;
   const bestTopN = opts.bestTopN ?? 5;
+  const maxSessions = opts.maxSessions ?? 40;
 
   const app = Fastify({ logger: opts.logger ?? false });
 
+  // Per-IP rate limit (configurable; disabled when `rateLimit === false`). The plugin THROWS the
+  // result of errorResponseBuilder, so we return an Error carrying statusCode 429 and let the
+  // central error handler render the standard `{error}` shape.
+  const rl = resolveRateLimit(opts.rateLimit);
+  if (rl !== false) {
+    void app.register(rateLimit, {
+      global: true,
+      max: rl.max,
+      timeWindow: rl.windowMs,
+      errorResponseBuilder: (_req, ctx) => {
+        const err = new Error("rate limit exceeded") as Error & { statusCode?: number };
+        err.statusCode = ctx.statusCode; // 429
+        return err;
+      },
+    });
+  }
+
   // Centralised JSON error shape.
   app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
+    if (err instanceof UpstreamError) {
+      // Upstream chain failure: 503 when the chain timed out, 502 otherwise.
+      reply.status(err.kind === "timeout" ? 503 : 502).send({ error: err.message });
+      return;
+    }
     const status = err instanceof HttpError ? err.statusCode : (err.statusCode ?? 500);
     reply.status(status).send({ error: err.message });
   });
@@ -205,7 +252,10 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     reply.status(404).send({ error: "not found" });
   });
 
-  app.get("/healthz", async () => ({ ok: true }));
+  // Routes live in a child plugin registered AFTER @fastify/rate-limit so the plugin's global
+  // onRequest hook is in place before the routes are defined (Fastify applies hooks by load order).
+  void app.register(async (app: FastifyInstance) => {
+    app.get("/healthz", async () => ({ ok: true }));
 
   app.get("/cinemas", async (req: FastifyRequest) => {
     const q = req.query as Query;
@@ -249,6 +299,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const date = reqStr(q, "date");
     const pref = parsePreference(q);
     const topN = optFloat(q, "topN") ?? bestTopN;
+    const cap = Math.max(1, Math.floor(optFloat(q, "maxSessions") ?? maxSessions));
 
     const sessions = await adapter.listSessions({ movieId, cinemaIds, date });
 
@@ -256,7 +307,15 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const skipped = sessions
       .filter((s) => !s.seatAllocation)
       .map((s) => ({ sessionId: s.id, reason: "seatAllocation=false" }));
-    const allocatable = sessions.filter((s) => s.seatAllocation);
+
+    // Cap the seat-map fan-out so a huge candidate set can't blow up the request. Sort by
+    // live availability (most seats first; unknown availability last) so the cap keeps the
+    // most promising sessions, and report the drop count so truncation is never silent.
+    const candidates = sessions
+      .filter((s) => s.seatAllocation)
+      .sort((a, b) => (b.seatsAvailable ?? -1) - (a.seatsAvailable ?? -1));
+    const allocatable = candidates.slice(0, cap);
+    const droppedSessions = candidates.length - allocatable.length;
 
     const scored = await mapWithConcurrency(allocatable, bestConcurrency, async (session) => {
       const map = await adapter.getSeatMap(session.id, { preview: true });
@@ -270,7 +329,13 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     });
 
     scored.sort((a, b) => b.bestScore - a.bestScore);
-    return { sessions: scored, skipped };
+    return {
+      sessions: scored,
+      skipped,
+      consideredSessions: allocatable.length,
+      droppedSessions,
+    };
+    });
   });
 
   return app;
