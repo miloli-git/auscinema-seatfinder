@@ -1,0 +1,37 @@
+{
+  "pollIntervalMs": 300000,
+  "concurrency": 4,
+  "statePath": "watch.state.json",
+  "notifier": {
+    "webhookUrl": "https://discord.com/api/webhooks/XXXX/YYYY"
+  },
+  "watches": [
+    {
+      "id": "dune-event-george-st",
+      "label": "Dune Part Two — Event George St, Sat evening",
+      "chain": "event",
+      "movieId": "HO00001234",
+      "cinemaIds": ["1001"],
+      "date": "2026-07-25",
+      "timeWindow": { "from": "17:00", "to": "23:00" },
+      "preference": {
+        "targetDepth": 0.65,
+        "depthWeight": 0.6,
+        "centralityWeight": 0.4,
+        "allowedAreaKinds": ["recliner", "standard"],
+        "avoidPaired": true
+      },
+      "minScore": 80
+    },
+    {
+      "id": "dune-hoyts-entertainment-quarter",
+      "label": "Dune Part Two — Hoyts EQ, any session",
+      "chain": "hoyts",
+      "movieId": "HO00008574",
+      "cinemaIds": ["EQCIN"],
+      "date": "2026-07-25",
+      "preference": { "targetDepth": 0.6, "centralityWeight": 0.5, "depthWeight": 0.5 },
+      "minScore": 75
+    }
+  ]
+}
