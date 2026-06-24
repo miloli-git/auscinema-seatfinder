@@ -13,11 +13,16 @@ import { loadConfig, type WatcherConfig } from "./config.js";
 import { defaultRegistry } from "./registry.js";
 import { loadState, saveState } from "./state.js";
 import { WebhookNotifier, ConsoleNotifier, type Notifier } from "./notifier.js";
-import { runCheck } from "./check.js";
+import { runCheck, type CheckResult } from "./check.js";
 
 const DEFAULT_CONFIG = "watch.config.json";
 const DEFAULT_STATE = "watch.state.json";
 const DEFAULT_INTERVAL_MS = 5 * 60_000;
+
+interface CheckCycle {
+  result: CheckResult;
+  totalWatches: number;
+}
 
 function resolveConfigPath(argv: string[]): string {
   return argv[3] ?? process.env.WATCHER_CONFIG ?? DEFAULT_CONFIG;
@@ -28,14 +33,28 @@ function buildNotifier(config: WatcherConfig): Notifier {
   return webhook ? new WebhookNotifier(webhook) : new ConsoleNotifier();
 }
 
+export function resolveStatePath(config: WatcherConfig): string {
+  return process.env.WATCHER_STATE_PATH ?? config.statePath ?? DEFAULT_STATE;
+}
+
+function failingWatchCount(result: CheckResult): number {
+  return new Set(result.errors.map((e) => e.watchId)).size;
+}
+
+export function shouldBackoffForCheckResult(result: CheckResult, totalWatches: number): boolean {
+  if (totalWatches <= 0) return false;
+  const failed = failingWatchCount(result);
+  return failed === totalWatches || failed > totalWatches / 2;
+}
+
 function log(msg: string): void {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
 /** Run all watches once, persisting state and reporting a summary. */
-async function doCheck(configPath: string): Promise<void> {
+async function doCheck(configPath: string): Promise<CheckCycle> {
   const config = await loadConfig(configPath);
-  const statePath = config.statePath ?? DEFAULT_STATE;
+  const statePath = resolveStatePath(config);
   const registry = defaultRegistry();
   const notifier = buildNotifier(config);
   const state = await loadState(statePath);
@@ -44,7 +63,11 @@ async function doCheck(configPath: string): Promise<void> {
   await saveState(statePath, state);
 
   log(`check: ${result.hits.length} hit(s), ${result.newHits.length} new, ${result.errors.length} error(s)`);
-  for (const e of result.errors) log(`  watch ${e.watchId} error: ${e.error}`);
+  for (const e of result.errors) {
+    const subject = e.sessionId ? `watch ${e.watchId} session ${e.sessionId}` : `watch ${e.watchId}`;
+    log(`  ${subject} error: ${e.error}`);
+  }
+  return { result, totalWatches: config.watches.length };
 }
 
 /** Loop doCheck on the configured interval, with exponential backoff on failure. */
@@ -57,7 +80,14 @@ async function doWatch(configPath: string): Promise<never> {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      await doCheck(configPath);
+      const cycle = await doCheck(configPath);
+      if (shouldBackoffForCheckResult(cycle.result, cycle.totalWatches)) {
+        const failed = failingWatchCount(cycle.result);
+        log(`check failed for ${failed}/${cycle.totalWatches} watch(es); backing off ${Math.round(backoff / 1000)}s`);
+        await sleep(backoff);
+        backoff = Math.min(backoff * 2, maxBackoff);
+        continue;
+      }
       backoff = baseInterval; // reset on success
     } catch (err) {
       log(`check failed: ${(err as Error).message}; backing off ${Math.round(backoff / 1000)}s`);
