@@ -23,6 +23,7 @@ import {
 import { EventCinemasAdapter } from "@auscinema/adapter-event";
 import { HoytsAdapter } from "@auscinema/adapter-hoyts";
 import { ReadingAdapter } from "@auscinema/adapter-reading";
+import { VillageAdapter } from "@auscinema/adapter-village";
 
 // --- Errors -----------------------------------------------------------------
 
@@ -40,12 +41,13 @@ class HttpError extends Error {
 
 export type AdapterRegistry = Partial<Record<Chain, ChainAdapter>>;
 
-/** Default registry — event/hoyts/reading wired; village slots in once cracked. */
+/** Default registry — event/hoyts/reading/village all wired. */
 function defaultAdapters(): AdapterRegistry {
   return {
     event: new EventCinemasAdapter(),
     hoyts: new HoytsAdapter(),
     reading: new ReadingAdapter(),
+    village: new VillageAdapter(),
   };
 }
 

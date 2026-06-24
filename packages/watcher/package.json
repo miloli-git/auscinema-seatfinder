@@ -24,7 +24,8 @@
     "@auscinema/core": "*",
     "@auscinema/adapter-event": "*",
     "@auscinema/adapter-hoyts": "*",
-    "@auscinema/adapter-reading": "*"
+    "@auscinema/adapter-reading": "*",
+    "@auscinema/adapter-village": "*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0"

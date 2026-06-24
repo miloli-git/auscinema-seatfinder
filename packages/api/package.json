@@ -13,6 +13,7 @@
     "@auscinema/adapter-event": "*",
     "@auscinema/adapter-hoyts": "*",
     "@auscinema/adapter-reading": "*",
+    "@auscinema/adapter-village": "*",
     "fastify": "^5.0.0"
   },
   "devDependencies": {

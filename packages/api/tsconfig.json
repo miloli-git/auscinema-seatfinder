@@ -6,6 +6,7 @@
     { "path": "../core" },
     { "path": "../adapters/event" },
     { "path": "../adapters/hoyts" },
-    { "path": "../adapters/reading" }
+    { "path": "../adapters/reading" },
+    { "path": "../adapters/village" }
   ]
 }
