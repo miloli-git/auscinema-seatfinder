@@ -263,6 +263,22 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     return adapter.listCinemas();
   });
 
+  app.get("/movies", async (req: FastifyRequest) => {
+    const q = req.query as Query;
+    const adapter = resolveAdapter(adapters, q.chain);
+    const cinemaIds = csv(reqStr(q, "cinemaIds"));
+    if (cinemaIds.length === 0) throw new HttpError(400, "missing required query param: cinemaIds");
+    const date = reqStr(q, "date");
+
+    // Empty movieId = all movies at the cinema/date; dedupe to distinct movies.
+    const sessions = await adapter.listSessions({ movieId: "", cinemaIds, date });
+    const byId = new Map<string, { id: string; name: string }>();
+    for (const s of sessions) {
+      if (!byId.has(s.movieId)) byId.set(s.movieId, { id: s.movieId, name: s.movieName });
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  });
+
   app.get("/sessions", async (req: FastifyRequest) => {
     const q = req.query as Query;
     const adapter = resolveAdapter(adapters, q.chain);
