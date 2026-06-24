@@ -10,6 +10,7 @@
     "packages/adapters/*",
     "packages/api",
     "packages/watcher",
+    "packages/ingester",
     "apps/web"
   ],
   "engines": {

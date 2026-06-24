@@ -1,0 +1,35 @@
+{
+  "name": "@auscinema/ingester",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "auscinema-ingest": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "seed": "node dist/cli.js seed",
+    "ingest:once": "node dist/cli.js ingest --once",
+    "ingest": "node dist/cli.js ingest",
+    "test": "tsc -b && node --test dist/*.test.js"
+  },
+  "dependencies": {
+    "@auscinema/core": "*",
+    "@auscinema/adapter-event": "*",
+    "@auscinema/adapter-hoyts": "*",
+    "@auscinema/adapter-reading": "*",
+    "@auscinema/adapter-village": "*",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.10"
+  }
+}
