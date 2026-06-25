@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Matrix } from "./Matrix";
 import { TogetherDrillIn } from "./TogetherDrillIn";
 import { MinScoreControl } from "./MinScoreControl";
@@ -49,31 +49,45 @@ export function TogetherView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drill, setDrill] = useState<{ cinemaId: string; cinemaName: string; date: string } | null>(null);
+  // Snapshot of the params that produced `results`. minScore re-queries fire against THIS,
+  // not the live (possibly edited) chain/movie/party inputs, which are Scan-only.
+  const [scanned, setScanned] = useState<{ chain: Chain; movieId: string; party: number } | null>(null);
+  // Monotonic request id: only the latest in-flight /together response is applied (no out-of-order clobber).
+  const reqSeq = useRef(0);
 
-  // One /together fetch per (movie, party, minScore). format/time/day stay client-side.
-  const query = async (override?: { minScore?: number }) => {
-    if (!movieId.trim()) {
+  // One /together fetch per (chain, movie, party, minScore). format/time/day stay client-side.
+  const runQuery = async (p: { chain: Chain; movieId: string; party: number; minScore: number }) => {
+    if (!p.movieId.trim()) {
       setError("Enter a movie id to scan.");
+      setResults(null);
+      setScanned(null);
+      setDrill(null);
       return;
     }
-    const ms = override?.minScore ?? minScore;
+    const seq = ++reqSeq.current;
     setLoading(true);
     setError(null);
     setDrill(null);
     try {
-      const res = await getTogether({ chain, movieId: movieId.trim(), party, minScore: ms });
+      const res = await getTogether({ chain: p.chain, movieId: p.movieId.trim(), party: p.party, minScore: p.minScore });
+      if (seq !== reqSeq.current) return; // a newer request superseded this one
       setResults(res.results);
+      setScanned({ chain: p.chain, movieId: p.movieId.trim(), party: p.party });
     } catch (err) {
+      if (seq !== reqSeq.current) return;
       setError(err instanceof Error ? err.message : String(err));
       setResults(null);
+      setScanned(null);
     } finally {
-      setLoading(false);
+      if (seq === reqSeq.current) setLoading(false);
     }
   };
 
+  const scan = () => void runQuery({ chain, movieId, party, minScore });
+
   const onMinScoreChange = (n: number) => {
     setMinScore(n);
-    if (results) void query({ minScore: n }); // re-query, not a client re-filter (L3.7)
+    if (scanned) void runQuery({ ...scanned, minScore: n }); // re-query against the scanned snapshot (L3.7)
   };
 
   const model = useMemo(
@@ -124,7 +138,7 @@ export function TogetherView() {
           />
         </label>
         <MinScoreControl value={minScore} onMinScoreChange={onMinScoreChange} />
-        <button type="button" className="btn btn--primary" onClick={() => void query()} disabled={loading}>
+        <button type="button" className="btn btn--primary" onClick={scan} disabled={loading}>
           {loading ? "Scanning…" : "Scan"}
         </button>
       </div>
