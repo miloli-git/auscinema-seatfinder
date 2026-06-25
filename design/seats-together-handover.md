@@ -5,10 +5,23 @@ Last updated **2026-06-25 10:07**. Read this with `design/seats-together-design.
 and epic **#31**. This doc is self-contained: a fresh session can resume from it.
 
 ## ⏭ Resume here (next action)
-**ST-0 (#35)** — inline infra, NOT TDD. Wire `/together`+`/catalog` through Caddy + the vite proxy,
-redeploy on the NAS, run the ingester `--once` to refresh the cache, then **verify JSON through the
-public tunnel**. After that: write `docs/ST-4-tdd-plan.md` as a Definition-of-Done contract, then run
-#40 → #39 → #29 **test-first** via `/dual-harness` with human gates.
+**ST-0 (#35) is DONE + verified (2026-06-25).** Routes live through Caddy; cache refreshed; both
+cinemas confirmed via the public tunnel — `/catalog`+`/together` return JSON (count 120, IMAX 96=59 +
+George St 15=61, 15 dates 06-25→07-13). See "ST-0 result" below.
+**Next: write `docs/ST-4-tdd-plan.md`** (Definition-of-Done contract), then run #40 (web test harness)
+→ #39 (`/together` no-block sessions) ∥ #29-L2 → #29 L3 → #29 L4 **test-first** via `/dual-harness`.
+Human gates remaining: Codex SHIP · Milo's browser smoke (Gate 3).
+
+### ST-0 result (2026-06-25)
+- Caddyfile `@api` + vite `API_ROUTES` now include `/together`+`/catalog`; web image rebuilt (Caddyfile
+  is baked in → needs `--build`, not just recreate).
+- **Bug found+fixed:** Event `GetSessions` returns 0 for a comma cinemaIds list (`15,96`); works per
+  single cinema. Combined IMAX+George watch yielded nothing. → split into two single-cinema watches in
+  `deploy/watches.json` (watches table: id 3 = {15}, id 4 = {96}, both enabled; old 1+2 disabled).
+  Adapter fan-out fix tracked in **#41**.
+- **Cap flag:** ingester `maxSeatmapsPerWatch=60` skews dense cinemas to early dates → **#42** (tune for
+  matrix + the scheduled ingester #30).
+- IMAX Sydney = cinemaId **96**, George St = **15** (from `packages/adapters/event/data/cinemas.au.json`).
 
 ## Where we are (2026-06-25)
 - **ST-1/2/3 DONE on `main`** (core `findAdjacentBlocks` / db+ingester / api `/together`+`/catalog`).
@@ -49,7 +62,9 @@ repo so it shows on the repo Projects tab — public repos track at the repo own
 private lab org. Old #8 deleted 06-25.)
 | # | What | Mode | Status |
 |---|------|------|--------|
-| #35 | ST-0 infra: routes through Caddy+vite, redeploy, refresh cache | inline | **NEXT** |
+| #35 | ST-0 infra: routes through Caddy+vite, redeploy, refresh cache | inline | **DONE 06-25** |
+| #41 | [bug] Event adapter multi-cinema listSessions returns 0 (fan-out fix) | code | Todo |
+| #42 | [enh] ingester seatmap cap starves matrix on dense cinemas | code | Todo |
 | #40 | ST-4.0 web test harness (vitest/testing-library/playwright) + seed fixture + write tdd-plan doc | enabler | Todo |
 | #39 | ST-3.1 `/together` exposes no-block sessions (powers `sold` cell) | TDD L1 | Todo |
 | #29 | ST-4 matrix UI (absorbs #36/#37/#38) | TDD L2→L3→L4 | Todo |
