@@ -94,3 +94,44 @@ Deploys on the NAS behind the existing tunnel; only `web` (9015) stays public.
 - Ingester cadence: hourly per watch; sessions list refreshed each run, seat maps re-scored each run.
 - Single chain per watch (movieId is chain-bound; cross-chain by title is out of scope v1).
 - `/together` is a NEW endpoint; the existing live tool is unchanged (this is additive).
+
+## ST-4 Web UI — LOCKED SPEC (2026-06-25, matrix model)
+
+Supersedes the "ranked list" sketch in Phasing step 4. Driven by the real use case.
+
+**Use case (Milo):** "The Odyssey at IMAX, ~3 weeks out, sold out with good seats near-term.
+Scan forward for a date+session that works AND sideways to alternative cinemas, and decide both
+at once — around weekday work, coordinatable with friends."
+
+**View = date × cinema matrix.** Rows = cinemas, columns = dates, for one chosen movie.
+- **Inputs:** movie (required, lead pick), party (default 2), `minScore` (default 74 "great",
+  **adjustable** → re-queries `/together`), **format** filter (multi-select from the cache's formats,
+  e.g. IMAX / V-Max / Standard), **time-of-day + day** filter (presets: Any / Evenings ≥17:00 / Weekends).
+- **Cell** = best available block at current `minScore` among that (cinema, date)'s sessions **within
+  the time filter**: block exists → avg score, colour-banded; sessions exist but none has an available
+  block → `sold`; no session in window → `—`.
+- **Drill-in:** click a cell → that cell's qualifying sessions (time · format · block row+avg ·
+  "as of HH:MM") → pick one → live `/seatmap` confirm with the block highlighted (#36 / #37 / #38).
+- **Mobile:** sticky cinema column + horizontal-scroll date columns; confirm = bottom sheet.
+- **Fetch model:** one `/together` call per (movie, party, minScore); **format/time/day filtered
+  client-side** over the result (cache is small; no per-cell calls).
+- **Session-shape seam (Fork 1):** a client-side normaliser maps `/together`'s session (format string,
+  nullable `startTime`, `screen`) into the web `Session` shape; preserves cinema + time + "as of".
+- **Pickers (Fork 2):** movie-led, broad by default; cinema/date are scan axes (the matrix itself),
+  not required input gates.
+- **Best-seat mode** unchanged, beside it (mode toggle in the topbar).
+
+**NEW pre-UI API dependency:** the `sold` vs `—` distinction needs `/together` to ALSO expose
+sessions that matched the movie but have no block (current `/together` drops them). Small ST-3-area
+change → its own issue, sequenced **after ST-0 (#35), before ST-4 (#29)**.
+
+**Smoke/test = hybrid:** unattended dual-harness smokes against a **local seeded pg** with deterministic
+fixtures (catalog / together / seatmap incl. a sold-out cell); **one live-NAS browser smoke** as the
+post-deploy final gate after ST-0 refresh. (Overrides the earlier "point at NAS" choice, per Codex review.)
+
+## Future (captured, NOT v1)
+- **Cross-chain search by movie title** — sweep cinemas across Event + Hoyts + Reading + Village for one
+  title (today `/together` is single-chain; cross-chain matching by title is the expansion). Milo flagged
+  this as a wanted next step (2026-06-25).
+- Server-side `format` / time filters on `/together` (v1 does these client-side).
+- Progressive picker narrowing once watch count grows.
