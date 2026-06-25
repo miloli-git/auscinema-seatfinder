@@ -8,16 +8,24 @@ and epic **#31**. This doc is self-contained: a fresh session can resume from it
 **ST-0 (#35) is DONE + verified (2026-06-25).** Routes live through Caddy; cache refreshed; both
 cinemas confirmed via the public tunnel — `/catalog`+`/together` return JSON (count 120, IMAX 96=59 +
 George St 15=61, 15 dates 06-25→07-13). See "ST-0 result" below.
-**DoD contract written:** `docs/ST-4-tdd-plan.md` (L1–L4 criteria→named tests, invariants, gates).
-**#40 + #29-L2 DONE+pushed (06-25):** vitest harness in `apps/web` (no Playwright yet — deferred to L4)
-+ the L2 pure-logic core: `apps/web/src/together/{normalize,filters,matrix}.ts` (+ tests). 26 tests green,
-typecheck clean, paired `[red]/[green]` commits on `main`. Codex-reviewed → no logic bug (3 findings were
-false positives from not inlining the closed `Session` type — **next Codex review: inline `types.ts` too**).
-**Next: #39 (L1 api/pg) ∥ #29-L3 (components) → #29-L4 (Playwright+fixture).** L3 imports from L2:
-`buildMatrix(results, {formats,timePreset,minScore}) → {cinemas[{id,name}], dates[], cells:Map<cellKey,MatrixCell>}`,
-`cellKey(cinemaId,date)='${id} ${date}'`, `MatrixCell = score{avgScore,sessionCount}|sold|empty`, plus
-`matchesFormat/matchesTime/isEvening/isWeekend`, `normalizeTogetherSession`. Human gates remaining: Codex
-SHIP · Milo's browser smoke (Gate 3).
+**ST-4 BUILD COMPLETE + DEPLOYED (06-25). Only remaining step: Milo's browser smoke (Gate 3).**
+Open https://seatfinder.miloli.org → "Seats together" mode → Movie id **19796** (Supergirl: both cinemas,
+7 dates, 42 score cells + 2 sold cells) → Scan → confirm the date×cinema matrix renders; click a score
+cell → drill-in → confirm highlights the block. (Movie input is a raw id, not a name picker — UX follow-up.)
+
+- **DoD contract:** `docs/ST-4-tdd-plan.md` (L1–L4 → named tests). **All layers done, all on `main`, deployed:**
+  - **#40 + L2** vitest harness + `apps/web/src/together/{normalize,filters,matrix}.ts` — 26 tests, Codex-reviewed.
+  - **#39 (L1)** `/together` returns `block:null` for matched-but-sold sessions. Red→green verified on a real
+    disposable pg (NAS:5433). **Live in prod: /together count 120→128, 8 sold sessions now surfaced.**
+  - **#29 L3** matrix components + #36 (`highlightSeatIds`)/#37/#38, mode toggle, `TogetherView` glue — 41 tests.
+  - **#29 L4** Playwright E2E (chromium) acceptance, route-mock fixture (`apps/web/e2e/fixtures/together.fixture.ts`,
+    3 cell states) — 5 tests. (Used route-mock not seeded-pg; real DB path covered by #39 pg tests + the live smoke.)
+  - **Codex SHIP review** found 3 real integration bugs in `TogetherView` (out-of-order response race;
+    minScore re-query used edited-not-scanned params; stale matrix on empty id) → **all fixed + tested** (44 vitest).
+  - Deployed: api+web rebuilt on NAS, recreated. Fresh SPA bundle live.
+- **Lesson:** inline the closed `types.ts` into Codex reviews or it false-flags closed-type "violations".
+- Remaining backlog: **#30** (schedule the ingester in compose; watch-add half already done in ST-0),
+  **#41** (Event multi-cinema adapter fan-out), **#42** (seatmap cap for fuller matrix). Movie name-picker = UX follow-up.
 
 ### ST-0 result (2026-06-25)
 - Caddyfile `@api` + vite `API_ROUTES` now include `/together`+`/catalog`; web image rebuilt (Caddyfile
