@@ -281,6 +281,7 @@ interface KnownDbRow {
   booking_url: string | null;
   seat_allocation: boolean | null;
   fetched_at: string | Date;
+  disappeared_at: string | Date | null;
 }
 
 /** Normalise a DATE column (pg may return a Date or a string) to "YYYY-MM-DD". */
@@ -405,6 +406,19 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   const bumpDiscoveryError = (chain: string): void =>
     void discoveryErrors.set(chain, (discoveryErrors.get(chain) ?? 0) + 1);
 
+  // P30.2 (C6) tombstone bookkeeping. The conclusive unit is a single (chain, cinemaId, date, movie)
+  // scope that ACTUALLY APPEARED in a listing — derived per RETURNED session, NOT from the watch's
+  // declared cinemaIds. So a multi-cinema watch whose merged listing returns only C1 sessions marks
+  // C1 conclusive but NOT C2: C2 had zero returned sessions, which is inconclusive (an endpoint hiccup
+  // is likelier than a cinema emptying), so cached C2 sessions are never tombstoned this tick — they
+  // age out via the past-date filter instead. Every returned id is "seen this tick"; a known session
+  // whose own scope was conclusively listed but is absent from `seenIds` is tombstoned. A failed
+  // listing yields no returned sessions, so an outage never mass-tombstones.
+  const seenIds = new Set<string>();
+  const conclusiveScopes = new Set<string>();
+  const scopeKey = (chain: string, cinemaId: string, date: string, movieId: string): string =>
+    `${chain}|${cinemaId}|${date}|${movieId}`;
+
   const discovered = new Map<string, { session: Session; watch: WatchRow }>();
   for (const w of watches) {
     const adapter = registry[w.chain];
@@ -413,6 +427,9 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
       try {
         const sessions = await adapter.listSessions(watchToQuery(w, date));
         for (const s of sessions) {
+          seenIds.add(s.id);
+          // The cinema/date/movie of each returned session is conclusively listed this tick.
+          conclusiveScopes.add(scopeKey(s.chain, s.cinemaId, s.startTime.slice(0, 10), s.movieId));
           if (!s.startTime.startsWith(date)) continue;
           if (!s.seatAllocation) continue;
           if (!discovered.has(s.id)) discovered.set(s.id, { session: s, watch: w });
@@ -423,6 +440,10 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
     }
   }
 
+  /** True iff a known session's own (chain,cinema,date,movie) scope was conclusively listed this tick. */
+  const inListedScope = (chain: Chain, cinemaId: string, date: string, movieId: string): boolean =>
+    conclusiveScopes.has(scopeKey(chain, cinemaId, date, movieId));
+
   // --- build candidate set: known cached sessions + newly-discovered ones.
   const targets = new Map<string, FetchTarget>();
   const candidates: KnownSession[] = [];
@@ -430,14 +451,29 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   const knownRows = (
     await pool.query<KnownDbRow>(
       `SELECT id, watch_id, chain, movie_id, movie_name, cinema_id, cinema_name, date,
-              start_time, format, screen, seats_available, booking_url, seat_allocation, fetched_at
+              start_time, format, screen, seats_available, booking_url, seat_allocation, fetched_at,
+              disappeared_at
          FROM sessions`,
     )
   ).rows;
 
+  // P30.2 (C6) tombstone/resurrection transitions, computed in JS then persisted in two UPDATEs.
+  const toTombstone: string[] = [];
+  const toResurrect: string[] = [];
+
   for (const r of knownRows) {
     const dateStr = ymdOf(r.date);
     const tier = tierForSessionDate(dateStr, nowInstant);
+
+    const wasTombstoned = r.disappeared_at != null;
+    const seen = seenIds.has(r.id);
+    // A tombstoned session listed again resurrects; a live in-scope session that vanished tombstones.
+    const willResurrect = wasTombstoned && seen;
+    const willTombstone = !wasTombstoned && !seen && inListedScope(r.chain, r.cinema_id, dateStr, r.movie_id);
+    if (willResurrect) toResurrect.push(r.id);
+    if (willTombstone) toTombstone.push(r.id);
+    const effectivelyTombstoned = (wasTombstoned && !willResurrect) || willTombstone;
+
     candidates.push({
       sessionId: r.id,
       chain: r.chain,
@@ -445,8 +481,9 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
       date: dateStr,
       fetchedAt: r.fetched_at instanceof Date ? r.fetched_at : new Date(r.fetched_at),
       tier,
-      // Out-of-scope / past sessions are kept non-live so they never consume refresh budget (MED-2).
-      live: inScope(r.chain, r.cinema_id, dateStr, r.movie_id),
+      // Out-of-scope / past / tombstoned sessions are kept non-live so they never consume refresh
+      // budget and are never counted as due/refreshed (MED-2 + C6 ledger invariant).
+      live: inScope(r.chain, r.cinema_id, dateStr, r.movie_id) && !effectivelyTombstoned,
     });
     const watch = r.watch_id != null ? watches.find((w) => w.id === Number(r.watch_id)) : undefined;
     const startTime =
@@ -472,6 +509,19 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
       ...(r.seat_allocation != null ? { seatAllocation: r.seat_allocation } : {}),
     };
     targets.set(r.id, { upsert, chain: r.chain, pref: watch?.scoring ?? undefined, isNew: false });
+  }
+
+  // Persist C6 transitions. Resurrect first (clear), then stamp new tombstones with the injected
+  // `nowInstant` (deterministic, NOT now()). Seat upserts below never touch disappeared_at, so a
+  // resurrected session keeps its cleared tombstone after its refresh.
+  if (toResurrect.length > 0) {
+    await pool.query("UPDATE sessions SET disappeared_at = NULL WHERE id = ANY($1::text[])", [toResurrect]);
+  }
+  if (toTombstone.length > 0) {
+    await pool.query("UPDATE sessions SET disappeared_at = $1 WHERE id = ANY($2::text[])", [
+      nowInstant,
+      toTombstone,
+    ]);
   }
 
   // Newly-discovered sessions: maximally stale (epoch fetchedAt) so they are always due this tick.
@@ -602,7 +652,7 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
     sessionsRefreshed: refreshed,
     sessionsSkippedBudget: skippedBudget,
     sessionsNew,
-    sessionsDisappeared: 0,
+    sessionsDisappeared: toTombstone.length,
     // Top-level `errors` = seat-refresh errors of DUE sessions only, so the documented invariant
     // `sessions_due = sessions_refreshed + errors + sessions_skipped_budget` holds every tick.
     // Discovery errors live in per_chain[chain].discovery_errors (NEW-HIGH).
@@ -673,4 +723,26 @@ export async function runRefreshTick(deps: RefreshTickDeps): Promise<RefreshRunR
     }
     lockClient.release();
   }
+}
+
+// --- C6 purge ----------------------------------------------------------------
+
+export interface PurgeDisappearedDeps {
+  pool: Pool;
+  nowInstant: Date;
+  retentionMs: number;
+}
+
+/**
+ * Hard-delete tombstoned sessions whose `disappeared_at` is older than the retention window
+ * (`disappeared_at < nowInstant - retentionMs`). Only tombstoned rows are touched — live and
+ * recently-tombstoned sessions are retained. `session_seats` rows are removed by the FK
+ * `ON DELETE CASCADE`. `nowInstant` is injected for deterministic tests.
+ */
+export async function purgeDisappearedSessions(deps: PurgeDisappearedDeps): Promise<void> {
+  const cutoff = new Date(deps.nowInstant.getTime() - deps.retentionMs);
+  await deps.pool.query(
+    "DELETE FROM sessions WHERE disappeared_at IS NOT NULL AND disappeared_at < $1",
+    [cutoff],
+  );
 }

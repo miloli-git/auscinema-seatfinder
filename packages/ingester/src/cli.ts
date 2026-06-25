@@ -13,16 +13,21 @@ import { pathToFileURL } from "node:url";
 import { createPool } from "./db.js";
 import { defaultRegistry } from "./registry.js";
 import { runSweep, shouldBackoff } from "./sweep.js";
-import { runRefreshTick } from "./refresh.js";
+import { runRefreshTick, purgeDisappearedSessions } from "./refresh.js";
 import { loadWatchesFile, seedWatches } from "./seed.js";
 
 const DEFAULT_WATCHES = "watches.json";
 const DEFAULT_INTERVAL_MS = 60 * 60_000; // hourly
 const DEFAULT_REFRESH_INTERVAL_MS = 15 * 60_000; // tiered refresh tick cadence
 const DEFAULT_BUDGET_PER_CHAIN = 30;
+const DEFAULT_TOMBSTONE_RETENTION_MS = 7 * 86_400_000; // keep tombstones 7 days, then purge
 
 function refreshBudget(): number {
   return Number(process.env.REFRESH_BUDGET_PER_CHAIN) || DEFAULT_BUDGET_PER_CHAIN;
+}
+
+function tombstoneRetentionMs(): number {
+  return Number(process.env.REFRESH_TOMBSTONE_RETENTION_MS) || DEFAULT_TOMBSTONE_RETENTION_MS;
 }
 
 function logRefresh(row: { id: number; outcome: string; sessions_due: number; sessions_refreshed: number; sessions_new: number; sessions_skipped_budget: number; errors: number }): void {
@@ -128,13 +133,16 @@ async function doRefreshLoop(): Promise<never> {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
+      const tickAt = new Date();
       const row = await runRefreshTick({
         pool,
         registry,
-        nowInstant: new Date(),
+        nowInstant: tickAt,
         budgetPerChain: refreshBudget(),
       });
       logRefresh(row);
+      // C6 purge: drop tombstones older than the retention window each tick (cheap indexed delete).
+      await purgeDisappearedSessions({ pool, nowInstant: tickAt, retentionMs: tombstoneRetentionMs() });
     } catch (err) {
       log(`refresh tick failed: ${(err as Error).message}`);
     }

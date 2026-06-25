@@ -40,8 +40,13 @@ services:
       DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
     expose:
       - "3001"
+    # /together now reads sessions.disappeared_at (#30 P30.2 C6), so the API must never start against a
+    # DB lacking the column. Gate on the `migrate` one-shot (same gate `refresh` uses) in addition to db.
     depends_on:
-      - db
+      db:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   web:

@@ -75,11 +75,28 @@ refresh_runs(
 - Majority-error tick for a chain → back that chain off; other chains isolated (one chain's backoff
   never starves the rest). Recorded in `per_chain.backoff`.
 
-## C6 — Tombstones / liveness (P30.2)
-- Additive migration: `sessions.disappeared_at timestamptz NULL` (+ index). Old code tolerates NULL.
-- Discovery marks in-scope-but-absent sessions: set `disappeared_at = now()`.
-- `/together` predicate: exclude `disappeared_at IS NOT NULL` AND past-date sessions. Periodic purge
-  drops rows older than the retention window. "stale/unknown" surfaced distinctly from "sold out".
+## C6 — Tombstones / liveness (P30.2) — ratified from Codex P30.2 test notes
+- Additive migration: `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS disappeared_at timestamptz NULL`
+  + re-runnable index on `disappeared_at`. Existing rows = NULL. Old code tolerates NULL.
+- Discovery marks in-scope-but-absent sessions: set `disappeared_at = nowInstant` (injected, NOT literal
+  `now()`, for deterministic tests). A session is tombstoned ONLY when its scope's `listSessions`
+  returned a **NON-EMPTY** result that excludes it. "Listed scope this tick" = a SUCCESSFUL `listSessions`
+  for an enabled watch/date; sessions outside that chain/cinema/date/movie scope are NOT tombstoned.
+  An **EMPTY** listing is treated as INCONCLUSIVE — it tombstones nothing (a failed or empty discovery
+  must not mass-tombstone; an empty upstream result is far likelier an endpoint hiccup than every session
+  at a cinema/date vanishing at once). Cross-phase invariant: this keeps the P30.1 frozen tests valid,
+  where `stubAdapter(chain, [], maps)` returns an empty listing yet the cached sessions stay live/due.
+  `refresh_runs.sessions_disappeared` increments only on real tombstones.
+- Resurrection: a tombstoned session returned again by discovery resets `disappeared_at = NULL`, live/due again.
+- Ledger invariant unchanged: disappeared sessions are not due/refreshed; `sessions_due =
+  sessions_refreshed + errors + sessions_skipped_budget` still holds on a tombstoning tick.
+- `/together` predicate: exclude `disappeared_at IS NOT NULL` AND past-date sessions (Sydney local
+  fake-Z wall-date by `YYYY-MM-DD`/`date` column, NEVER UTC-parse `start_time`). No new route signature.
+  "stale/unknown" surfaced distinctly from "sold out".
+- Purge: `purgeDisappearedSessions({ pool, nowInstant, retentionMs }): Promise<void>` removes ONLY
+  tombstoned sessions where `disappeared_at < nowInstant - retentionMs` (+ their `session_seats` via FK
+  cascade or explicit delete); recent tombstones retained. (Past-but-live-date purge is out of P30.2
+  scope — `/together` already hides them.)
 - Migration applied on NAS BEFORE the API code that references `disappeared_at` deploys.
 
 ## C7 — `/together` freshness metadata (P30.3)

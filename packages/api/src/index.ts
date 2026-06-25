@@ -256,6 +256,22 @@ function mapSession(r: SessionRow) {
  * dateFrom, dateTo are optional. Every user value is a bound parameter ($n) — column names are static
  * literals, so there is no injection surface.
  */
+/**
+ * Australia/Sydney calendar date "YYYY-MM-DD" for a true UTC instant. Session showtimes are local
+ * wall-time mislabelled with a trailing `Z` (the fake-`Z` path), so /together compares the `date`
+ * column / YYYY-MM-DD prefix by SUBSTRING and never UTC-parses `start_time`.
+ */
+function sydneyDate(instant: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Australia/Sydney",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(instant);
+  const get = (t: string): string => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 function buildSessionFilter(opts: {
   chain: string;
   movieId?: string;
@@ -544,6 +560,11 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const minScore = optInt(q, "minScore") ?? 74;
 
     const { where, params } = buildSessionFilter({ chain, movieId, cinemaIds, dateFrom, dateTo });
+    // P30.2 (C6) liveness: hide tombstoned rows and past-date sessions. Past is by Sydney-local
+    // fake-Z wall-date (the `date` column / YYYY-MM-DD prefix), NEVER by UTC-parsing start_time —
+    // a yesterday 23:30Z showtime is still "yesterday" even though UTC would map it into today.
+    params.push(sydneyDate(new Date()));
+    const liveWhere = `${where} AND disappeared_at IS NULL AND date >= $${params.length}`;
     const sessionsRes = await db.query<SessionRow>(
       `SELECT id, chain, movie_id, movie_name, cinema_id, cinema_name,
               date::text AS date,
@@ -551,7 +572,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
               format, screen, seats_available, booking_url, seat_allocation,
               to_char(fetched_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS fetched_at
          FROM sessions
-        WHERE ${where}`,
+        WHERE ${liveWhere}`,
       params,
     );
     const sessions = sessionsRes.rows;

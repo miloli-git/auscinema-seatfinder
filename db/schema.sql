@@ -96,3 +96,10 @@ CREATE INDEX IF NOT EXISTS idx_sessions_chain_movie_date        ON sessions (cha
 -- this index instead orders seats by (row, col) within a session for the
 -- per-row adjacency walk in findAdjacentBlocks.
 CREATE INDEX IF NOT EXISTS idx_session_seats_session_rowcol     ON session_seats (session_id, row, col);
+
+-- P30.2 tombstones / liveness (#30 C6). Additive: a session the chain stops listing in an
+-- enabled watch scope is tombstoned with disappeared_at = the tick instant (NOT now()), instead
+-- of being deleted; /together hides tombstoned + past-date rows; purge removes expired tombstones.
+-- Existing rows get NULL. Old code tolerates NULL. Re-appliable via IF NOT EXISTS.
+ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS disappeared_at TIMESTAMPTZ NULL;
+CREATE INDEX IF NOT EXISTS idx_sessions_disappeared_at ON sessions (disappeared_at);
