@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { QueryForm, DEFAULTS, type FormValues } from "./components/QueryForm";
 import { SessionCard } from "./components/SessionCard";
 import { SeatMapView } from "./components/SeatMapView";
+import { TogetherView } from "./components/TogetherView";
 import { fetchBest, fetchSeatMap, type ScoringParams, API_BASE } from "./api";
 import type { BestResponse, ScoredSeatMap, Session } from "./types";
 import { chainLabel, formatLabel, formatTime, withinWindow } from "./format";
@@ -16,7 +17,10 @@ function scoringOf(v: FormValues): ScoringParams {
   };
 }
 
+type Mode = "best" | "together";
+
 export function App() {
+  const [mode, setMode] = useState<Mode>("best");
   const [values, setValues] = useState<FormValues>(DEFAULTS);
   const [result, setResult] = useState<BestResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -101,17 +105,43 @@ export function App() {
             AusCinema <b>Seat Finder</b>
           </span>
         </div>
-        <button
-          type="button"
-          className="btn btn--ghost"
-          aria-expanded={refineOpen}
-          onClick={() => setRefineOpen((o) => !o)}
-        >
-          <span className="crumb">{summary || "Set up a search"}</span>
-          <span aria-hidden="true">· Refine {refineOpen ? "▴" : "▾"}</span>
-        </button>
+        <div className="modetoggle" role="tablist" aria-label="Search mode">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "best"}
+            className={`btn btn--ghost${mode === "best" ? " btn--on" : ""}`}
+            onClick={() => setMode("best")}
+          >
+            Best seat
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "together"}
+            className={`btn btn--ghost${mode === "together" ? " btn--on" : ""}`}
+            onClick={() => setMode("together")}
+          >
+            Seats together
+          </button>
+        </div>
+        {mode === "best" && (
+          <button
+            type="button"
+            className="btn btn--ghost"
+            aria-expanded={refineOpen}
+            onClick={() => setRefineOpen((o) => !o)}
+          >
+            <span className="crumb">{summary || "Set up a search"}</span>
+            <span aria-hidden="true">· Refine {refineOpen ? "▴" : "▾"}</span>
+          </button>
+        )}
       </header>
 
+      {mode === "together" && <TogetherView />}
+
+      {mode === "best" && (
+        <>
       <div className="refine" hidden={!refineOpen}>
         <QueryForm
           values={values}
@@ -212,6 +242,8 @@ export function App() {
             Book ↗
           </a>
         </div>
+      )}
+        </>
       )}
     </div>
   );
