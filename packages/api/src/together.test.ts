@@ -95,7 +95,7 @@ type TogetherResponse = {
       seatIds: string[];
       avgScore: number;
       minScore: number;
-    };
+    } | null;
     approximateAdjacency: boolean;
     fetchedAt: string;
   }>;
@@ -205,7 +205,9 @@ function assertTogetherShape(body: TogetherResponse): void {
       "seatsAvailable",
       "startTime",
     ]);
-    assert.deepEqual(Object.keys(result.block).sort(), ["avgScore", "minScore", "row", "rowLabel", "seatIds", "startCol"]);
+    if (result.block !== null) {
+      assert.deepEqual(Object.keys(result.block).sort(), ["avgScore", "minScore", "row", "rowLabel", "seatIds", "startCol"]);
+    }
   }
 }
 
@@ -581,6 +583,88 @@ test("/together treats SQL injection text as a literal filter value", { skip: db
 
   const injection = encodeURIComponent("1') OR ('1'='1");
   const body = await getTogether(`chain=event&movieId=${injection}`);
+
+  assert.deepEqual(body, { party: 2, minScore: 74, count: 0, results: [] });
+});
+
+// --- #39 (ST-4 Layer 1): matched no-block sessions are returned with block:null ---------------
+// Contract (docs/ST-4-tdd-plan.md §"Layer 1 (#39)"): every matched session is returned; a session
+// with no adjacency block >= party at minScore keeps its `session` and sets `block: null`. The
+// `—` (no-session) case is the ABSENCE of a result, never a synthesised null row.
+
+test("L1.1 returns matched session with block === null when the session has no available block", { skip: dbSkip }, async () => {
+  // Seats exist but a column gap (col 2 sold/absent) means no party-sized adjacent run forms.
+  await insertSession({ id: "l1-noblock" });
+  await insertSeats("l1-noblock", [
+    { seatId: "l1nb-1", rowLabel: "A", row: 1, col: 1, score: 95 },
+    { seatId: "l1nb-3", rowLabel: "A", row: 1, col: 3, score: 95 },
+  ]);
+
+  const body = await getTogether("chain=event&party=2&minScore=74");
+
+  assertTogetherShape(body);
+  assert.equal(body.count, 1);
+  assert.equal(body.results.length, 1);
+  const result = body.results[0]!;
+  assert.equal(result.session.id, "l1-noblock");
+  assert.equal(result.block, null);
+  assert.equal(result.approximateAdjacency, false);
+  assert.equal(result.fetchedAt, "2026-06-24T09:00:00.000Z");
+});
+
+test("L1.2 still returns block for sessions that have one (no regression)", { skip: dbSkip }, async () => {
+  await insertSession({ id: "l1-block" });
+  await insertSeats("l1-block", [
+    { seatId: "l1b-1", rowLabel: "C", row: 3, col: 5, score: 88 },
+    { seatId: "l1b-2", rowLabel: "C", row: 3, col: 6, score: 92 },
+  ]);
+
+  const body = await getTogether("chain=event&party=2&minScore=74");
+
+  assertTogetherShape(body);
+  assert.equal(body.count, 1);
+  assert.deepEqual(body.results[0]!.block, {
+    row: 3,
+    rowLabel: "C",
+    startCol: 5,
+    seatIds: ["l1b-1", "l1b-2"],
+    avgScore: 90,
+    minScore: 88,
+  });
+});
+
+test("L1.3 count includes blockless sessions; results length === count", { skip: dbSkip }, async () => {
+  await insertSession({ id: "l3-block", startTime: "2026-06-25T18:00:00.000Z" });
+  await insertSeats("l3-block", [
+    { seatId: "l3b-1", col: 1, score: 90 },
+    { seatId: "l3b-2", col: 2, score: 90 },
+  ]);
+  await insertSession({ id: "l3-noblock", startTime: "2026-06-25T19:00:00.000Z" });
+  await insertSeats("l3-noblock", [
+    { seatId: "l3nb-1", col: 1, score: 90 },
+    { seatId: "l3nb-3", col: 3, score: 90 },
+  ]);
+
+  const body = await getTogether("chain=event&party=2&minScore=74");
+
+  assertTogetherShape(body);
+  assert.equal(body.count, 2);
+  assert.equal(body.results.length, body.count);
+  assert.deepEqual(resultIds(body).sort(), ["l3-block", "l3-noblock"]);
+  const blockless = body.results.find((r) => r.session.id === "l3-noblock")!;
+  assert.equal(blockless.block, null);
+  // A real block outranks a blockless session.
+  assert.equal(body.results[0]!.session.id, "l3-block");
+});
+
+test("L1.4 a movie/cinema/date with no session at all is simply absent (not a null row)", { skip: dbSkip }, async () => {
+  await insertSession({ id: "l4-present", movieId: "M-present" });
+  await insertSeats("l4-present", [
+    { seatId: "l4-1", col: 1, score: 90 },
+    { seatId: "l4-2", col: 2, score: 90 },
+  ]);
+
+  const body = await getTogether("chain=event&movieId=M-absent");
 
   assert.deepEqual(body, { party: 2, minScore: 74, count: 0, results: [] });
 });
