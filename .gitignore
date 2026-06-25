@@ -11,6 +11,11 @@ coverage/
 *.log
 .vite/
 
+# playwright e2e artifacts (generated)
+test-results/
+playwright-report/
+.playwright/
+
 # deploy secrets / runtime
 deploy/.env
 deploy/watch.config.json
