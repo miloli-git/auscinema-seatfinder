@@ -7,7 +7,7 @@ import react from "@vitejs/plugin-react";
 // and preview servers proxy the API routes to the running API. Override the
 // proxy target with VITE_DEV_API_TARGET. To skip the proxy entirely and hit a
 // CORS-enabled API directly, set VITE_API_BASE to its absolute URL.
-const API_ROUTES = ["/cinemas", "/movies", "/sessions", "/seatmap", "/best", "/healthz"];
+const API_ROUTES = ["/cinemas", "/movies", "/sessions", "/seatmap", "/best", "/healthz", "/together", "/catalog"];
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");

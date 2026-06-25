@@ -20,7 +20,7 @@
 	# handle blocks are required: without them, the SPA `try_files` below rewrites
 	# /cinemas etc. to /index.html in the rewrite phase (which runs before reverse_proxy),
 	# so the @api matcher no longer matches and every API call returns the SPA shell.
-	@api path /healthz /cinemas /sessions /seatmap /best /movies
+	@api path /healthz /cinemas /sessions /seatmap /best /movies /together /catalog
 	handle @api {
 		reverse_proxy {$UPSTREAM_API:api:3001}
 	}
