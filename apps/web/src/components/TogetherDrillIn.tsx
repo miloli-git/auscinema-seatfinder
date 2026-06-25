@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { TogetherResult } from "../together/matrix";
 import { normalizeTogetherSession } from "../together/normalize";
-import type { ScoredSeatMap } from "../types";
+import type { ScoredSeatMap, SeatBlock } from "../types";
 import { DEFAULT_SCORING, fetchSeatMap as apiFetchSeatMap, type ScoringParams } from "../api";
 import { SeatMapView } from "./SeatMapView";
 import { chainLabel, formatLabel, formatTime } from "../format";
@@ -10,6 +10,7 @@ type SeatMapFetcher = (
   chain: string,
   sessionId: string,
   scoring: ScoringParams,
+  options?: { party?: number; minScore?: number },
 ) => Promise<ScoredSeatMap>;
 
 interface Props {
@@ -18,6 +19,10 @@ interface Props {
   date: string;
   /** The cell's qualifying (blocked) sessions, best-first is fine. */
   results: TogetherResult[];
+  /** Party size scanned — drives the live recompute + "no adjacent N" copy. */
+  party: number;
+  /** Current min score — passed to the live recompute. */
+  minScore: number;
   onClose?: () => void;
   /** Injectable for tests; defaults to the live /seatmap call. */
   fetchSeatMap?: SeatMapFetcher;
@@ -28,16 +33,9 @@ interface Props {
 
 type Confirm =
   | { state: "loading"; result: TogetherResult }
-  | { state: "ok"; result: TogetherResult; map: ScoredSeatMap }
+  | { state: "ok"; result: TogetherResult; map: ScoredSeatMap; block: SeatBlock }
   | { state: "gone"; result: TogetherResult }
   | { state: "error"; result: TogetherResult; message: string };
-
-/** Available seat ids in a live map (a sold/missing block seat = block gone). */
-function availableIds(map: ScoredSeatMap): Set<string> {
-  const s = new Set<string>();
-  for (const seat of map.seats) if (seat.status === "available") s.add(seat.id);
-  return s;
-}
 
 /**
  * Drill-in for a clicked matrix cell (L3.3). Lists the cell's qualifying
@@ -49,23 +47,30 @@ export function TogetherDrillIn({
   cinemaName,
   date,
   results,
+  party,
+  minScore,
   onClose,
   fetchSeatMap = apiFetchSeatMap,
   scoring = DEFAULT_SCORING,
   topN = 5,
 }: Props) {
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  // Monotonic pick id: clicking session A then B (or one twice) must not let A's late /seatmap
+  // response overwrite B's — only the latest pick may apply its result (mirrors TogetherView reqSeq).
+  const pickSeq = useRef(0);
 
   const pick = async (result: TogetherResult) => {
-    const block = result.block;
-    if (!block) return;
+    if (!result.block) return;
+    const seq = ++pickSeq.current;
     setConfirm({ state: "loading", result });
     try {
-      const map = await fetchSeatMap(result.session.chain, result.session.id, scoring);
-      const avail = availableIds(map);
-      const gone = !block.seatIds.every((id) => avail.has(id));
-      setConfirm(gone ? { state: "gone", result } : { state: "ok", result, map });
+      const map = await fetchSeatMap(result.session.chain, result.session.id, scoring, { party, minScore });
+      if (seq !== pickSeq.current) return; // a newer pick superseded this one
+      // Trust the LIVE recomputed block, never the cached result.block.
+      const liveBlock = map.block;
+      setConfirm(liveBlock ? { state: "ok", result, map, block: liveBlock } : { state: "gone", result });
     } catch (err) {
+      if (seq !== pickSeq.current) return;
       setConfirm({ state: "error", result, message: err instanceof Error ? err.message : String(err) });
     }
   };
@@ -116,15 +121,15 @@ export function TogetherDrillIn({
           )}
           {confirm.state === "gone" && (
             <p className="hint hint--warn">
-              Block gone — those seats are no longer available. Re-run the search or pick another
-              session.
+              those seats just went — no adjacent {party} left in this session right now (as of
+              moments ago). Try another session.
             </p>
           )}
           {confirm.state === "ok" && (
             <>
               <div className="drillin__confirm-head">
                 <span>
-                  Adjacent block highlighted ·{" "}
+                  Adjacent block highlighted · available moments ago ·{" "}
                   <a
                     href={confirm.result.session.bookingUrl}
                     target="_blank"
@@ -137,7 +142,7 @@ export function TogetherDrillIn({
               <SeatMapView
                 map={confirm.map}
                 topN={topN}
-                highlightSeatIds={confirm.result.block?.seatIds}
+                highlightSeatIds={confirm.block.seatIds}
               />
             </>
           )}

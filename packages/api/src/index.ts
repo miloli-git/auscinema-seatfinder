@@ -421,7 +421,27 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
 
     const map = await adapter.getSeatMap(sessionId);
     const scored = scoreAvailableSeats(map, pref);
-    return { ...map, scored };
+
+    // Back-compat: when the `party` KEY is absent the response is byte-identical to before (no live
+    // block keys). Presence is the trigger, not parseability — a present-but-malformed `party`
+    // (party=abc, party=) recomputes with the /together default (2), rather than silently dropping
+    // to the legacy shape (which would diverge from /together's parsing).
+    if ((q as Record<string, unknown>).party === undefined) {
+      return { ...map, scored };
+    }
+
+    // `party` present → recompute live adjacency over the SAME scored seats, mirroring /together.
+    const party = Math.max(1, optInt(q, "party") ?? 2);
+    const minScore = optInt(q, "minScore") ?? 74;
+    const blockSeats: BlockSeat[] = scored.map((s) => ({
+      id: s.seat.id,
+      rowLabel: s.seat.rowLabel ?? "",
+      row: s.seat.row,
+      col: s.seat.col,
+      score: s.score,
+    }));
+    const blocks = findAdjacentBlocks(blockSeats, { minScore, size: party });
+    return { ...map, scored, blocks, block: blocks[0] ?? null, party, minScore };
   });
 
   app.get("/best", async (req: FastifyRequest) => {

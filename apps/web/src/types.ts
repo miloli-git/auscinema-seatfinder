@@ -89,9 +89,26 @@ export interface ScoredSeat {
   score: number;
 }
 
+/** Live adjacency block, mirroring core's SeatBlock (server-recomputed). */
+export interface SeatBlock {
+  row: number;
+  rowLabel: string;
+  startCol: number;
+  seatIds: string[];
+  avgScore: number;
+  minScore: number;
+}
+
 /** GET /seatmap response = SeatMap + the scored available seats. */
 export interface ScoredSeatMap extends SeatMap {
   scored: ScoredSeat[];
+  /** Present only when /seatmap was called with `party` (live recompute). */
+  block?: SeatBlock | null;
+  /** The best block per qualifying contiguous run, best-first (core.findAdjacentBlocks semantics) —
+   *  NOT every adjacent window. `block` is `blocks[0] ?? null`. */
+  blocks?: SeatBlock[];
+  party?: number;
+  minScore?: number;
 }
 
 export interface RankedSession {

@@ -184,9 +184,11 @@ export function togetherResponse(minScore = 0, party = 2): TogetherResponseShape
   return { party, minScore, count: results.length, results };
 }
 
-/** A ScoredSeatMap for the drill-in confirm. Includes the great block's seat ids
- *  as `available` so the L4.5 highlight assertion (`.seat--hi`) passes.
- *  `blockGone: true` omits one block seat to exercise the #38 "block gone" path. */
+/** A ScoredSeatMap for the drill-in confirm. The drill-in now trusts the LIVE recomputed
+ *  `block` (server-side, P0), so the response carries `block`/`blocks` mirroring the real
+ *  /seatmap?party=&minScore= shape — NOT the cached block. Includes the great block's seat
+ *  ids as `available` so the L4.5 highlight assertion (`.seat--hi`) passes.
+ *  `blockGone: true` omits one block seat → no adjacent pair → live `block: null` (the #38 path). */
 export function seatmapResponse(opts: { blockGone?: boolean } = {}) {
   const ids = opts.blockGone ? ["L7"] : GREAT_BLOCK_SEAT_IDS;
   const seats = ids.map((id, i) => ({
@@ -203,6 +205,11 @@ export function seatmapResponse(opts: { blockGone?: boolean } = {}) {
     { id: "L1", name: "L1", rowLabel: "L", row: 0, col: 10, status: "sold" as const, areaId: "area1" },
     { id: "L2", name: "L2", rowLabel: "L", row: 0, col: 11, status: "sold" as const, areaId: "area1" },
   );
+  // Live adjacency over the available seats for party 2: L7+L8 are contiguous (cols 1,2) → a block;
+  // blockGone leaves only L7 → no pair → null. Mirrors core.findAdjacentBlocks / the live API.
+  const block = opts.blockGone
+    ? null
+    : { row: 0, rowLabel: "L", startCol: 1, seatIds: [...GREAT_BLOCK_SEAT_IDS], avgScore: 95, minScore: 94 };
   return {
     chain: "event",
     sessionId: "A-27-imax",
@@ -211,5 +218,9 @@ export function seatmapResponse(opts: { blockGone?: boolean } = {}) {
     scored: seats
       .filter((s) => s.status === "available")
       .map((s, i) => ({ seat: s, score: 95 - i })),
+    block,
+    blocks: block ? [block] : [],
+    party: 2,
+    minScore: 74,
   };
 }

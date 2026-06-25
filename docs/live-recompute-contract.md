@@ -46,7 +46,13 @@ Add OPTIONAL `party` + `minScore` query params (parsed identically to `/together
   - `party`, `minScore` — echo the values used.
 - The recompute scores with the SAME `pref` the call already parsed → internally consistent with
   the returned `scored`. (v1 scoring-consistency assumption: the grid/ingester and the drill-in use
-  the same default scoring profile; documented, per the freshness review.)
+  the same default scoring profile; documented, per the freshness review. **Verified 2026-06-25**:
+  all NAS `watches.scoring` are NULL = default, so grid and drill-in score identically — the
+  divergence Codex flagged is dormant in v1. Revisit if a non-default-scoring watch is ever added.)
+- `blocks` = the best block per qualifying contiguous run, best-first (`core.findAdjacentBlocks`
+  semantics), NOT every adjacent window. `block = blocks[0] ?? null`.
+- Presence is the trigger: a present-but-malformed `party` (`party=abc`, `party=`) recomputes with
+  the `/together` default (2); only an ABSENT `party` key returns the legacy shape.
 
 ### Done-when (API)
 - A1 no `party` → identical bytes to current `/seatmap` (no `block`/`blocks`/`party`/`minScore`).

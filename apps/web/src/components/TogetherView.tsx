@@ -295,6 +295,8 @@ export function TogetherView() {
           cinemaName={drill.cinemaName}
           date={drill.date}
           results={drillResults}
+          party={scanned?.party ?? party}
+          minScore={minScore}
           onClose={() => setDrill(null)}
         />
       )}

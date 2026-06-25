@@ -9,11 +9,12 @@ interface Props {
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** Short column label from a YYYY-MM-DD date (UTC-stable, TZ-independent). */
 function dateLabel(date: string): string {
   const dt = new Date(`${date}T00:00:00Z`);
-  return `${WEEKDAYS[dt.getUTCDay()]} ${dt.getUTCDate()}`;
+  return `${WEEKDAYS[dt.getUTCDay()]} ${dt.getUTCDate()} ${MONTHS[dt.getUTCMonth()]}`;
 }
 
 /**

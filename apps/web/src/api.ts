@@ -149,8 +149,11 @@ export function fetchSeatMap(
   chain: string,
   sessionId: string,
   scoring: ScoringParams,
+  options?: { party?: number; minScore?: number },
 ): Promise<ScoredSeatMap> {
   const qs = new URLSearchParams({ chain, sessionId });
   scoringToParams(scoring, qs);
+  if (options?.party !== undefined) qs.set("party", String(options.party));
+  if (options?.minScore !== undefined) qs.set("minScore", String(options.minScore));
   return getJson<ScoredSeatMap>("/seatmap", qs);
 }
