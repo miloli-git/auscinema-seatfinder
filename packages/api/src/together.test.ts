@@ -362,7 +362,7 @@ test("/together movieId filter returns only that movie", { skip: dbSkip }, async
   assert.deepEqual(resultIds(body), ["movie-target"]);
 });
 
-test("/together party larger than any block returns an empty result", { skip: dbSkip }, async () => {
+test("/together party larger than any block returns the session with block:null", { skip: dbSkip }, async () => {
   await insertSession({ id: "small-block" });
   await insertSeats("small-block", [
     { seatId: "small-1", col: 1, score: 90 },
@@ -371,10 +371,15 @@ test("/together party larger than any block returns an empty result", { skip: db
 
   const body = await getTogether("chain=event&party=5");
 
-  assert.deepEqual(body, { party: 5, minScore: 74, count: 0, results: [] });
+  assertTogetherShape(body);
+  assert.equal(body.party, 5);
+  assert.equal(body.minScore, 74);
+  assert.equal(body.count, 1);
+  assert.equal(body.results[0]!.session.id, "small-block");
+  assert.equal(body.results[0]!.block, null);
 });
 
-test("/together minScore above every seat score returns an empty result", { skip: dbSkip }, async () => {
+test("/together minScore above every seat score returns the session with block:null", { skip: dbSkip }, async () => {
   await insertSession({ id: "below-threshold" });
   await insertSeats("below-threshold", [
     { seatId: "below-1", col: 1, score: 80 },
@@ -383,7 +388,11 @@ test("/together minScore above every seat score returns an empty result", { skip
 
   const body = await getTogether("chain=event&minScore=99");
 
-  assert.deepEqual(body, { party: 2, minScore: 99, count: 0, results: [] });
+  assertTogetherShape(body);
+  assert.equal(body.minScore, 99);
+  assert.equal(body.count, 1);
+  assert.equal(body.results[0]!.session.id, "below-threshold");
+  assert.equal(body.results[0]!.block, null);
 });
 
 test("/together unknown movieId filter returns an empty result", { skip: dbSkip }, async () => {
@@ -398,12 +407,17 @@ test("/together unknown movieId filter returns an empty result", { skip: dbSkip 
   assert.deepEqual(body, { party: 2, minScore: 74, count: 0, results: [] });
 });
 
-test("/together matched session with zero session_seats contributes no result", { skip: dbSkip }, async () => {
+test("/together matched session with zero session_seats returns the session with block:null", { skip: dbSkip }, async () => {
+  // Zero scored/available seats = a sold-out (or not-yet-bookable) session. Post-#39 the matrix
+  // needs it surfaced as "sold" (session present, block:null), not dropped (which reads as "—").
   await insertSession({ id: "empty-seatmap" });
 
   const body = await getTogether("chain=event");
 
-  assert.deepEqual(body, { party: 2, minScore: 74, count: 0, results: [] });
+  assertTogetherShape(body);
+  assert.equal(body.count, 1);
+  assert.equal(body.results[0]!.session.id, "empty-seatmap");
+  assert.equal(body.results[0]!.block, null);
 });
 
 test("/together defaults party to 2 and minScore to 74", { skip: dbSkip }, async () => {
@@ -419,7 +433,7 @@ test("/together defaults party to 2 and minScore to 74", { skip: dbSkip }, async
   assert.equal(body.party, 2);
   assert.equal(body.minScore, 74);
   assert.equal(body.count, 1);
-  assert.deepEqual(body.results[0]!.block.seatIds, ["defaults-1", "defaults-2"]);
+  assert.deepEqual(body.results[0]!.block!.seatIds, ["defaults-1", "defaults-2"]);
 });
 
 test("/together clamps party below 1 to a single-seat block", { skip: dbSkip }, async () => {
@@ -441,7 +455,7 @@ test("/together clamps party below 1 to a single-seat block", { skip: dbSkip }, 
   });
 });
 
-test("/together missing column breaks adjacency", { skip: dbSkip }, async () => {
+test("/together missing column breaks adjacency -> block:null", { skip: dbSkip }, async () => {
   await insertSession({ id: "gap" });
   await insertSeats("gap", [
     { seatId: "gap-1", col: 1, score: 95 },
@@ -450,7 +464,10 @@ test("/together missing column breaks adjacency", { skip: dbSkip }, async () => 
 
   const body = await getTogether("chain=event&party=2");
 
-  assert.deepEqual(body, { party: 2, minScore: 74, count: 0, results: [] });
+  assertTogetherShape(body);
+  assert.equal(body.count, 1);
+  assert.equal(body.results[0]!.session.id, "gap");
+  assert.equal(body.results[0]!.block, null);
 });
 
 test("/together flags Hoyts adjacency as approximate and Event as exact", { skip: dbSkip }, async () => {
