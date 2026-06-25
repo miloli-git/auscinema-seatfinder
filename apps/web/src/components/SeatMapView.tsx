@@ -5,6 +5,8 @@ import { seatQuality } from "../format";
 interface Props {
   map: ScoredSeatMap;
   topN: number;
+  /** Seat ids to mark as the "together" adjacency block (L3.4 / #36). */
+  highlightSeatIds?: string[];
 }
 
 /** SOLD / unavailable / special / companion all read as "not selectable" on the heatmap. */
@@ -12,7 +14,9 @@ function isTaken(status: Seat["status"]): boolean {
   return status === "sold" || status === "unavailable" || status === "special" || status === "companion";
 }
 
-export function SeatMapView({ map, topN }: Props) {
+export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
+  const highlightIds = useMemo(() => new Set(highlightSeatIds ?? []), [highlightSeatIds]);
+
   const scoreById = useMemo(() => {
     const m = new Map<string, number>();
     for (const s of map.scored) m.set(s.seat.id, s.score);
@@ -85,20 +89,24 @@ export function SeatMapView({ map, topN }: Props) {
                     const score = scoreById.get(seat.id);
                     const q = typeof score === "number" ? seatQuality(score) : "weak";
                     const isTop = topIds.has(seat.id);
+                    const isHi = highlightIds.has(seat.id);
                     const title = [
                       seat.name ?? `${seat.rowLabel}${seat.col}`,
                       areaName(seat.areaId),
                       typeof score === "number" ? `score ${score}` : seat.status,
                       isTop ? "best pick" : "",
+                      isHi ? "together block" : "",
                     ]
                       .filter(Boolean)
                       .join(" · ");
                     return (
                       <span
                         key={ci}
-                        className="seat"
+                        className={isHi ? "seat seat--hi" : "seat"}
+                        data-seat-id={seat.id}
                         data-q={q}
                         {...(isTop ? { "data-best": "" } : {})}
+                        {...(isHi ? { "data-highlight": "" } : {})}
                         {...(seat.paired ? { "data-paired": "" } : {})}
                         title={title}
                       />
