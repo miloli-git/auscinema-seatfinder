@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { togetherResponse, seatmapResponse } from "./fixtures/together.fixture";
+import { togetherResponse, seatmapResponse, catalogResponse } from "./fixtures/together.fixture";
 
 // ST-4 Layer 4 — the acceptance test. Asserts L4.1–L4.5 against the route-mocked
 // fixture (see e2e/fixtures/together.fixture.ts — THE FIXTURE IS THE DoD).
@@ -13,6 +13,11 @@ interface Counter {
  *  can assert which interactions hit the network vs recompute client-side. */
 async function installRoutes(page: Page, opts: { blockGone?: boolean } = {}): Promise<Counter> {
   const counter: Counter = { together: 0, seatmap: 0 };
+
+  // The movie picker fetches /catalog on mount; serve the fixture's movie so it's selectable.
+  await page.route("**/catalog*", async (route) => {
+    await route.fulfill({ json: catalogResponse() });
+  });
 
   await page.route("**/together*", async (route) => {
     counter.together += 1;
@@ -34,7 +39,8 @@ async function installRoutes(page: Page, opts: { blockGone?: boolean } = {}): Pr
 async function scan(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByRole("tab", { name: "Seats together" }).click();
-  await page.getByPlaceholder("e.g. 19796").fill("19796");
+  // Drive the catalog-fed movie picker (not the legacy free-text id input).
+  await page.getByRole("combobox", { name: "Movie" }).selectOption({ label: "Supergirl" });
   await page.getByRole("button", { name: "Scan" }).click();
   await expect(page.locator("table.matrix")).toBeVisible();
 }
@@ -124,7 +130,12 @@ test.describe("ST-4 L4 — Seats Together E2E acceptance", () => {
     // Filter to IMAX only — drops the Standard sessions (A/29, B/27).
     await page.getByRole("button", { name: "IMAX", exact: true }).click();
     // Evenings only — keeps A/27 (19:30) and B/28 (19:00); A/29 (14:00) already gone.
-    await page.locator("select").nth(1).selectOption({ label: "Evenings" });
+    // Target the time-preset select by its options (the movie picker added a sibling select,
+    // so positional nth() is no longer stable).
+    await page
+      .locator("select")
+      .filter({ has: page.locator('option[value="evenings"]') })
+      .selectOption("evenings");
 
     // Recompute is client-side: NO extra /together call.
     expect(counter.together).toBe(1);

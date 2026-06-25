@@ -154,6 +154,19 @@ export const BASE_RESULTS: FixtureResult[] = [
   },
 ];
 
+/** GET /catalog wire response — the movie-picker source. Must contain the fixture movie
+ *  so the picker can select it by name and drive the same scan the old free-text id did. */
+export function catalogResponse() {
+  return {
+    movies: [{ id: MOVIE.id, name: MOVIE.name, chain: "event" }],
+    cinemas: [
+      { id: CIN_A.id, name: CIN_A.name, chain: "event" },
+      { id: CIN_B.id, name: CIN_B.name, chain: "event" },
+    ],
+    dates: ["2026-06-27", "2026-06-28", "2026-06-29"],
+  };
+}
+
 export interface TogetherResponseShape {
   party: number;
   minScore: number;

@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Matrix } from "./Matrix";
 import { TogetherDrillIn } from "./TogetherDrillIn";
 import { MinScoreControl } from "./MinScoreControl";
-import { getTogether, API_BASE } from "../api";
+import { getTogether, fetchCatalog, API_BASE, type CatalogMovie } from "../api";
 import { buildMatrix, type TogetherResult } from "../together/matrix";
 import { normalizeTogetherSession } from "../together/normalize";
 import { matchesFormat, matchesTime, type TimePreset } from "../together/filters";
@@ -31,6 +31,39 @@ const TIME_PRESETS: { value: TimePreset; label: string }[] = [
 
 const fileDate = (r: TogetherResult): string => r.session.startTime.slice(0, 10);
 
+type CatalogState =
+  | { status: "loading"; chain: Chain }
+  | { status: "ready"; chain: Chain; movies: CatalogMovie[] }
+  | { status: "error"; chain: Chain; error: string };
+
+/**
+ * Map catalog movies to <select> option models. Label = trimmed name || id;
+ * when two visible labels collide, both are disambiguated with their id.
+ */
+function buildMovieOptions(movies: CatalogMovie[]): { id: string; label: string }[] {
+  // Bare label = trimmed name || id. Names that collide get their (unique) id appended. A `used`
+  // set then guarantees globally-unique visible labels even for titles that resemble a generated
+  // disambiguation (e.g. a real "Foo (1)" title alongside other "Foo" rows): the clashing one
+  // gets a numeric suffix. ids are unique, so this always terminates with distinct labels.
+  const nameCounts = new Map<string, number>();
+  for (const m of movies) {
+    const name = m.name?.trim() || m.id;
+    nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
+  }
+  const used = new Set<string>();
+  return movies.map((m) => {
+    const name = m.name?.trim() || m.id;
+    let label = (nameCounts.get(name) ?? 0) > 1 ? `${name} (${m.id})` : name;
+    if (used.has(label)) {
+      let n = 2;
+      while (used.has(`${label} [${n}]`)) n++;
+      label = `${label} [${n}]`;
+    }
+    used.add(label);
+    return { id: m.id, label };
+  });
+}
+
 /**
  * Seats-Together mode. One /together call per (movie, party, minScore) is cached;
  * format/time/day are applied client-side via buildMatrix (L2). A minScore change
@@ -39,6 +72,7 @@ const fileDate = (r: TogetherResult): string => r.session.startTime.slice(0, 10)
 export function TogetherView() {
   const [chain, setChain] = useState<Chain>("event");
   const [movieId, setMovieId] = useState("");
+  const [catalog, setCatalog] = useState<CatalogState>({ status: "loading", chain: "event" });
   const [party, setParty] = useState(2);
   const [minScore, setMinScore] = useState(74);
 
@@ -54,6 +88,27 @@ export function TogetherView() {
   const [scanned, setScanned] = useState<{ chain: Chain; movieId: string; party: number } | null>(null);
   // Monotonic request id: only the latest in-flight /together response is applied (no out-of-order clobber).
   const reqSeq = useRef(0);
+
+  // Fetch the movie catalog on mount and on every chain change. The `live` flag drops a stale
+  // response from a previous chain, and the state we set is keyed to the chain it was fetched for,
+  // so a slow prior-chain /catalog can never overwrite the current chain's catalog (D6).
+  useEffect(() => {
+    let live = true;
+    const forChain = chain;
+    setCatalog({ status: "loading", chain: forChain });
+    fetchCatalog(forChain)
+      .then((res) => {
+        if (live) setCatalog({ status: "ready", chain: forChain, movies: res.movies });
+      })
+      .catch((err: unknown) => {
+        if (live) {
+          setCatalog({ status: "error", chain: forChain, error: err instanceof Error ? err.message : String(err) });
+        }
+      });
+    return () => {
+      live = false;
+    };
+  }, [chain]);
 
   // One /together fetch per (chain, movie, party, minScore). format/time/day stay client-side.
   const runQuery = async (p: { chain: Chain; movieId: string; party: number; minScore: number }) => {
@@ -85,6 +140,34 @@ export function TogetherView() {
 
   const scan = () => void runQuery({ chain, movieId, party, minScore });
 
+  // Chain switch = full reset boundary (D4/D5, non-negotiable). Bump reqSeq so any in-flight
+  // /together for the old chain is dropped, then clear everything tied to the old chain. The
+  // catalog effect refetches for the new chain.
+  const switchChain = (next: Chain) => {
+    if (next === chain) return;
+    reqSeq.current++;
+    setChain(next);
+    // Synchronously reset the catalog to loading for the NEW chain so the render between this
+    // commit and the catalog effect can never paint the old chain's movies (Codex HIGH).
+    setCatalog({ status: "loading", chain: next });
+    setMovieId("");
+    setScanned(null);
+    setResults(null);
+    setDrill(null);
+    setError(null);
+    setLoading(false);
+  };
+
+  // Only trust the catalog when it was fetched for the chain currently selected. Belt-and-braces
+  // with the synchronous reset above: any chain/catalog mismatch renders as loading, never stale.
+  const catalogReady = catalog.status === "ready" && catalog.chain === chain;
+  const catalogError = catalog.status === "error" && catalog.chain === chain;
+
+  const movieOptions = useMemo(
+    () => (catalogReady ? buildMovieOptions((catalog as Extract<CatalogState, { status: "ready" }>).movies) : []),
+    [catalogReady, catalog],
+  );
+
   const onMinScoreChange = (n: number) => {
     setMinScore(n);
     if (scanned) void runQuery({ ...scanned, minScore: n }); // re-query against the scanned snapshot (L3.7)
@@ -115,7 +198,7 @@ export function TogetherView() {
       <div className="together__controls">
         <label className="field">
           <span>Chain</span>
-          <select value={chain} onChange={(e) => setChain(e.target.value as Chain)}>
+          <select value={chain} onChange={(e) => switchChain(e.target.value as Chain)}>
             {CHAINS.map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
@@ -123,10 +206,31 @@ export function TogetherView() {
             ))}
           </select>
         </label>
-        <label className="field">
-          <span>Movie id</span>
-          <input value={movieId} onChange={(e) => setMovieId(e.target.value)} placeholder="e.g. 19796" />
-        </label>
+        {catalogError ? (
+          <label className="field">
+            <span>Movie id</span>
+            <input value={movieId} onChange={(e) => setMovieId(e.target.value)} placeholder="e.g. 19796" />
+            <small className="hint hint--warn">Movie list unavailable — enter a movie id directly.</small>
+          </label>
+        ) : (
+          <label className="field">
+            <span>Movie</span>
+            <select value={movieId} onChange={(e) => setMovieId(e.target.value)} disabled={!catalogReady}>
+              <option value="">
+                {!catalogReady
+                  ? "Loading movies…"
+                  : movieOptions.length === 0
+                    ? "No movies cached for this chain yet"
+                    : "Pick a movie…"}
+              </option>
+              {movieOptions.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="field">
           <span>Party</span>
           <input

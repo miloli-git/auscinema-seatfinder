@@ -49,7 +49,8 @@ function scoringToParams(p: ScoringParams, qs: URLSearchParams): void {
 }
 
 async function getJson<T>(path: string, qs: URLSearchParams): Promise<T> {
-  const url = `${API_BASE}${path}?${qs.toString()}`;
+  const query = qs.toString();
+  const url = `${API_BASE}${path}${query ? `?${query}` : ""}`;
   const res = await fetch(url);
   if (!res.ok) {
     let detail = res.statusText;
@@ -67,6 +68,27 @@ async function getJson<T>(path: string, qs: URLSearchParams): Promise<T> {
 export function fetchCinemas(chain: string): Promise<Cinema[]> {
   const qs = new URLSearchParams({ chain });
   return getJson<Cinema[]>("/cinemas", qs);
+}
+
+/** A movie cached in the catalog for a chain. `name` may be null when unresolved. */
+export interface CatalogMovie {
+  id: string;
+  name: string | null;
+  chain: string;
+}
+
+/** GET /catalog response. Only `movies` is consumed by the Together picker. */
+export interface CatalogResponse {
+  movies: CatalogMovie[];
+  cinemas: CatalogMovie[]; // same shape; unused by the picker
+  dates: string[]; // unused by the picker
+}
+
+/** GET /catalog[?chain=]. Throws (via getJson) on non-2xx, incl. 503 when the API has no DB pool. */
+export function fetchCatalog(chain?: string): Promise<CatalogResponse> {
+  const qs = new URLSearchParams();
+  if (chain) qs.set("chain", chain);
+  return getJson<CatalogResponse>("/catalog", qs);
 }
 
 export function fetchMovies(
