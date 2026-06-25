@@ -554,32 +554,36 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       arr.push({ id: s.seat_id, rowLabel: s.row_label ?? "", row: s.row, col: s.col, score: s.score });
     }
 
+    type Block = ReturnType<typeof findAdjacentBlocks>[number];
     type Result = {
       session: ReturnType<typeof mapSession>;
-      block: ReturnType<typeof findAdjacentBlocks>[number];
+      block: Block | null;
       approximateAdjacency: boolean;
       fetchedAt: string;
       _start: string | null;
     };
+    // #39: every matched session is returned. A session with no qualifying adjacency block
+    // (party too large, all seats below minScore, a column gap, or zero available seats =
+    // sold out) is returned with block:null so the matrix can show "sold" vs "—" (absent row).
     const results: Result[] = [];
     for (const row of sessions) {
-      const seats = seatsBySession.get(row.id);
-      if (!seats || seats.length === 0) continue;
-      const blocks = findAdjacentBlocks(seats, { minScore, size: party });
-      const best = blocks[0];
-      if (!best) continue;
+      const seats = seatsBySession.get(row.id) ?? [];
+      const block = findAdjacentBlocks(seats, { minScore, size: party })[0] ?? null;
       results.push({
         session: mapSession(row),
-        block: best,
+        block,
         approximateAdjacency: row.chain === "hoyts",
         fetchedAt: row.fetched_at,
         _start: row.start_time,
       });
     }
 
-    // Rank: best-block avgScore DESC, then earliest startTime ASC (nulls last), then session id ASC.
+    // Rank: best-block avgScore DESC (blockless last), then earliest startTime ASC (nulls last),
+    // then session id ASC.
     results.sort((a, b) => {
-      if (b.block.avgScore !== a.block.avgScore) return b.block.avgScore - a.block.avgScore;
+      const av = a.block ? a.block.avgScore : Number.NEGATIVE_INFINITY;
+      const bv = b.block ? b.block.avgScore : Number.NEGATIVE_INFINITY;
+      if (bv !== av) return bv - av;
       const sa = a._start;
       const sb = b._start;
       if (sa !== sb) {
