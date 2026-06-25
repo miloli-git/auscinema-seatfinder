@@ -20,7 +20,7 @@ function scoringOf(v: FormValues): ScoringParams {
 type Mode = "best" | "together";
 
 export function App() {
-  const [mode, setMode] = useState<Mode>("best");
+  const [mode, setMode] = useState<Mode>("together");
   const [values, setValues] = useState<FormValues>(DEFAULTS);
   const [result, setResult] = useState<BestResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -109,20 +109,20 @@ export function App() {
           <button
             type="button"
             role="tab"
-            aria-selected={mode === "best"}
-            className={`btn btn--ghost${mode === "best" ? " btn--on" : ""}`}
-            onClick={() => setMode("best")}
-          >
-            Best seat
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={mode === "together"}
             className={`btn btn--ghost${mode === "together" ? " btn--on" : ""}`}
             onClick={() => setMode("together")}
           >
             Seats together
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "best"}
+            className={`btn btn--ghost${mode === "best" ? " btn--on" : ""}`}
+            onClick={() => setMode("best")}
+          >
+            Best seat
           </button>
         </div>
         {mode === "best" && (

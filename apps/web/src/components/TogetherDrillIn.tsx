@@ -4,7 +4,7 @@ import { normalizeTogetherSession } from "../together/normalize";
 import type { ScoredSeatMap, SeatBlock } from "../types";
 import { DEFAULT_SCORING, fetchSeatMap as apiFetchSeatMap, type ScoringParams } from "../api";
 import { SeatMapView } from "./SeatMapView";
-import { chainLabel, formatLabel, formatTime } from "../format";
+import { chainLabel, formatLabel, formatTime, formatInstantSydney } from "../format";
 
 type SeatMapFetcher = (
   chain: string,
@@ -105,7 +105,7 @@ export function TogetherDrillIn({
                 <span className="tag">{formatLabel(session.format)}</span>
                 <span className="drillin__avg">{r.block?.avgScore}</span>
                 {r.fetchedAt && (
-                  <span className="drillin__asof">as of {formatTime(r.fetchedAt)}</span>
+                  <span className="drillin__asof">as of {formatInstantSydney(r.fetchedAt)}</span>
                 )}
               </button>
             </li>

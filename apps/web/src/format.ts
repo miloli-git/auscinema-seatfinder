@@ -78,3 +78,55 @@ export function seatQuality(score: number): "elite" | "great" | "good" | "ok" | 
   if (score >= 40) return "ok";
   return "weak";
 }
+
+const SYDNEY_TZ = "Australia/Sydney";
+
+/**
+ * Australia/Sydney "now" as zero-padded { date: "YYYY-MM-DD", time: "HH:MM" } (24h; hourCycle h23 so
+ * midnight is "00:00", not the "24:00" some ICU builds emit). `d` is injectable for deterministic tests.
+ */
+export function sydneyNow(d: Date = new Date()): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: SYDNEY_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const get = (t: string): string => parts.find((p) => p.type === t)?.value ?? "";
+  return { date: `${get("year")}-${get("month")}-${get("day")}`, time: `${get("hour")}:${get("minute")}` };
+}
+
+/**
+ * True if a Together session's local showtime is now-or-later in Sydney. `startTime` is a LOCAL
+ * wall-time mislabelled with a trailing `Z` (e.g. "2026-06-25T14:00:00.000Z" = 2pm Sydney), so we
+ * compare its date/time SUBSTRINGS against Sydney now — we must NOT parse it as a real UTC instant.
+ * `now` is injectable for tests.
+ *
+ * Known limitation (accepted): on the DST fall-back morning (~early April) the 02:00-02:59 wall hour
+ * repeats, so a bare wall-time can't say which occurrence it is. Cinemas effectively never schedule
+ * 2-3am sessions, so this is immaterial; a true fix needs a real instant/offset from the API.
+ */
+export function isUpcoming(startTime: string, now: { date: string; time: string } = sydneyNow()): boolean {
+  const date = startTime.slice(0, 10);
+  if (date !== now.date) return date > now.date;
+  return startTime.slice(11, 16) >= now.time;
+}
+
+/**
+ * Render a TRUE UTC instant (e.g. a session's `fetched_at` "2026-06-25T01:04:17Z") in Sydney local
+ * time, e.g. "11:04 am". Distinct from formatTime(), which reads a local-wall-time string as-is and
+ * would print the UTC hour (the "as of 1:04 AM" bug, #44).
+ */
+export function formatInstantSydney(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: SYDNEY_TZ,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(d);
+}

@@ -6,6 +6,7 @@ import { getTogether, fetchCatalog, API_BASE, type CatalogMovie } from "../api";
 import { buildMatrix, type TogetherResult } from "../together/matrix";
 import { normalizeTogetherSession } from "../together/normalize";
 import { matchesFormat, matchesTime, type TimePreset } from "../together/filters";
+import { isUpcoming, sydneyNow } from "../format";
 import type { Chain, ScreenFormat } from "../types";
 
 const CHAINS: { value: Chain; label: string }[] = [
@@ -30,6 +31,10 @@ const TIME_PRESETS: { value: TimePreset; label: string }[] = [
 ];
 
 const fileDate = (r: TogetherResult): string => r.session.startTime.slice(0, 10);
+
+// Keep a session visible until this long after its showtime — a show that just started is often still
+// bookable (trailers), and the live drill-in confirm is the real bookability check anyway.
+const SHOWTIME_GRACE_MS = 20 * 60_000;
 
 type CatalogState =
   | { status: "loading"; chain: Chain }
@@ -88,6 +93,12 @@ export function TogetherView() {
   const [scanned, setScanned] = useState<{ chain: Chain; movieId: string; party: number } | null>(null);
   // Monotonic request id: only the latest in-flight /together response is applied (no out-of-order clobber).
   const reqSeq = useRef(0);
+  // Sydney "now" ticking each minute, so sessions age out of the grid live — not only on a re-scan.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Fetch the movie catalog on mount and on every chain change. The `live` flag drops a stale
   // response from a previous chain, and the state we set is keyed to the chain it was fetched for,
@@ -173,22 +184,31 @@ export function TogetherView() {
     if (scanned) void runQuery({ ...scanned, minScore: n }); // re-query against the scanned snapshot (L3.7)
   };
 
+  // Drop sessions whose local showtime has passed in Sydney, minus a short grace (#43). ONE `now`
+  // snapshot per pass (not per row — avoids a minute-boundary split). Filtered here so the matrix AND
+  // the drill-in (both derive from these results) stay consistent — no past shows offering cached
+  // scores for screenings that are over.
+  const upcoming = useMemo(() => {
+    const cutoff = sydneyNow(new Date(nowMs - SHOWTIME_GRACE_MS));
+    return (results ?? []).filter((r) => isUpcoming(r.session.startTime, cutoff));
+  }, [results, nowMs]);
+
   const model = useMemo(
-    () => buildMatrix(results ?? [], { formats, timePreset, minScore }),
-    [results, formats, timePreset, minScore],
+    () => buildMatrix(upcoming, { formats, timePreset, minScore }),
+    [upcoming, formats, timePreset, minScore],
   );
 
   // Qualifying (blocked) sessions for the drilled cell, under the current filters.
   const drillResults = useMemo<TogetherResult[]>(() => {
-    if (!drill || !results) return [];
-    return results.filter((r) => {
+    if (!drill) return [];
+    return upcoming.filter((r) => {
       if (r.session.cinemaId !== drill.cinemaId) return false;
       if (fileDate(r) !== drill.date) return false;
       if (!r.block) return false;
       const session = normalizeTogetherSession(r.session);
       return matchesFormat(session, formats) && matchesTime(session, timePreset);
     });
-  }, [drill, results, formats, timePreset]);
+  }, [drill, upcoming, formats, timePreset]);
 
   const toggleFormat = (k: ScreenFormat["kind"]) =>
     setFormats((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
@@ -277,7 +297,11 @@ export function TogetherView() {
       {loading && <div className="empty">Scanning sessions…</div>}
 
       {!loading && results && model.cinemas.length === 0 && (
-        <div className="empty">No sessions match. Try a lower min score or another movie.</div>
+        <div className="empty">
+          {results.length > 0 && upcoming.length === 0
+            ? "All matching sessions have already started. Try another movie or check back for later sessions."
+            : "No sessions match. Try a lower min score or another movie."}
+        </div>
       )}
 
       {!loading && results && model.cinemas.length > 0 && (
