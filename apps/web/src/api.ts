@@ -1,4 +1,5 @@
 import type { BestResponse, Cinema, Movie, ScoredSeatMap, AreaKind } from "./types";
+import type { TogetherResult } from "./together/matrix";
 
 // Empty => same-origin relative requests, served via the Vite dev/preview proxy
 // (see vite.config.ts) or a reverse proxy in production. Set VITE_API_BASE to an
@@ -15,6 +16,19 @@ export interface ScoringParams {
   allowedAreaKinds: AreaKind[];
   avoidPaired: boolean;
 }
+
+/**
+ * Default scoring profile. Mirrors QueryForm DEFAULTS scoring fields; the
+ * Seats-Together drill-in confirm uses this so its live /seatmap call matches
+ * the best-seat mode's default scoring (#37 / L3.5).
+ */
+export const DEFAULT_SCORING: ScoringParams = {
+  targetDepth: 0.65,
+  depthWeight: 0.5,
+  centralityWeight: 0.5,
+  allowedAreaKinds: [],
+  avoidPaired: false,
+};
 
 export interface BestQuery extends ScoringParams {
   chain: string;
@@ -74,6 +88,39 @@ export function fetchBest(q: BestQuery): Promise<BestResponse> {
   });
   scoringToParams(q, qs);
   return getJson<BestResponse>("/best", qs);
+}
+
+/** Seats-Together query. ONE /together call per (movie, party, minScore);
+ *  format/time/day filtering is applied client-side via the L2 layer. */
+export interface TogetherQuery {
+  chain: string;
+  movieId: string;
+  party: number;
+  minScore: number;
+  /** Optional scan-axis narrowing; omitted => the watch's full scope. */
+  cinemaIds?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface TogetherResponse {
+  party: number;
+  minScore: number;
+  count: number;
+  results: TogetherResult[];
+}
+
+export function getTogether(q: TogetherQuery): Promise<TogetherResponse> {
+  const qs = new URLSearchParams({
+    chain: q.chain,
+    party: String(q.party),
+    minScore: String(q.minScore),
+  });
+  if (q.movieId) qs.set("movieId", q.movieId);
+  if (q.cinemaIds) qs.set("cinemaIds", q.cinemaIds);
+  if (q.dateFrom) qs.set("dateFrom", q.dateFrom);
+  if (q.dateTo) qs.set("dateTo", q.dateTo);
+  return getJson<TogetherResponse>("/together", qs);
 }
 
 export function fetchSeatMap(
