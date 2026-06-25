@@ -190,9 +190,9 @@
     <h1>Designing a better cinema seat picker.</h1>
     <p class="lede">AusCinema Seat Finder scores <b>real auditorium seats</b> and hands users off to
       official booking. This page shows how I explored <b>seven UI directions</b> using real data and
-      design systems extracted from live brands &mdash; then converged on one.</p>
+      design systems extracted from live brands - then converged on one.</p>
     <dl class="meta">
-      <div><dt>Role</dt><dd>Solo builder &mdash; backend / AI orchestration + UI exploration</dd></div>
+      <div><dt>Role</dt><dd>Solo builder - backend / AI orchestration + UI exploration</dd></div>
       <div><dt>Inputs</dt><dd>Real auditorium layouts, seat-quality scoring, extracted design systems</dd></div>
       <div><dt>Output</dt><dd>Seven whole-page prototypes, one recommended direction</dd></div>
     </dl>
@@ -203,7 +203,7 @@
     </div>
   </div>
   <figure class="shot browser" style="margin:0">
-    <div class="bar"><i></i><i></i><i></i><span class="url">seatfinder.miloli.org &mdash; recommended direction (G)</span></div>
+    <div class="bar"><i></i><i></i><i></i><span class="url">seatfinder.miloli.org - recommended direction (G)</span></div>
     <img src="shots/g.png" alt="Recommended direction: real Event recliner auditorium with glow heatmap, ranked sessions, and booking handoff" loading="eager">
   </figure>
 </header>
@@ -213,8 +213,8 @@
   <div class="sec-h"><span class="n">01</span><h2>The product problem</h2></div>
   <div class="claims">
     <div class="claim"><b>Booking maps show availability, not quality.</b><p>Cinema seat maps tell you what's free. They don't tell you which free seat is actually worth sitting in.</p></div>
-    <div class="claim"><b>Users want the <i>good</i> seat.</b><p>Centre, right distance from the screen, the right class (recliner / Gold / Vmax) &mdash; that judgement is left entirely to the user.</p></div>
-    <div class="claim"><b>Don't replace checkout &mdash; route to it.</b><p>The app scores seats and hands off to the official booking path. No payment handling, no account, no replacing the cinema's flow.</p></div>
+    <div class="claim"><b>Users want the <i>good</i> seat.</b><p>Centre, right distance from the screen, the right class (recliner / Gold / Vmax) - that judgement is left entirely to the user.</p></div>
+    <div class="claim"><b>Don't replace checkout - route to it.</b><p>The app scores seats and hands off to the official booking path. No payment handling, no account, no replacing the cinema's flow.</p></div>
   </div>
   <div class="flow">
     <div class="step"><span class="k">Input</span><span class="v">Cinema data</span><small>Live public JSON, 4 AU chains</small></div>
@@ -231,9 +231,9 @@
   <div class="inputs">
     <div class="input"><h3>1 &middot; Functional baseline</h3><p>Directions designed from first principles for the task, no external reference.</p>
       <div class="swatches"><span class="sw" style="background:#f5b941"></span><span class="sw" style="background:#1b2030"></span><span class="sw" style="background:#2fd27a"></span></div></div>
-    <div class="input"><h3>2 &middot; Extracted design systems</h3><p>Tokens (type, colour, motion, layout) pulled from live sites with Playwright, then diverged for product fit &mdash; reference-system extraction, not copying.</p>
+    <div class="input"><h3>2 &middot; Extracted design systems</h3><p>Tokens (type, colour, motion, layout) pulled from live sites with Playwright, then diverged for product fit - reference-system extraction, not copying.</p>
       <div class="swatches"><span class="sw" style="background:#312dfb" title="Locomotive electric"></span><span class="sw" style="background:#f6e3e6" title="Glossier blush"></span><span class="sw" style="background:#2b333f" title="SOH slate"></span><span class="sw" style="background:#000"></span></div></div>
-    <div class="input"><h3>3 &middot; Real auditorium data</h3><p>Real captured seat geometry, classes and status, scored by the project's own model and rendered as a layout &mdash; not a synthetic grid.</p>
+    <div class="input"><h3>3 &middot; Real auditorium data</h3><p>Real captured seat geometry, classes and status, scored by the project's own model and rendered as a layout - not a synthetic grid.</p>
       <div class="swatches"><span class="sw" style="background:#1a1410"></span><span class="sw" style="background:#7bbf3a"></span><span class="sw" style="background:#dff05a"></span></div></div>
   </div>
   <div class="strip" id="methodStrip"><!-- step cards injected --></div>
@@ -241,7 +241,7 @@
 
 <!-- 4. RECOMMENDED -->
 <section id="recommended"><div class="wrap">
-  <div class="sec-h"><span class="n">03</span><h2>Recommended direction: G &mdash; Glossier &times; SOH hybrid</h2></div>
+  <div class="sec-h"><span class="n">03</span><h2>Recommended direction: G - Glossier &times; SOH hybrid</h2></div>
   <div class="why">
     <figure class="annot" style="margin:0">
       <img src="shots/g.png" alt="Annotated recommended direction">
@@ -252,16 +252,16 @@
       <span class="pin" style="left:84%;top:92%">5</span>
     </figure>
     <ul>
-      <li><span class="b">1</span><span><b>Ranked rail</b><small> &mdash; sessions sorted by best available seat, not just time.</small></span></li>
-      <li><span class="b">2</span><span><b>Trust-building score</b><small> &mdash; one number (98) the user can believe and act on.</small></span></li>
-      <li><span class="b">3</span><span><b>Booking handoff</b><small> &mdash; one clear path out to the official cinema checkout.</small></span></li>
-      <li><span class="b">4</span><span><b>Real auditorium, glow heatmap</b><small> &mdash; good seats literally light up; 156 real seats, class-driven widths.</small></span></li>
-      <li><span class="b">5</span><span><b>Seat-class legend</b><small> &mdash; standard / recliner / daybed read at a glance.</small></span></li>
+      <li><span class="b">1</span><span><b>Ranked rail</b><small> - sessions sorted by best available seat, not just time.</small></span></li>
+      <li><span class="b">2</span><span><b>Trust-building score</b><small> - one number (98) the user can believe and act on.</small></span></li>
+      <li><span class="b">3</span><span><b>Booking handoff</b><small> - one clear path out to the official cinema checkout.</small></span></li>
+      <li><span class="b">4</span><span><b>Real auditorium, glow heatmap</b><small> - good seats literally light up; 156 real seats, class-driven widths.</small></span></li>
+      <li><span class="b">5</span><span><b>Seat-class legend</b><small> - standard / recliner / daybed read at a glance.</small></span></li>
     </ul>
   </div>
 
-  <h3 style="font:600 18px/1 var(--serif);margin:0 0 6px">Why this direction wins <span class="draft">draft scores &mdash; edit me</span></h3>
-  <p style="color:var(--muted);font-size:13.5px;margin:0 0 6px;max-width:64ch">Scored 1&ndash;5 against the decision criteria. The point isn't that G wins everything &mdash; it's where the trade-offs land for a product whose job is <i>trust in a seat score</i>.</p>
+  <h3 style="font:600 18px/1 var(--serif);margin:0 0 6px">Why this direction wins <span class="draft">draft scores - edit me</span></h3>
+  <p style="color:var(--muted);font-size:13.5px;margin:0 0 6px;max-width:64ch">Scored 1-5 against the decision criteria. The point isn't that G wins everything - it's where the trade-offs land for a product whose job is <i>trust in a seat score</i>.</p>
   <table class="matrix">
     <thead><tr><th>Criterion</th><th>A&nbsp;Transit</th><th>C&nbsp;Terminal</th><th>D&nbsp;Cinematic</th><th>E&nbsp;Glossier</th><th>G&nbsp;Hybrid</th></tr></thead>
     <tbody>
@@ -293,20 +293,20 @@
   <div class="sec-h"><span class="n">05</span><h2>The UI is downstream of a real model</h2></div>
   <div class="deep">
     <div>
-      <p class="lede" style="margin:0 0 18px">The recommended direction doesn't render a decorative grid. It renders a <b>real captured auditorium</b> &mdash; geometry, seat classes and status pulled through the project's own chain adapters and scored by its own model.</p>
+      <p class="lede" style="margin:0 0 18px">The recommended direction doesn't render a decorative grid. It renders a <b>real captured auditorium</b> - geometry, seat classes and status pulled through the project's own chain adapters and scored by its own model.</p>
       <div class="stat-row">
         <div class="stat"><div class="num">4</div><div class="lab">real auditoriums captured<br>(Event, Hoyts, 2&times; Village)</div></div>
         <div class="stat"><div class="num">156</div><div class="lab">seats in the rendered<br>Event recliner house</div></div>
-        <div class="stat"><div class="num">18&ndash;98</div><div class="lab">live score range<br>across the room</div></div>
+        <div class="stat"><div class="num">18-98</div><div class="lab">live score range<br>across the room</div></div>
       </div>
       <ul class="factors">
-        <li><b>Distance to screen</b> &mdash; rows too close are penalised; the sweet spot scores highest.</li>
-        <li><b>Centrality</b> &mdash; horizontal offset from the centre line.</li>
-        <li><b>Row geometry</b> &mdash; real col indices (Event cols decrease L&rarr;R), aisles and gaps respected.</li>
-        <li><b>Seat class</b> &mdash; recliner / daybed / standard carry different widths and weight.</li>
-        <li><b>Status</b> &mdash; sold / spacer / companion seats removed from the ranking.</li>
+        <li><b>Distance to screen</b> - rows too close are penalised; the sweet spot scores highest.</li>
+        <li><b>Centrality</b> - horizontal offset from the centre line.</li>
+        <li><b>Row geometry</b> - real col indices (Event cols decrease L&rarr;R), aisles and gaps respected.</li>
+        <li><b>Seat class</b> - recliner / daybed / standard carry different widths and weight.</li>
+        <li><b>Status</b> - sold / spacer / companion seats removed from the ranking.</li>
       </ul>
-      <p style="color:var(--muted);font-size:13px;margin:16px 0 0"><b>Why it matters:</b> it makes a backend / AI builder credible in design &mdash; the interface is the output of a system that actually behaves, not a theme.</p>
+      <p style="color:var(--muted);font-size:13px;margin:16px 0 0"><b>Why it matters:</b> it makes a backend / AI builder credible in design - the interface is the output of a system that actually behaves, not a theme.</p>
     </div>
     <figure class="shot" style="margin:0;border-radius:14px">
       <img src="shots/g.png" alt="Real Event recliner auditorium scored and rendered as a glow heatmap">
@@ -316,13 +316,13 @@
 
 <!-- 7. LESSONS -->
 <section><div class="wrap">
-  <div class="sec-h"><span class="n">06</span><h2>What I learned, what I'd build next <span class="draft">draft &mdash; make it yours</span></h2></div>
+  <div class="sec-h"><span class="n">06</span><h2>What I learned, what I'd build next <span class="draft">draft - make it yours</span></h2></div>
   <div class="lessons">
     <div class="col">
       <h3>What held up</h3>
       <ul>
         <li>Design-system extraction gives useful <b>constraints</b>, but brand borrowing can't replace product fit.</li>
-        <li>Seat-map <b>legibility beats aesthetic novelty</b> &mdash; the prettiest direction wasn't the most usable.</li>
+        <li>Seat-map <b>legibility beats aesthetic novelty</b> - the prettiest direction wasn't the most usable.</li>
         <li>The strongest direction is the one where <b>scoring, trust and handoff</b> are clearest, not the boldest one.</li>
       </ul>
     </div>
@@ -331,7 +331,7 @@
       <ul>
         <li>Take G into the React app and wire it to the live scorer (fixture scores are recomputed at render today).</li>
         <li>Mobile booking path + accessibility pass on the seat map.</li>
-        <li>Reframe the entry point to be <b>movie-forward</b> &mdash; "see <i>this</i> film, well" &mdash; with chain / time / seat as downstream constraints.</li>
+        <li>Reframe the entry point to be <b>movie-forward</b> - "see <i>this</i> film, well" - with chain / time / seat as downstream constraints.</li>
         <li>User-test the score explanation with real moviegoers.</li>
       </ul>
     </div>
@@ -352,7 +352,7 @@
     ["C - Terminal","mocks/c-terminal.html","shots/c.png",
       "Power-user, keyboard-first (Linear / Raycast).","Command-bar query, data-grid heatmap.","Dense and fast.","Hostile on mobile.",null],
     ["D - Cinematic","mocks/d-cinematic.html","shots/d.png",
-      "Immersive dark auditorium.","Seat quality as luminance &mdash; good seats glow.","Most distinctive; the glow idea survives.","Hard to read in daylight / on mobile.",null],
+      "Immersive dark auditorium.","Seat quality as luminance - good seats glow.","Most distinctive; the glow idea survives.","Hard to read in daylight / on mobile.",null],
     ["E - Glossier","mocks/e-glossier.html","shots/e.png",
       "Soft minimalist (extracted: glossier.com).","Blush fields, humanist sans, swatch heat ramp.","Approachable, calm, mobile-friendly.","Almost too quiet for a 'best seat' claim.",null],
     ["F - Sydney Opera House","mocks/f-soh-whats-on.html","shots/f.png",
