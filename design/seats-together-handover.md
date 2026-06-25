@@ -8,9 +8,16 @@ and epic **#31**. This doc is self-contained: a fresh session can resume from it
 **ST-0 (#35) is DONE + verified (2026-06-25).** Routes live through Caddy; cache refreshed; both
 cinemas confirmed via the public tunnel — `/catalog`+`/together` return JSON (count 120, IMAX 96=59 +
 George St 15=61, 15 dates 06-25→07-13). See "ST-0 result" below.
-**Next: write `docs/ST-4-tdd-plan.md`** (Definition-of-Done contract), then run #40 (web test harness)
-→ #39 (`/together` no-block sessions) ∥ #29-L2 → #29 L3 → #29 L4 **test-first** via `/dual-harness`.
-Human gates remaining: Codex SHIP · Milo's browser smoke (Gate 3).
+**DoD contract written:** `docs/ST-4-tdd-plan.md` (L1–L4 criteria→named tests, invariants, gates).
+**#40 + #29-L2 DONE+pushed (06-25):** vitest harness in `apps/web` (no Playwright yet — deferred to L4)
++ the L2 pure-logic core: `apps/web/src/together/{normalize,filters,matrix}.ts` (+ tests). 26 tests green,
+typecheck clean, paired `[red]/[green]` commits on `main`. Codex-reviewed → no logic bug (3 findings were
+false positives from not inlining the closed `Session` type — **next Codex review: inline `types.ts` too**).
+**Next: #39 (L1 api/pg) ∥ #29-L3 (components) → #29-L4 (Playwright+fixture).** L3 imports from L2:
+`buildMatrix(results, {formats,timePreset,minScore}) → {cinemas[{id,name}], dates[], cells:Map<cellKey,MatrixCell>}`,
+`cellKey(cinemaId,date)='${id} ${date}'`, `MatrixCell = score{avgScore,sessionCount}|sold|empty`, plus
+`matchesFormat/matchesTime/isEvening/isWeekend`, `normalizeTogetherSession`. Human gates remaining: Codex
+SHIP · Milo's browser smoke (Gate 3).
 
 ### ST-0 result (2026-06-25)
 - Caddyfile `@api` + vite `API_ROUTES` now include `/together`+`/catalog`; web image rebuilt (Caddyfile
@@ -65,9 +72,9 @@ private lab org. Old #8 deleted 06-25.)
 | #35 | ST-0 infra: routes through Caddy+vite, redeploy, refresh cache | inline | **DONE 06-25** |
 | #41 | [bug] Event adapter multi-cinema listSessions returns 0 (fan-out fix) | code | Todo |
 | #42 | [enh] ingester seatmap cap starves matrix on dense cinemas | code | Todo |
-| #40 | ST-4.0 web test harness (vitest/testing-library/playwright) + seed fixture + write tdd-plan doc | enabler | Todo |
-| #39 | ST-3.1 `/together` exposes no-block sessions (powers `sold` cell) | TDD L1 | Todo |
-| #29 | ST-4 matrix UI (absorbs #36/#37/#38) | TDD L2→L3→L4 | Todo |
+| #40 | ST-4.0 web test harness (vitest/testing-library) + tdd-plan doc — Playwright+fixture deferred to L4 | enabler | **DONE (vitest part)** |
+| #39 | ST-3.1 `/together` exposes no-block sessions (powers `sold` cell) | TDD L1 | Todo (NEXT) |
+| #29 | ST-4 matrix UI (absorbs #36/#37/#38) | TDD L2✅→L3→L4 | **In Progress (L2 done)** |
 | #36 | highlightSeatIds prop · #37 default-scoring confirm · #38 block-gone state | within #29 | Todo |
 | #30 | ST-5 schedule ingester + **add IMAX/Darling watch** | inline | Todo |
 | #31 | EPIC | — | tracking |
