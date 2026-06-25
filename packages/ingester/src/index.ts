@@ -5,4 +5,5 @@ export * from "./watches.js";
 export * from "./persist.js";
 export * from "./sweep.js";
 export * from "./refresh.js";
+export * from "./deadman.js";
 export * from "./seed.js";

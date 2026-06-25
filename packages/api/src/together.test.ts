@@ -33,7 +33,7 @@ before(async () => {
 
 beforeEach(async () => {
   if (!pool) return;
-  await pool.query("TRUNCATE watches, sessions, session_seats, ingest_runs RESTART IDENTITY CASCADE");
+  await pool.query("TRUNCATE watches, sessions, session_seats, ingest_runs, refresh_runs RESTART IDENTITY CASCADE");
 });
 
 after(async () => {
@@ -116,14 +116,14 @@ async function insertSession(overrides: SessionSeed = {}): Promise<InsertedSessi
     movieName: "Test Movie",
     cinemaId: "C1",
     cinemaName: "Test Cinema",
-    date: "2026-06-25",
-    startTime: "2026-06-25T19:30:00.000Z",
+    date: "2099-06-25",
+    startTime: "2099-06-25T19:30:00.000Z",
     format: "V-Max",
     screen: "3",
     seatsAvailable: 142,
     bookingUrl: `https://example.test/book?sid=${id}`,
     seatAllocation: true,
-    fetchedAt: "2026-06-24T09:00:00.000Z",
+    fetchedAt: "2099-06-24T09:00:00.000Z",
     ...overrides,
   };
 
@@ -187,7 +187,8 @@ async function getCatalog(query = ""): Promise<CatalogResponse> {
 }
 
 function assertTogetherShape(body: TogetherResponse): void {
-  assert.deepEqual(Object.keys(body).sort(), ["count", "minScore", "party", "results"]);
+  // P30.3 (C7): /together carries an additive top-level `freshness` object. Existing keys unchanged.
+  assert.deepEqual(Object.keys(body).sort(), ["count", "freshness", "minScore", "party", "results"]);
   for (const result of body.results) {
     assert.deepEqual(Object.keys(result).sort(), ["approximateAdjacency", "block", "fetchedAt", "session"]);
     assert.deepEqual(Object.keys(result.session).sort(), [
@@ -244,9 +245,9 @@ test("/together happy path returns one adjacent in-zone pair", { skip: dbSkip },
     movieName: "The Odyssey",
     cinemaId: "15",
     cinemaName: "Event Cinemas George Street",
-    date: "2026-06-25",
-    startTime: "2026-06-25T19:30:00.000Z",
-    fetchedAt: "2026-06-24T09:00:00.000Z",
+    date: "2099-06-25",
+    startTime: "2099-06-25T19:30:00.000Z",
+    fetchedAt: "2099-06-24T09:00:00.000Z",
   });
   await insertSeats(session.id, [
     { seatId: "s-h10", rowLabel: "H", row: 8, col: 10, score: 94 },
@@ -268,8 +269,8 @@ test("/together happy path returns one adjacent in-zone pair", { skip: dbSkip },
     movieName: "The Odyssey",
     cinemaId: "15",
     cinemaName: "Event Cinemas George Street",
-    date: "2026-06-25",
-    startTime: "2026-06-25T19:30:00.000Z",
+    date: "2099-06-25",
+    startTime: "2099-06-25T19:30:00.000Z",
     format: "V-Max",
     screen: "3",
     seatsAvailable: 142,
@@ -285,16 +286,16 @@ test("/together happy path returns one adjacent in-zone pair", { skip: dbSkip },
     minScore: 94,
   });
   assert.equal(body.results[0]!.approximateAdjacency, false);
-  assert.equal(body.results[0]!.fetchedAt, "2026-06-24T09:00:00.000Z");
+  assert.equal(body.results[0]!.fetchedAt, "2099-06-24T09:00:00.000Z");
 });
 
 test("/together ranks by block avgScore desc, startTime asc, then session id", { skip: dbSkip }, async () => {
   const sessions = [
-    { id: "rank-low", startTime: "2026-06-25T17:00:00.000Z", scores: [88, 88] },
-    { id: "rank-late", startTime: "2026-06-25T20:00:00.000Z", scores: [90, 90] },
-    { id: "rank-z", startTime: "2026-06-25T18:00:00.000Z", scores: [90, 90] },
-    { id: "rank-a", startTime: "2026-06-25T18:00:00.000Z", scores: [90, 90] },
-    { id: "rank-best", startTime: "2026-06-25T21:00:00.000Z", scores: [96, 96] },
+    { id: "rank-low", startTime: "2099-06-25T17:00:00.000Z", scores: [88, 88] },
+    { id: "rank-late", startTime: "2099-06-25T20:00:00.000Z", scores: [90, 90] },
+    { id: "rank-z", startTime: "2099-06-25T18:00:00.000Z", scores: [90, 90] },
+    { id: "rank-a", startTime: "2099-06-25T18:00:00.000Z", scores: [90, 90] },
+    { id: "rank-best", startTime: "2099-06-25T21:00:00.000Z", scores: [96, 96] },
   ];
   for (const s of sessions) {
     await insertSession({ id: s.id, startTime: s.startTime });
@@ -328,10 +329,10 @@ test("/together cinemaIds includes requested cinemas and excludes others", { ski
 
 test("/together dateFrom/dateTo boundaries are inclusive", { skip: dbSkip }, async () => {
   for (const [id, date] of [
-    ["outside-before", "2026-06-24"],
-    ["on-from", "2026-06-25"],
-    ["on-to", "2026-06-27"],
-    ["outside-after", "2026-06-28"],
+    ["outside-before", "2099-06-24"],
+    ["on-from", "2099-06-25"],
+    ["on-to", "2099-06-27"],
+    ["outside-after", "2099-06-28"],
   ] as const) {
     await insertSession({ id, date, startTime: `${date}T12:00:00.000Z` });
     await insertSeats(id, [
@@ -340,7 +341,7 @@ test("/together dateFrom/dateTo boundaries are inclusive", { skip: dbSkip }, asy
     ]);
   }
 
-  const body = await getTogether("chain=event&dateFrom=2026-06-25&dateTo=2026-06-27");
+  const body = await getTogether("chain=event&dateFrom=2099-06-25&dateTo=2099-06-27");
 
   assertTogetherShape(body);
   assert.deepEqual(resultIds(body).sort(), ["on-from", "on-to"]);
@@ -404,7 +405,19 @@ test("/together unknown movieId filter returns an empty result", { skip: dbSkip 
 
   const body = await getTogether("chain=event&movieId=unknown");
 
-  assert.deepEqual(body, { party: 2, minScore: 74, count: 0, results: [] });
+  assert.deepEqual(body, {
+    party: 2,
+    minScore: 74,
+    count: 0,
+    results: [],
+    // P30.3 (C7): no watch + empty refresh_runs ledger in this suite -> not_cached, null instants.
+    freshness: {
+      oldestFetchedAt: null,
+      newestFetchedAt: null,
+      lastSuccessfulIngestAt: null,
+      coverage: { event: "not_cached" },
+    },
+  });
 });
 
 test("/together matched session with zero session_seats returns the session with block:null", { skip: dbSkip }, async () => {
@@ -499,7 +512,7 @@ test("/catalog returns distinct sorted movies, cinemas, and dates", { skip: dbSk
     movieName: "Zed",
     cinemaId: "C-Z",
     cinemaName: "Z Cinema",
-    date: "2026-06-26",
+    date: "2099-06-26",
   });
   await insertSession({
     id: "catalog-zed-2",
@@ -508,7 +521,7 @@ test("/catalog returns distinct sorted movies, cinemas, and dates", { skip: dbSk
     movieName: "Zed",
     cinemaId: "C-Z",
     cinemaName: "Z Cinema",
-    date: "2026-06-26",
+    date: "2099-06-26",
   });
   await insertSession({
     id: "catalog-alpha",
@@ -517,7 +530,7 @@ test("/catalog returns distinct sorted movies, cinemas, and dates", { skip: dbSk
     movieName: "Alpha",
     cinemaId: "C-A",
     cinemaName: "Alpha Cinema",
-    date: "2026-06-25",
+    date: "2099-06-25",
   });
   await insertSession({
     id: "catalog-beta",
@@ -526,7 +539,7 @@ test("/catalog returns distinct sorted movies, cinemas, and dates", { skip: dbSk
     movieName: "Beta",
     cinemaId: "H-B",
     cinemaName: "Hoyts Broadway",
-    date: "2026-06-27",
+    date: "2099-06-27",
   });
 
   const body = await getCatalog();
@@ -543,7 +556,7 @@ test("/catalog returns distinct sorted movies, cinemas, and dates", { skip: dbSk
       { id: "H-B", name: "Hoyts Broadway", chain: "hoyts" },
       { id: "C-Z", name: "Z Cinema", chain: "event" },
     ],
-    dates: ["2026-06-25", "2026-06-26", "2026-06-27"],
+    dates: ["2099-06-25", "2099-06-26", "2099-06-27"],
   });
 });
 
@@ -555,7 +568,7 @@ test("/catalog?chain=event scopes movies, cinemas, and dates to that chain", { s
     movieName: "Event Movie",
     cinemaId: "C-event",
     cinemaName: "Event Cinema",
-    date: "2026-06-25",
+    date: "2099-06-25",
   });
   await insertSession({
     id: "catalog-hoyts",
@@ -564,7 +577,7 @@ test("/catalog?chain=event scopes movies, cinemas, and dates to that chain", { s
     movieName: "Hoyts Movie",
     cinemaId: "C-hoyts",
     cinemaName: "Hoyts Cinema",
-    date: "2026-06-26",
+    date: "2099-06-26",
   });
 
   const body = await getCatalog("chain=event");
@@ -573,7 +586,7 @@ test("/catalog?chain=event scopes movies, cinemas, and dates to that chain", { s
   assert.deepEqual(body, {
     movies: [{ id: "M-event", name: "Event Movie", chain: "event" }],
     cinemas: [{ id: "C-event", name: "Event Cinema", chain: "event" }],
-    dates: ["2026-06-25"],
+    dates: ["2099-06-25"],
   });
 });
 
@@ -601,7 +614,19 @@ test("/together treats SQL injection text as a literal filter value", { skip: db
   const injection = encodeURIComponent("1') OR ('1'='1");
   const body = await getTogether(`chain=event&movieId=${injection}`);
 
-  assert.deepEqual(body, { party: 2, minScore: 74, count: 0, results: [] });
+  assert.deepEqual(body, {
+    party: 2,
+    minScore: 74,
+    count: 0,
+    results: [],
+    // P30.3 (C7): no watch + empty refresh_runs ledger in this suite -> not_cached, null instants.
+    freshness: {
+      oldestFetchedAt: null,
+      newestFetchedAt: null,
+      lastSuccessfulIngestAt: null,
+      coverage: { event: "not_cached" },
+    },
+  });
 });
 
 // --- #39 (ST-4 Layer 1): matched no-block sessions are returned with block:null ---------------
@@ -626,7 +651,7 @@ test("L1.1 returns matched session with block === null when the session has no a
   assert.equal(result.session.id, "l1-noblock");
   assert.equal(result.block, null);
   assert.equal(result.approximateAdjacency, false);
-  assert.equal(result.fetchedAt, "2026-06-24T09:00:00.000Z");
+  assert.equal(result.fetchedAt, "2099-06-24T09:00:00.000Z");
 });
 
 test("L1.2 still returns block for sessions that have one (no regression)", { skip: dbSkip }, async () => {
@@ -651,12 +676,12 @@ test("L1.2 still returns block for sessions that have one (no regression)", { sk
 });
 
 test("L1.3 count includes blockless sessions; results length === count", { skip: dbSkip }, async () => {
-  await insertSession({ id: "l3-block", startTime: "2026-06-25T18:00:00.000Z" });
+  await insertSession({ id: "l3-block", startTime: "2099-06-25T18:00:00.000Z" });
   await insertSeats("l3-block", [
     { seatId: "l3b-1", col: 1, score: 90 },
     { seatId: "l3b-2", col: 2, score: 90 },
   ]);
-  await insertSession({ id: "l3-noblock", startTime: "2026-06-25T19:00:00.000Z" });
+  await insertSession({ id: "l3-noblock", startTime: "2099-06-25T19:00:00.000Z" });
   await insertSeats("l3-noblock", [
     { seatId: "l3nb-1", col: 1, score: 90 },
     { seatId: "l3nb-3", col: 3, score: 90 },
@@ -683,5 +708,17 @@ test("L1.4 a movie/cinema/date with no session at all is simply absent (not a nu
 
   const body = await getTogether("chain=event&movieId=M-absent");
 
-  assert.deepEqual(body, { party: 2, minScore: 74, count: 0, results: [] });
+  assert.deepEqual(body, {
+    party: 2,
+    minScore: 74,
+    count: 0,
+    results: [],
+    // P30.3 (C7): no watch + empty refresh_runs ledger in this suite -> not_cached, null instants.
+    freshness: {
+      oldestFetchedAt: null,
+      newestFetchedAt: null,
+      lastSuccessfulIngestAt: null,
+      coverage: { event: "not_cached" },
+    },
+  });
 });

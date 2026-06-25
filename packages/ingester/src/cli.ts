@@ -14,7 +14,13 @@ import { createPool } from "./db.js";
 import { defaultRegistry } from "./registry.js";
 import { runSweep, shouldBackoff } from "./sweep.js";
 import { runRefreshTick, purgeDisappearedSessions } from "./refresh.js";
+import {
+  maybeEmitCacheAgeDeadManAlert,
+  createDeadManWebhookPoster,
+  type DeadManAlertState,
+} from "./deadman.js";
 import { loadWatchesFile, seedWatches } from "./seed.js";
+import type { Pool } from "./db.js";
 
 const DEFAULT_WATCHES = "watches.json";
 const DEFAULT_INTERVAL_MS = 60 * 60_000; // hourly
@@ -28,6 +34,76 @@ function refreshBudget(): number {
 
 function tombstoneRetentionMs(): number {
   return Number(process.env.REFRESH_TOMBSTONE_RETENTION_MS) || DEFAULT_TOMBSTONE_RETENTION_MS;
+}
+
+const DEFAULT_DEAD_MAN_THRESHOLD_MS = 2 * 60 * 60_000; // 2h with no successful ingest = dead-man
+const DEFAULT_DEAD_MAN_DEDUPE_MS = 60 * 60_000; // re-alert at most hourly while stale
+
+function deadManThresholdMs(): number {
+  return Number(process.env.REFRESH_DEAD_MAN_THRESHOLD_MS) || DEFAULT_DEAD_MAN_THRESHOLD_MS;
+}
+
+function deadManDedupeMs(): number {
+  return Number(process.env.REFRESH_DEAD_MAN_DEDUPE_MS) || DEFAULT_DEAD_MAN_DEDUPE_MS;
+}
+
+/** Australia/Sydney calendar date "YYYY-MM-DD" for a true UTC instant (matches refresh.ts liveness). */
+function sydneyDate(instant: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Australia/Sydney",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(instant);
+  const get = (t: string): string => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/**
+ * P30.3 (C7) dead-man: after a tick, read the global last successful ingest + oldest live fetched_at
+ * and fire the cache-age alert if the cache has aged past the threshold. Non-fatal: any failure here
+ * is logged and swallowed so the alert path can never crash the refresh loop. `state` is held across
+ * ticks by the caller, so the alert is rate-limited by the dedupe window.
+ */
+async function runDeadManCheck(
+  pool: Pool,
+  nowInstant: Date,
+  state: DeadManAlertState,
+  postWebhook: ReturnType<typeof createDeadManWebhookPoster>,
+): Promise<void> {
+  try {
+    const ingest = await pool.query<{ ts: Date | null }>(
+      `SELECT COALESCE(finished_at, started_at) AS ts
+         FROM refresh_runs
+        WHERE outcome = 'ok'
+        ORDER BY COALESCE(finished_at, started_at) DESC
+        LIMIT 1`,
+    );
+    const lastSuccessfulIngestAt = ingest.rows[0]?.ts ?? null;
+
+    const oldest = await pool.query<{ ts: Date | null }>(
+      `SELECT MIN(fetched_at) AS ts
+         FROM sessions
+        WHERE disappeared_at IS NULL AND date >= $1`,
+      [sydneyDate(nowInstant)],
+    );
+    const oldestLiveFetchedAt = oldest.rows[0]?.ts ?? null;
+
+    const res = await maybeEmitCacheAgeDeadManAlert({
+      nowInstant,
+      lastSuccessfulIngestAt,
+      oldestLiveFetchedAt,
+      thresholdMs: deadManThresholdMs(),
+      dedupeWindowMs: deadManDedupeMs(),
+      state,
+      postWebhook,
+    });
+    if (res.alerted) {
+      log(`dead-man: cache age ${res.cacheAgeMs}ms over threshold — alert posted`);
+    }
+  } catch (err) {
+    log(`dead-man check failed (non-fatal): ${(err as Error).message}`);
+  }
 }
 
 function logRefresh(row: { id: number; outcome: string; sessions_due: number; sessions_refreshed: number; sessions_new: number; sessions_skipped_budget: number; errors: number }): void {
@@ -130,6 +206,10 @@ async function doRefreshLoop(): Promise<never> {
   const registry = defaultRegistry();
   const pool = createPool();
 
+  // P30.3 dead-man: dedupe state held in memory across ticks; one poster reused for the loop.
+  const deadManState: DeadManAlertState = {};
+  const deadManPoster = createDeadManWebhookPoster(process.env.REFRESH_DEAD_MAN_WEBHOOK);
+
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
@@ -145,6 +225,13 @@ async function doRefreshLoop(): Promise<never> {
       await purgeDisappearedSessions({ pool, nowInstant: tickAt, retentionMs: tombstoneRetentionMs() });
     } catch (err) {
       log(`refresh tick failed: ${(err as Error).message}`);
+    } finally {
+      // P30.3 dead-man runs EVERY iteration, including when the tick threw (runRefreshTick writes an
+      // outcome='error' row and rethrows). A run of hard-failing ticks is exactly when the cache ages
+      // with no fresh ok ingest, so the dead-man MUST still fire — it reads the last ok refresh_runs
+      // row. Fresh `new Date()` at check time; dedupe state persists across iterations. Internally
+      // non-fatal (own try/catch). Cold start (no ok row ever) stays silent: now - null = NaN.
+      await runDeadManCheck(pool, new Date(), deadManState, deadManPoster);
     }
     await sleep(interval);
   }

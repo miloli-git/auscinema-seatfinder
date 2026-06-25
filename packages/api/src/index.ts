@@ -295,6 +295,87 @@ function buildSessionFilter(opts: {
   return { where: clauses.join(" AND "), params };
 }
 
+// --- P30.3 (C7) /together freshness metadata --------------------------------
+
+type CoverageState = "cached" | "not_cached" | "stale";
+
+interface Freshness {
+  oldestFetchedAt: string | null;
+  newestFetchedAt: string | null;
+  lastSuccessfulIngestAt: string | null;
+  coverage: Record<string, CoverageState>;
+}
+
+const DEFAULT_FRESHNESS_STALE_MS = 2 * 60 * 60_000; // 2h, override via TOGETHER_FRESHNESS_STALE_MS
+
+/** Staleness threshold (ms) from env, defaulting to 2h. Read per-request (cheap, env-overridable). */
+function freshnessStaleMs(): number {
+  const raw = Number(process.env.TOGETHER_FRESHNESS_STALE_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_FRESHNESS_STALE_MS;
+}
+
+/**
+ * Build the additive `/together` freshness object from the SAME live result set plus the global
+ * refresh ledger. oldest/newest = min/max fetched_at over the live rows (true-UTC ISO; null when the
+ * live set is empty). lastSuccessfulIngestAt = newest refresh_runs row with outcome='ok' (finished_at,
+ * fallback started_at), global. coverage enumerates ONLY the requested chain: not_cached unless the
+ * chain has an enabled watch AND a successful ingest exists; stale when cached but the oldest live
+ * fetched_at has aged past the threshold; cached otherwise (including cached-but-no-result).
+ */
+async function computeFreshness(
+  db: Pool,
+  chain: string,
+  liveRows: SessionRow[],
+  now: Date,
+): Promise<Freshness> {
+  // min/max over the live set. fetched_at strings are uniform true-UTC ISO, so lexicographic
+  // comparison is chronological — no parsing needed for the min/max selection itself.
+  let oldestFetchedAt: string | null = null;
+  let newestFetchedAt: string | null = null;
+  for (const r of liveRows) {
+    if (oldestFetchedAt === null || r.fetched_at < oldestFetchedAt) oldestFetchedAt = r.fetched_at;
+    if (newestFetchedAt === null || r.fetched_at > newestFetchedAt) newestFetchedAt = r.fetched_at;
+  }
+
+  // lastSuccessfulIngestAt: latest ok refresh_runs row, finished_at falling back to started_at.
+  // refresh_runs has no chain column, so this is GLOBAL across chains.
+  const ingestRes = await db.query<{ ts: string }>(
+    `SELECT to_char(COALESCE(finished_at, started_at) AT TIME ZONE 'UTC',
+                    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS ts
+       FROM refresh_runs
+      WHERE outcome = 'ok'
+      ORDER BY COALESCE(finished_at, started_at) DESC
+      LIMIT 1`,
+  );
+  const lastSuccessfulIngestAt = ingestRes.rows[0]?.ts ?? null;
+
+  // cached requires an enabled watch for the chain AND at least one successful ingest (global ledger).
+  const watchRes = await db.query(
+    `SELECT 1 FROM watches WHERE chain = $1 AND enabled = true LIMIT 1`,
+    [chain],
+  );
+  const hasEnabledWatch = watchRes.rows.length > 0;
+
+  let coverageState: CoverageState;
+  if (!hasEnabledWatch || lastSuccessfulIngestAt === null) {
+    coverageState = "not_cached";
+  } else if (
+    oldestFetchedAt !== null &&
+    now.getTime() - Date.parse(oldestFetchedAt) > freshnessStaleMs()
+  ) {
+    coverageState = "stale";
+  } else {
+    coverageState = "cached";
+  }
+
+  return {
+    oldestFetchedAt,
+    newestFetchedAt,
+    lastSuccessfulIngestAt,
+    coverage: { [chain]: coverageState },
+  };
+}
+
 // --- Server -----------------------------------------------------------------
 
 export interface BuildServerOptions {
@@ -559,11 +640,12 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const party = Math.max(1, optInt(q, "party") ?? 2);
     const minScore = optInt(q, "minScore") ?? 74;
 
+    const now = new Date();
     const { where, params } = buildSessionFilter({ chain, movieId, cinemaIds, dateFrom, dateTo });
     // P30.2 (C6) liveness: hide tombstoned rows and past-date sessions. Past is by Sydney-local
     // fake-Z wall-date (the `date` column / YYYY-MM-DD prefix), NEVER by UTC-parsing start_time —
     // a yesterday 23:30Z showtime is still "yesterday" even though UTC would map it into today.
-    params.push(sydneyDate(new Date()));
+    params.push(sydneyDate(now));
     const liveWhere = `${where} AND disappeared_at IS NULL AND date >= $${params.length}`;
     const sessionsRes = await db.query<SessionRow>(
       `SELECT id, chain, movie_id, movie_name, cinema_id, cinema_name,
@@ -576,7 +658,11 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       params,
     );
     const sessions = sessionsRes.rows;
-    if (sessions.length === 0) return { party, minScore, count: 0, results: [] };
+
+    // P30.3 (C7) freshness: additive top-level object. NEVER alters count/results or the P30.2
+    // liveness filter — computed from the SAME live `sessions` set plus the refresh_runs ledger.
+    const freshness = await computeFreshness(db, chain, sessions, now);
+    if (sessions.length === 0) return { party, minScore, count: 0, results: [], freshness };
 
     const ids = sessions.map((s) => s.id);
     const seatsRes = await db.query<SeatRow>(
@@ -645,6 +731,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
         approximateAdjacency,
         fetchedAt,
       })),
+      freshness,
     };
   });
 

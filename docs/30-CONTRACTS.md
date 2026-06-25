@@ -110,6 +110,25 @@ freshness: {
 - Empty-result behavior defined: empty `results` + `coverage[chain]='not_cached'` means "not ingested
   yet", distinct from cached-but-no-sessions and sold-out. UI words availability as "moments ago".
 
+### C7 ratified detail (from Codex P30.3 test notes)
+- `oldestFetchedAt`/`newestFetchedAt`: min/max `fetched_at` over the LIVE result set (after P30.2
+  tombstone + past-date filters), true UTC ISO. NULL when the filtered live set is empty.
+- `lastSuccessfulIngestAt`: latest `refresh_runs` row with `outcome='ok'` (`finished_at`, fallback
+  `started_at`); `error`/`lock_skipped` ignored. NULL when none. GLOBAL (refresh_runs has no chain col).
+- `coverage` enumerates ONLY the requested `chain` (not all known chains). Values: `cached` = chain has
+  an enabled watch + successful ingest (even when this movie/cinema/date query returns zero — cached-but-
+  no-result is still `cached`, distinct from `not_cached`); `not_cached` = no enabled watch / no ingest;
+  `stale` = cached but oldest live `fetched_at` age > `TOGETHER_FRESHNESS_STALE_MS`.
+- Dead-man alert helper (pure, exported from `@auscinema/ingester`):
+  `maybeEmitCacheAgeDeadManAlert({ nowInstant, lastSuccessfulIngestAt, oldestLiveFetchedAt?, thresholdMs,
+  dedupeWindowMs, state, postWebhook })`. Trigger = `nowInstant - lastSuccessfulIngestAt > thresholdMs`
+  (`oldestLiveFetchedAt` is payload context, NOT the trigger). De-dupes via caller-owned mutable `state`
+  until `dedupeWindowMs` elapses. Payload mirrors the watcher webhook shape (`content`/`text`/`message`/
+  `title` + structured `deadMan`). `postWebhook` injected (no real network in tests).
+- Worker/CLI wiring env: `REFRESH_DEAD_MAN_THRESHOLD_MS`, `REFRESH_DEAD_MAN_DEDUPE_MS`,
+  `REFRESH_DEAD_MAN_WEBHOOK` (fallback to console/no-op if unset). Additive — never breaks count/results,
+  never alters the P30.2 liveness filter or the P30.1 ledger invariant.
+
 ## C8 — Event #41 adapter fan-out
 ```
 listSessions({ cinemaIds: string[] }) -> Session[]   // union, dedupe by session id
