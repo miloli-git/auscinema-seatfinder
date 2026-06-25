@@ -67,6 +67,25 @@ CREATE TABLE IF NOT EXISTS ingest_runs (
   errors            INTEGER
 );
 
+-- refresh_runs: one row per tiered-refresh tick (#30 P30.1). Additive — does NOT
+-- touch ingest_runs. Counters are NOT NULL so downstream metrics + the dead-man
+-- alert (P30.3) never need source filtering. per_chain / per_tier carry the fairness
+-- and tier-distribution detail as jsonb. Re-appliable via IF NOT EXISTS.
+CREATE TABLE IF NOT EXISTS refresh_runs (
+  id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  started_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+  finished_at             TIMESTAMPTZ,
+  outcome                 TEXT        NOT NULL,           -- 'ok' | 'lock_skipped' | 'error'
+  sessions_due            INTEGER     NOT NULL DEFAULT 0,
+  sessions_refreshed      INTEGER     NOT NULL DEFAULT 0,
+  sessions_skipped_budget INTEGER     NOT NULL DEFAULT 0,
+  sessions_new            INTEGER     NOT NULL DEFAULT 0,
+  sessions_disappeared    INTEGER     NOT NULL DEFAULT 0,
+  errors                  INTEGER     NOT NULL DEFAULT 0,
+  per_chain               JSONB       NOT NULL DEFAULT '{}'::jsonb,
+  per_tier                JSONB       NOT NULL DEFAULT '{}'::jsonb
+);
+
 -- Indexes for the /together query: filter sessions by chain/movie/cinema/date,
 -- then join session_seats by session_id (ordered for adjacency scans) and rank.
 -- Composite covers the full filter (chain, movie_id, cinema-IN, date-range); the

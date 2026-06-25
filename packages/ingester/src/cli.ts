@@ -13,10 +13,24 @@ import { pathToFileURL } from "node:url";
 import { createPool } from "./db.js";
 import { defaultRegistry } from "./registry.js";
 import { runSweep, shouldBackoff } from "./sweep.js";
+import { runRefreshTick } from "./refresh.js";
 import { loadWatchesFile, seedWatches } from "./seed.js";
 
 const DEFAULT_WATCHES = "watches.json";
 const DEFAULT_INTERVAL_MS = 60 * 60_000; // hourly
+const DEFAULT_REFRESH_INTERVAL_MS = 15 * 60_000; // tiered refresh tick cadence
+const DEFAULT_BUDGET_PER_CHAIN = 30;
+
+function refreshBudget(): number {
+  return Number(process.env.REFRESH_BUDGET_PER_CHAIN) || DEFAULT_BUDGET_PER_CHAIN;
+}
+
+function logRefresh(row: { id: number; outcome: string; sessions_due: number; sessions_refreshed: number; sessions_new: number; sessions_skipped_budget: number; errors: number }): void {
+  log(
+    `refresh #${row.id}: ${row.outcome} due=${row.sessions_due} refreshed=${row.sessions_refreshed} ` +
+      `new=${row.sessions_new} skipped_budget=${row.sessions_skipped_budget} errors=${row.errors}`,
+  );
+}
 
 function log(msg: string): void {
   console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -91,6 +105,43 @@ async function doIngestLoop(): Promise<never> {
   }
 }
 
+async function doRefreshOnce(): Promise<void> {
+  const pool = createPool();
+  try {
+    const row = await runRefreshTick({
+      pool,
+      registry: defaultRegistry(),
+      nowInstant: new Date(),
+      budgetPerChain: refreshBudget(),
+    });
+    logRefresh(row);
+  } finally {
+    await pool.end();
+  }
+}
+
+async function doRefreshLoop(): Promise<never> {
+  const interval = Number(process.env.REFRESH_TICK_INTERVAL_MS) || DEFAULT_REFRESH_INTERVAL_MS;
+  const registry = defaultRegistry();
+  const pool = createPool();
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      const row = await runRefreshTick({
+        pool,
+        registry,
+        nowInstant: new Date(),
+        budgetPerChain: refreshBudget(),
+      });
+      logRefresh(row);
+    } catch (err) {
+      log(`refresh tick failed: ${(err as Error).message}`);
+    }
+    await sleep(interval);
+  }
+}
+
 async function main(): Promise<void> {
   const mode = process.argv[2];
   if (mode === "seed") {
@@ -105,7 +156,15 @@ async function main(): Promise<void> {
     }
     return;
   }
-  console.error("usage: auscinema-ingest <seed [watches.json] | ingest [--once]>");
+  if (mode === "refresh") {
+    if (process.argv.includes("--once")) {
+      await doRefreshOnce();
+    } else {
+      await doRefreshLoop();
+    }
+    return;
+  }
+  console.error("usage: auscinema-ingest <seed [watches.json] | ingest [--once] | refresh [--once]>");
   process.exitCode = 2;
 }
 

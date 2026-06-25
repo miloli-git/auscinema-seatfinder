@@ -97,6 +97,54 @@ services:
       - db
     restart: "no"
 
+  # Schema migration gate (#30 P30.1, HIGH-4). The initdb mount (db.volumes schema.sql) only runs on
+  # a FRESH pgdata volume; an existing NAS volume never re-runs it, so a new table like refresh_runs
+  # would be missing and the `refresh` worker would crash-loop. This one-shot waits for the db, then
+  # applies the whole (idempotent, IF NOT EXISTS) schema.sql via psql. It must complete BEFORE
+  # `refresh` starts. Re-running it is a no-op. `$$` escapes a literal `$` for the container shell.
+  migrate:
+    image: postgres:16-alpine
+    command:
+      - "sh"
+      - "-c"
+      - >-
+        until pg_isready -h db -p 5432 -U "$$POSTGRES_USER" >/dev/null 2>&1; do
+          echo 'migrate: waiting for db'; sleep 1;
+        done;
+        echo 'migrate: applying schema.sql';
+        psql "postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@db:5432/$$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /schema.sql
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:?set POSTGRES_USER in .env}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+      POSTGRES_DB: "${POSTGRES_DB:?set POSTGRES_DB in .env}"
+    volumes:
+      - ../db/schema.sql:/schema.sql:ro
+    depends_on:
+      - db
+    restart: "no"
+
+  # "Seats Together" tiered refresh worker (#30 P30.1). Same image as api; reaches the internal db
+  # over the compose network. Runs runRefreshTick on a loop (~15min, REFRESH_TICK_INTERVAL_MS),
+  # holding a deterministic advisory lock so two ticks never sweep concurrently. Long-running, so
+  # `restart: unless-stopped` (unlike the one-shot `ingester` checkpoint above). Reads watches from
+  # the DB (seed via the ingester), so it needs no watches.json mount. Starts only after `migrate`
+  # has applied the schema (so refresh_runs is guaranteed present, HIGH-4).
+  refresh:
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    command: ["node", "packages/ingester/dist/cli.js", "refresh"]
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
+      REFRESH_TICK_INTERVAL_MS: "${REFRESH_TICK_INTERVAL_MS:-900000}"
+      REFRESH_BUDGET_PER_CHAIN: "${REFRESH_BUDGET_PER_CHAIN:-30}"
+    depends_on:
+      db:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
 volumes:
   watcher-state:
   pgdata:
