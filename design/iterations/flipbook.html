@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AusCinema Seat Finder - UI exploration (flipbook)</title>
+<style>
+  :root{
+    --bg:#0c0e13; --panel:#15191f; --panel-2:#1b2030; --line:#2a313c; --line-2:#3a4354;
+    --text:#eef2f8; --muted:#9aa3b2; --accent:#f5b941; --real:#2fd27a; --info:#5aa9ff;
+
+    /* flipbook knobs (Stripe technique) */
+    --card-gap: 22px;
+    --card-inset: 28px;          /* scroll-padding + padding -> edge-peek */
+    --card-fluid: 46cqi;         /* % of carousel box, not viewport */
+    --card-max: 540px;
+    --card-min: 300px;
+    --hover-scale: 1.02;
+    --ease: cubic-bezier(.16,1,.3,1);
+  }
+  *{box-sizing:border-box;min-width:0}
+  body{margin:0;background:radial-gradient(1100px 520px at 88% -12%, #161b27 0%, var(--bg) 58%);
+    color:var(--text);font:16px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  :focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:4px}
+
+  header{padding:40px 28px 8px;max-width:1440px;margin:0 auto}
+  h1{margin:0 0 6px;font-size:28px;letter-spacing:-.015em}
+  h1 b{color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 14px;max-width:760px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);
+    border-top:1px solid var(--line);padding-top:14px;margin-top:6px}
+  .legend b{color:var(--text);font-weight:600}
+  .switch{font-size:12.5px}
+  .switch a{color:var(--info);text-decoration:none}
+  .switch a:hover{text-decoration:underline}
+
+  .tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+    padding:3px 8px;border-radius:999px;border:1px solid var(--line-2);color:var(--muted);white-space:nowrap}
+  .tag--real{color:var(--real);border-color:rgba(47,210,122,.5);background:rgba(47,210,122,.08)}
+  .tag--grounded{color:var(--accent);border-color:rgba(245,185,65,.45);background:rgba(245,185,65,.07)}
+
+  /* ── flipbook ─────────────────────────────────────────────── */
+  .stage{max-width:1440px;margin:0 auto;padding:8px 0 64px}
+
+  .carousel-nav{display:flex;gap:10px;align-items:center;justify-content:flex-end;
+    max-width:1440px;margin:0 auto 14px;padding:0 28px}
+  .carousel-nav .count{margin-right:auto;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .carousel-nav button{
+    width:40px;height:40px;border-radius:50%;border:1px solid var(--line-2);
+    background:var(--panel);color:var(--text);cursor:pointer;display:grid;place-items:center;font-size:16px;
+    transition:background .15s,opacity .15s,transform .15s,border-color .15s;
+  }
+  .carousel-nav button:hover:not(:disabled){background:var(--panel-2);border-color:var(--info)}
+  .carousel-nav button:active:not(:disabled){transform:scale(.94)}
+  .carousel-nav button:disabled{opacity:.3;cursor:default}
+
+  .carousel{position:relative;overflow-x:hidden;container-type:inline-size}
+  .carousel__scroller{
+    display:flex;gap:var(--card-gap);
+    padding-inline:var(--card-inset);
+    scroll-padding-inline-start:var(--card-inset);
+    overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;
+    list-style:none;margin:0;padding-block:6px 18px;
+    -ms-overflow-style:none;scrollbar-width:none;cursor:grab;
+  }
+  .carousel__scroller::-webkit-scrollbar{display:none}
+  .carousel__scroller.is-dragging{cursor:grabbing;scroll-snap-type:none;scroll-behavior:auto}
+  .carousel__item{
+    flex:0 0 clamp(var(--card-min), var(--card-fluid), var(--card-max));
+    scroll-snap-align:start;
+  }
+
+  .card{
+    height:100%;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    display:flex;flex-direction:column;
+    transition:transform .35s var(--ease),box-shadow .35s var(--ease),border-color .35s var(--ease);
+    box-shadow:0 2px 6px -1px rgba(0,0,0,.4);transform-origin:center;
+  }
+  .carousel__scroller:not(.is-dragging) .card:hover{
+    transform:scale(var(--hover-scale));border-color:var(--line-2);
+    box-shadow:0 26px 60px -18px rgba(0,0,0,.7),0 10px 24px -12px rgba(0,0,0,.6);
+  }
+  .card .meta{padding:16px 18px 14px;border-bottom:1px solid var(--line)}
+  .row1{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .card h2{margin:0;font-size:18px}
+  .card h2 a{text-decoration:none}
+  .card h2 a:hover{color:var(--accent)}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .card p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+  .card p em{color:#7d8696}
+  .links{margin-top:10px;display:flex;gap:14px;font-size:12.5px}
+  .links a{color:var(--accent);text-decoration:none}
+  .links a:hover{text-decoration:underline}
+  .links a.spec{color:var(--info)}
+
+  /* preview: 1320x900 mock scaled to card width via JS-set --s */
+  .frame{position:relative;aspect-ratio:1320/900;background:#000;overflow:hidden}
+  .frame iframe{position:absolute;top:0;left:0;width:1320px;height:900px;border:0;
+    transform:scale(var(--s,.4));transform-origin:top left;pointer-events:none}
+  /* drag-shield: lets you grab the carousel over a live iframe */
+  .frame::after{content:"";position:absolute;inset:0}
+
+  footer{max-width:1440px;margin:0 auto;padding:0 28px 60px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line)}
+  footer a{color:var(--info)}
+
+  @media (prefers-reduced-motion: reduce){
+    .card{transition:none}
+    .carousel__scroller{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>AusCinema <b>Seat Finder</b> - UI exploration</h1>
+    <p class="lede">Seven whole-page directions for the same product: find the cinema seat actually
+      worth sitting in. Same data across every mock, so the only variable is design. Drag the deck,
+      or use the arrows.</p>
+    <div class="legend">
+      <span><b>Same data</b> (Toy Story 5 / Event George St / 6 sessions)</span>
+      <span><span class="tag tag--grounded">grounded</span> system extracted off a live site</span>
+      <span><span class="tag tag--real">real layout</span> renders a real captured auditorium</span>
+      <span class="switch"><a href="index.html">View as grid -&gt;</a></span>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="carousel-nav" role="group" aria-label="Carousel controls">
+      <span class="count" id="count"></span>
+      <button class="prev" aria-label="Previous direction" disabled>&larr;</button>
+      <button class="next" aria-label="Next direction">&rarr;</button>
+    </div>
+    <div class="carousel">
+      <ul class="carousel__scroller" data-carousel-drag><!-- cards injected --></ul>
+    </div>
+  </div>
+
+  <footer>
+    <p>Method: design systems extracted with Playwright into <code>extractions/*-DESIGN.md</code>;
+      real auditorium geometry pulled through the project's own chain adapters and scorer into
+      <code>data/real-layouts.json</code>. See <a href="README.md">README</a> for the write-up.
+      Each mock is a single self-contained file. Carousel technique: Stripe case-study flipbook
+      (mandatory scroll-snap + edge-peek + container-query sizing + drag-momentum).</p>
+  </footer>
+
+<script>
+  // mirrors the grid in index.html: [title, file, desc, grounded{label,href}|null, real, note]
+  const cards = [
+    ["A - Transit Board", "mocks/a-transit.html",
+      "Light departure-board / boarding-pass aesthetic. Tabular mono times, ticket-stub hero, one amber signal colour for live status and the heatmap.",
+      null, false],
+    ["B - Locomotive", "mocks/b-locomotive.html",
+      "Swiss-brutalist editorial. Black on white, serif display numerals, hairline catalogue rows, underlined-text CTA. The seat heatmap is the only colour on the page.",
+      {label:"locomotive.ca", href:"extractions/locomotive-DESIGN.md"}, false],
+    ["C - Terminal", "mocks/c-terminal.html",
+      "Dense power-user / keyboard-first (Linear / Raycast). Command-bar query, kbd hints, mono ranked table, data-grid heatmap, editor status bar.",
+      null, false],
+    ["D - Cinematic", "mocks/d-cinematic.html",
+      "Immersive dark auditorium. Glowing curved screen, seat rows raked into perspective, seat quality rendered as luminance so good seats glow in the dark room.",
+      null, false],
+    ["E - Glossier", "mocks/e-glossier.html",
+      "Soft minimalist. White page, humanist Apercu sans, signature blush-pink fields, solid-black radius-0 CTA. Heatmap reworked as a cosmetics swatch ramp (cream to berry).",
+      {label:"glossier.com", href:"extractions/glossier-DESIGN.md"}, false],
+    ["F - Sydney Opera House", "mocks/f-soh-whats-on.html",
+      "A different page: a 'What's On' browse view. Animated full-bleed CSS hero (crossfade + Ken Burns), heavy geometric type, and a mosaic of poster cards with vivid SOH colour-block captions. A best-seat heat chip on each poster keeps the thesis.",
+      {label:"sydneyoperahouse.com", href:"extractions/soh-DESIGN.md"}, false],
+    ["G - Glossier x SOH hybrid", "mocks/g-glossier-soh-hybrid.html",
+      "The convergence: Glossier white / blush / humanist base plus SOH heavy geometric headlines and a single saturated accent. Renders a real Event recliner auditorium (156 seats; daybed / recliner / standard widths) on a charcoal inset with a cinematic glow heatmap.",
+      {label:"Glossier x SOH", href:"extractions/glossier-DESIGN.md"}, true,
+      "Real geometry, seat classes and status; per-seat scores recomputed at render."],
+  ];
+
+  const scroller = document.querySelector('.carousel__scroller');
+  scroller.innerHTML = cards.map(([title, file, desc, grounded, real, note]) => {
+    const tags = [];
+    if (grounded) tags.push(`<span class="tag tag--grounded">grounded</span>`);
+    if (real) tags.push(`<span class="tag tag--real">real layout</span>`);
+    const links = [`<a href="${file}" target="_blank" rel="noopener">Open full screen &#8599;</a>`];
+    if (grounded) links.push(`<a class="spec" href="${grounded.href}" target="_blank" rel="noopener">Extracted system: ${grounded.label}</a>`);
+    return `
+      <li class="carousel__item">
+        <div class="card">
+          <div class="meta">
+            <div class="row1"><h2><a href="${file}">${title}</a></h2><span class="tags">${tags.join("")}</span></div>
+            <p>${desc}${note ? ` <em>(${note})</em>` : ""}</p>
+            <div class="links">${links.join("")}</div>
+          </div>
+          <div class="frame"><iframe src="${file}" loading="lazy" title="${title}" scrolling="no"></iframe></div>
+        </div>
+      </li>`;
+  }).join("");
+
+  // scale each 1320px-wide mock to its frame's real width
+  function rescale(){
+    document.querySelectorAll('.frame').forEach(f => {
+      const s = f.clientWidth / 1320;
+      const ifr = f.querySelector('iframe');
+      if (ifr) ifr.style.setProperty('--s', s);
+    });
+  }
+  if (window.ResizeObserver){
+    const ro = new ResizeObserver(rescale);
+    document.querySelectorAll('.frame').forEach(f => ro.observe(f));
+  }
+  rescale();
+  window.addEventListener('resize', rescale);
+
+  // ── nav + state ────────────────────────────────────────────
+  const prev = document.querySelector('.prev');
+  const next = document.querySelector('.next');
+  const count = document.getElementById('count');
+
+  function step(){
+    const first = scroller.querySelector('.carousel__item');
+    const gap = parseFloat(getComputedStyle(scroller).columnGap) || 0;
+    return first.getBoundingClientRect().width + gap;
+  }
+  function currentIndex(){ return Math.round(scroller.scrollLeft / step()); }
+  function syncButtons(){
+    const max = scroller.scrollWidth - scroller.clientWidth;
+    prev.disabled = scroller.scrollLeft <= 1;
+    next.disabled = scroller.scrollLeft >= max - 1;
+    const i = Math.min(cards.length, currentIndex() + 1);
+    count.textContent = `${i} / ${cards.length}`;
+  }
+  prev.addEventListener('click', () => scroller.scrollBy({left:-step(), behavior:'smooth'}));
+  next.addEventListener('click', () => scroller.scrollBy({left: step(), behavior:'smooth'}));
+  scroller.addEventListener('scroll', syncButtons, {passive:true});
+  window.addEventListener('resize', syncButtons);
+  syncButtons();
+
+  // ── pointer-drag with momentum ─────────────────────────────
+  let down=false, startX=0, startLeft=0, lastX=0, lastT=0, v=0, moved=false, raf=0;
+  scroller.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    down=true; moved=false;
+    startX=lastX=e.clientX; startLeft=scroller.scrollLeft;
+    lastT=e.timeStamp; v=0;
+    cancelAnimationFrame(raf);
+    scroller.setPointerCapture(e.pointerId);
+  });
+  scroller.addEventListener('pointermove', e => {
+    if(!down) return;
+    const dx = e.clientX - startX;
+    if(Math.abs(dx) > 4 && !moved){ moved=true; scroller.classList.add('is-dragging'); }
+    if(!moved) return;
+    scroller.scrollLeft = startLeft - dx;
+    const dt = e.timeStamp - lastT || 16;
+    v = (e.clientX - lastX) / dt;
+    lastX = e.clientX; lastT = e.timeStamp;
+  });
+  function endDrag(e){
+    if(!down) return;
+    down=false;
+    try{ scroller.releasePointerCapture(e.pointerId); }catch(_){}
+    if(!moved) return;
+    scroller.addEventListener('click', ev=>ev.stopPropagation(), {capture:true, once:true});
+    let vel = -v * 16; const friction = 0.94;
+    (function glide(){
+      if(Math.abs(vel) < 0.4){ scroller.classList.remove('is-dragging'); syncButtons(); return; }
+      scroller.scrollLeft += vel; vel *= friction;
+      raf = requestAnimationFrame(glide);
+    })();
+  }
+  scroller.addEventListener('pointerup', endDrag);
+  scroller.addEventListener('pointercancel', endDrag);
+
+  // keyboard
+  window.addEventListener('keydown', e => {
+    if(e.key === 'ArrowRight') next.click();
+    if(e.key === 'ArrowLeft') prev.click();
+  });
+</script>
+</body>
+</html>
