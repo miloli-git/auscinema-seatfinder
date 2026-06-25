@@ -8,10 +8,12 @@ and epic **#31**. This doc is self-contained: a fresh session can resume from it
 **ST-0 (#35) is DONE + verified (2026-06-25).** Routes live through Caddy; cache refreshed; both
 cinemas confirmed via the public tunnel — `/catalog`+`/together` return JSON (count 120, IMAX 96=59 +
 George St 15=61, 15 dates 06-25→07-13). See "ST-0 result" below.
-**ST-4 BUILD COMPLETE + DEPLOYED (06-25). Only remaining step: Milo's browser smoke (Gate 3).**
-Open https://seatfinder.miloli.org → "Seats together" mode → Movie id **19796** (Supergirl: both cinemas,
-7 dates, 42 score cells + 2 sold cells) → Scan → confirm the date×cinema matrix renders; click a score
-cell → drill-in → confirm highlights the block. (Movie input is a raw id, not a name picker — UX follow-up.)
+**ST-4 SHIPPED + VERIFIED (06-25). Gate 3 (Milo browser smoke) PASSED.** Matrix renders live at
+https://seatfinder.miloli.org ("Seats together" mode). The cached-adjacency cinema matrix is done.
+**Next = backlog (no blockers):** (1) **movie name-picker** — input is a raw id today; `/catalog` returns
+names, swap to a dropdown (highest user-value); (2) **#41** Event multi-cinema adapter fan-out (unblocks
+cross-chain search); (3) **#42** seatmap cap so far-out matrix dates fill; (4) **#30** schedule the
+ingester as the hourly compose loop. Recommended order: name-picker → #41 → #42 → #30.
 
 - **DoD contract:** `docs/ST-4-tdd-plan.md` (L1–L4 → named tests). **All layers done, all on `main`, deployed:**
   - **#40 + L2** vitest harness + `apps/web/src/together/{normalize,filters,matrix}.ts` — 26 tests, Codex-reviewed.
