@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AusCinema Seat Finder · What's On · Direction F</title>
+<style>
+  /* ===== Sydney Opera House (Direction F): black-on-white civic frame, geometric heavy sans ===== */
+  :root{
+    --ink:#000000;
+    --paper:#FFFFFF;
+    --slate:#2B333F;
+    --warm-1:#F6F5F3;
+    --warm-2:#FAF5ED;
+    --line:#D4D3CF;
+    --amber:#FFAA18;
+    --amber-soft:#FFD464;
+    --geo:'Century Gothic','Futura','Helvetica Neue',Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--geo);
+    background:var(--paper);
+    color:var(--ink);
+    font-size:16px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+
+  :focus-visible{
+    outline:3px solid var(--amber);
+    outline-offset:2px;
+  }
+
+  /* ===== Top bar ===== */
+  .topbar{
+    display:flex;
+    align-items:center;
+    gap:28px;
+    padding:18px 40px;
+    border-bottom:2px solid var(--ink);
+    position:sticky;
+    top:0;
+    background:var(--paper);
+    z-index:50;
+    flex-wrap:wrap;
+  }
+  .wordmark{
+    font-weight:900;
+    font-size:21px;
+    letter-spacing:-0.01em;
+    display:flex;
+    align-items:center;
+    gap:9px;
+    white-space:nowrap;
+  }
+  .wordmark .mark{
+    font-size:24px;
+    line-height:1;
+  }
+  .nav{
+    display:flex;
+    gap:24px;
+    font-weight:700;
+    font-size:14px;
+  }
+  .nav a{padding:6px 2px;border-bottom:3px solid transparent}
+  .nav a:hover{border-bottom-color:var(--ink)}
+  .topbar .spacer{flex:1}
+  .search{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border:2px solid var(--ink);
+    border-radius:4px;
+    padding:8px 14px;
+    font-weight:700;
+    font-size:14px;
+    color:var(--slate);
+    background:var(--paper);
+    cursor:text;
+  }
+  .search:hover{border-color:var(--amber)}
+  /* mode toggle */
+  .modetoggle{
+    display:inline-flex;
+    border:2px solid var(--ink);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .modetoggle button{
+    font-family:var(--geo);
+    font-weight:800;
+    font-size:13px;
+    padding:9px 16px;
+    background:var(--paper);
+    color:var(--ink);
+    border:none;
+    cursor:pointer;
+  }
+  .modetoggle button.active{
+    background:var(--ink);
+    color:var(--paper);
+  }
+  .modetoggle button:first-child{border-right:2px solid var(--ink)}
+
+  /* ===== Hero ===== */
+  .hero{
+    position:relative;
+    height:520px;
+    overflow:hidden;
+    background:#0c0a08;
+  }
+  .hero .slides{position:absolute;inset:0}
+  .hero .slide{
+    position:absolute;
+    inset:0;
+    opacity:0;
+    animation:heroFade 18s infinite;
+    will-change:opacity,transform;
+  }
+  .hero .slide .img{
+    position:absolute;
+    inset:0;
+    transform:scale(1.0);
+    animation:kenBurns 18s infinite;
+    will-change:transform;
+  }
+  /* slide 1: golden hour auditorium */
+  .slide-1 .img{
+    background:
+      radial-gradient(120% 90% at 75% 18%, rgba(255,196,92,0.55), transparent 55%),
+      radial-gradient(140% 120% at 20% 95%, rgba(120,30,18,0.8), transparent 60%),
+      linear-gradient(135deg,#2a0f07 0%,#7a2a12 38%,#d98a2b 70%,#f4c66b 100%);
+  }
+  /* slide 2: deep cinema auditorium / screen glow */
+  .slide-2 .img{
+    background:
+      radial-gradient(60% 80% at 50% 38%, rgba(150,180,255,0.5), transparent 60%),
+      radial-gradient(140% 100% at 50% 120%, rgba(8,10,30,0.95), transparent 55%),
+      linear-gradient(160deg,#070a18 0%,#16203f 45%,#33406e 75%,#0d1126 100%);
+  }
+  /* slide 3: velvet seats / red curtain */
+  .slide-3 .img{
+    background:
+      radial-gradient(100% 70% at 30% 22%, rgba(255,140,140,0.35), transparent 55%),
+      radial-gradient(120% 120% at 80% 110%, rgba(30,4,10,0.9), transparent 55%),
+      linear-gradient(135deg,#1c0307 0%,#5e0f1c 40%,#9c2733 72%,#3a0a12 100%);
+  }
+  .hero .slide{animation-delay:0s}
+  .slide-1{animation-delay:0s}
+  .slide-1 .img{animation-delay:0s}
+  .slide-2{animation-delay:6s}
+  .slide-2 .img{animation-delay:6s}
+  .slide-3{animation-delay:12s}
+  .slide-3 .img{animation-delay:12s}
+
+  @keyframes heroFade{
+    0%   {opacity:0}
+    4%   {opacity:1}
+    28%  {opacity:1}
+    36%  {opacity:0}
+    100% {opacity:0}
+  }
+  @keyframes kenBurns{
+    0%   {transform:scale(1.0) translate(0,0)}
+    36%  {transform:scale(1.14) translate(-1.5%,-2%)}
+    100% {transform:scale(1.14) translate(-1.5%,-2%)}
+  }
+  /* paused state */
+  .hero.paused .slide,
+  .hero.paused .slide .img{animation-play-state:paused}
+
+  .hero .scrim{
+    position:absolute;
+    inset:0;
+    background:linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 45%, rgba(0,0,0,0) 70%),
+               linear-gradient(0deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 45%);
+  }
+  .hero .content{
+    position:absolute;
+    left:0;bottom:0;
+    padding:0 40px 56px;
+    max-width:760px;
+  }
+  .hero h1{
+    font-weight:900;
+    color:#fff;
+    font-size:54px;
+    line-height:1.05;
+    letter-spacing:-0.015em;
+    text-shadow:0 2px 18px rgba(0,0,0,0.45);
+    margin-bottom:22px;
+  }
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    background:rgba(255,255,255,0.95);
+    color:#000;
+    font-weight:800;
+    font-size:16px;
+    padding:14px 24px;
+    border-radius:999px;
+    border:2px solid transparent;
+    cursor:pointer;
+  }
+  .pill:hover{border-color:var(--amber)}
+
+  .hero .controls{
+    position:absolute;
+    right:40px;bottom:40px;
+    display:flex;
+    align-items:center;
+    gap:18px;
+  }
+  .hero .dots{display:flex;gap:9px}
+  .hero .dots .dot{
+    width:10px;height:10px;border-radius:999px;
+    background:rgba(255,255,255,0.4);
+    border:1px solid rgba(255,255,255,0.7);
+  }
+  .hero .dots .dot.on{background:#fff}
+  .pausebtn{
+    width:44px;height:44px;
+    border-radius:999px;
+    border:2px solid rgba(255,255,255,0.85);
+    background:rgba(0,0,0,0.25);
+    color:#fff;
+    font-size:15px;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .pausebtn:hover{border-color:var(--amber)}
+
+  /* ===== Section head ===== */
+  .section{
+    max-width:1280px;
+    margin:0 auto;
+    padding:56px 40px 80px;
+  }
+  .section h2{
+    font-weight:900;
+    font-size:32px;
+    line-height:1.2;
+    letter-spacing:-0.01em;
+  }
+  .filters{
+    display:flex;
+    gap:10px;
+    margin-top:16px;
+    flex-wrap:wrap;
+  }
+  .filters .chip{
+    font-weight:700;
+    font-size:13px;
+    padding:8px 16px;
+    border:2px solid var(--line);
+    border-radius:4px;
+    color:var(--slate);
+    background:var(--paper);
+    cursor:pointer;
+  }
+  .filters .chip.on{
+    border-color:var(--ink);
+    color:var(--ink);
+    background:var(--warm-1);
+  }
+  .filters .chip:hover{border-color:var(--ink)}
+
+  /* ===== Movie grid ===== */
+  .grid{
+    margin-top:34px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:28px;
+  }
+  @media(max-width:1080px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+
+  .card{
+    display:flex;
+    flex-direction:column;
+    border-radius:0;
+    cursor:pointer;
+    background:transparent;
+    border:none;
+    text-align:left;
+    font-family:var(--geo);
+    padding:0;
+  }
+  .card:focus-visible{outline:3px solid var(--amber);outline-offset:4px}
+
+  .poster{
+    position:relative;
+    aspect-ratio:3/4;
+    overflow:hidden;
+    display:flex;
+    align-items:flex-end;
+  }
+  .poster .ptitle{
+    position:relative;
+    z-index:2;
+    font-weight:900;
+    color:#fff;
+    font-size:30px;
+    line-height:0.98;
+    letter-spacing:-0.02em;
+    padding:20px;
+    text-shadow:0 2px 14px rgba(0,0,0,0.4);
+    text-transform:uppercase;
+  }
+  .poster .ptex{
+    position:absolute;inset:0;z-index:1;
+    mix-blend-mode:soft-light;
+    opacity:0.5;
+    background:repeating-linear-gradient(115deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 9px);
+  }
+  .card:hover .poster .img{transform:scale(1.05)}
+  .poster .img{
+    position:absolute;inset:0;z-index:0;
+    transition:transform .5s ease;
+  }
+  .chip-best{
+    position:absolute;
+    top:12px;left:12px;
+    z-index:3;
+    font-weight:900;
+    font-size:11px;
+    letter-spacing:0.03em;
+    color:#0c1207;
+    padding:6px 10px;
+    border-radius:999px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.25);
+  }
+  .chip-best .sc{font-size:13px}
+
+  .caption{
+    padding:18px 18px 20px;
+    color:#fff;
+  }
+  .caption.darktext{color:#1a1305}
+  .caption .eyebrow{
+    font-weight:700;
+    font-size:12px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    opacity:0.92;
+    margin-bottom:8px;
+  }
+  .caption .ctitle{
+    font-weight:900;
+    font-size:23px;
+    line-height:1.08;
+    letter-spacing:-0.01em;
+    margin-bottom:10px;
+  }
+  .caption .meta{
+    font-weight:600;
+    font-size:13px;
+    line-height:1.4;
+    opacity:0.9;
+  }
+
+  /* ===== Footer ===== */
+  footer{
+    border-top:2px solid var(--ink);
+    padding:30px 40px;
+    font-weight:700;
+    font-size:13px;
+    color:var(--slate);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+
+  @media(max-width:720px){
+    .hero{height:440px}
+    .hero h1{font-size:38px}
+    .topbar{padding:14px 20px;gap:16px}
+    .nav{display:none}
+    .section{padding:40px 20px 60px}
+    .hero .content{padding:0 20px 48px}
+    .hero .controls{right:20px;bottom:24px}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    .hero .slide,.hero .slide .img{animation:none !important}
+    .slide-1{opacity:1 !important}
+    .slide-2,.slide-3{opacity:0 !important}
+    .card:hover .poster .img{transform:none}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="wordmark"><span class="mark">◐</span> AusCinema Seat Finder</div>
+    <nav class="nav">
+      <a href="#now">What's on</a>
+      <a href="#">Cinemas</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="search" tabindex="0" role="search" aria-label="Search films and cinemas">⌕ Search</div>
+    <div class="modetoggle" role="group" aria-label="Seat finding mode">
+      <button class="active" aria-pressed="true">Best seat</button>
+      <button aria-pressed="false">Seats together</button>
+    </div>
+  </header>
+
+  <!-- Animated hero -->
+  <section class="hero" id="hero" aria-label="Featured">
+    <div class="slides" aria-hidden="true">
+      <div class="slide slide-1"><div class="img"></div></div>
+      <div class="slide slide-2"><div class="img"></div></div>
+      <div class="slide slide-3"><div class="img"></div></div>
+    </div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="content">
+      <h1>Find the seat<br>worth sitting in</h1>
+      <a class="pill" href="#now">Explore what's on ↗</a>
+    </div>
+    <div class="controls">
+      <div class="dots" aria-hidden="true">
+        <span class="dot on"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+      <button class="pausebtn" id="pausebtn" aria-label="Pause background animation" aria-pressed="false">❚❚</button>
+    </div>
+  </section>
+
+  <!-- Now showing -->
+  <main class="section" id="now">
+    <h2>Now showing</h2>
+    <div class="filters" role="group" aria-label="Filter sessions">
+      <button class="chip on">Tonight</button>
+      <button class="chip">This week</button>
+      <button class="chip">All formats</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <footer>
+    <span>Direction F - Sydney Opera House</span>
+    <span>AusCinema Seat Finder · design exploration</span>
+  </footer>
+
+<script>
+  const films=[
+    {title:"Toy Story 5",          genre:"Family · 4DX",         score:94, sessions:6, colour:"#C82D2D"},
+    {title:"Dune: Part Three",     genre:"Sci-Fi · V-Max",       score:91, sessions:5, colour:"#1A3059"},
+    {title:"The Velvet Hour",      genre:"Drama · Gold Class",   score:88, sessions:4, colour:"#3D1D53"},
+    {title:"Wild Coast",           genre:"Adventure · Standard", score:85, sessions:7, colour:"#1F6F78"},
+    {title:"Midnight in Marrakesh",genre:"Thriller · V-Max",     score:83, sessions:3, colour:"#B4471C"},
+    {title:"Last Light",           genre:"Romance · Gold Class", score:80, sessions:4, colour:"#DC6281"},
+    {title:"The Quiet Ones",       genre:"Horror · Standard",    score:77, sessions:5, colour:"#852146"},
+    {title:"Paper Cities",         genre:"Indie · Standard",     score:74, sessions:3, colour:"#C9971A"},
+  ];
+
+  // heat chip colour by score; chip text always dark for legibility
+  function heat(score){
+    if(score>=90) return "#2fd27a"; // vivid green
+    if(score>=80) return "#8fd14a"; // lime
+    return "#f5b941";               // amber
+  }
+
+  // derive a duotone poster gradient from the caption colour, lightened/darkened
+  function posterBg(c){
+    return "radial-gradient(120% 80% at 28% 18%, rgba(255,255,255,0.28), transparent 55%),"+
+           "linear-gradient(155deg, "+shade(c,38)+" 0%, "+c+" 52%, "+shade(c,-34)+" 100%)";
+  }
+  // shift a hex colour lighter(+) / darker(-) by pct
+  function shade(hex,pct){
+    const n=parseInt(hex.slice(1),16);
+    let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+    const t=pct<0?0:255, p=Math.abs(pct)/100;
+    r=Math.round((t-r)*p)+r; g=Math.round((t-g)*p)+g; b=Math.round((t-b)*p)+b;
+    return "rgb("+r+","+g+","+b+")";
+  }
+  // mustard caption needs dark text
+  const DARK_TEXT=new Set(["#C9971A"]);
+
+  const grid=document.getElementById('grid');
+  films.forEach(f=>{
+    const dark=DARK_TEXT.has(f.colour);
+    const card=document.createElement('button');
+    card.className='card';
+    card.setAttribute('aria-label',
+      f.title+", "+f.genre+", best seat score "+f.score+", "+f.sessions+" sessions tonight at Event George Street");
+
+    card.innerHTML=
+      '<div class="poster">'+
+        '<div class="img" style="background:'+posterBg(f.colour)+'"></div>'+
+        '<div class="ptex"></div>'+
+        '<div class="chip-best" style="background:'+heat(f.score)+'">'+
+          'BEST SEAT <span class="sc">'+f.score+'</span>'+
+        '</div>'+
+        '<div class="ptitle">'+f.title+'</div>'+
+      '</div>'+
+      '<div class="caption'+(dark?' darktext':'')+'" style="background:'+f.colour+'">'+
+        '<div class="eyebrow">'+f.genre+'</div>'+
+        '<div class="ctitle">'+f.title+'</div>'+
+        '<div class="meta">Event George St · '+f.sessions+' sessions tonight</div>'+
+      '</div>';
+    grid.appendChild(card);
+  });
+
+  // hero pause toggle (visual is CSS-driven; JS only flips play-state)
+  const hero=document.getElementById('hero');
+  const pb=document.getElementById('pausebtn');
+  pb.addEventListener('click',()=>{
+    const paused=hero.classList.toggle('paused');
+    pb.textContent=paused?'▶':'❚❚';
+    pb.setAttribute('aria-pressed',String(paused));
+    pb.setAttribute('aria-label',paused?'Play background animation':'Pause background animation');
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AusCinema Seat Finder · Results · Direction G (Glossier x SOH)</title>
+<style>
+  /* ---------- Hybrid design tokens ----------
+     BASE/FRAME = Glossier (white, blush, humanist sans, radius 0, tracked caps)
+     IMPACT/TYPE = SOH (heavy geometric headlines, one vivid saturated accent) */
+  :root{
+    --ink:#000000;
+    --paper:#ffffff;
+    --blush:#f6e3e6;
+    --cloud:#f7f7f7;
+    --line:#e8e8e8;
+    --ink2:#333333;
+    --ink3:#666666;
+    --amber:#ffaa18;
+    /* single confident SOH saturated accent */
+    --berry:#a8133a;
+    --berry-deep:#7f0e2c;
+    /* humanist (Glossier) body stack */
+    --sans:'Gill Sans','Gill Sans MT',Calibri,system-ui,sans-serif;
+    /* heavy geometric (SOH) display stack */
+    --geo:'Century Gothic','Futura','Helvetica Neue',Arial,sans-serif;
+    /* cinematic auditorium inset */
+    --pit:#14171a;
+    --pit-2:#1d2126;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  .label{
+    font-family:var(--sans);
+    font-size:12px;
+    line-height:1.7;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink3);
+  }
+  .mono{font-variant-numeric:tabular-nums;}
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:2px solid var(--berry);outline-offset:3px;}
+
+  /* ---------- Promo strip ---------- */
+  .promo{
+    background:var(--ink);color:var(--paper);
+    text-align:center;padding:8px 16px;
+    font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:24px;padding:22px 40px;border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .wordmark{
+    display:flex;align-items:center;gap:10px;
+    font-family:var(--sans);font-size:22px;font-weight:500;
+    letter-spacing:.10em;text-transform:uppercase;
+  }
+  .wordmark .mark{font-size:22px;line-height:1;}
+  .nav{display:flex;align-items:center;gap:28px;}
+  .nav .label{cursor:pointer;}
+  /* mode toggle */
+  .modes{display:flex;align-items:stretch;border:1px solid var(--ink);}
+  .modes button{
+    background:transparent;border:0;padding:9px 16px;
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink2);
+  }
+  .modes button[aria-pressed="true"]{
+    background:var(--berry);color:#fff;font-weight:600;
+  }
+  .modes button + button{border-left:1px solid var(--ink);}
+
+  /* ---------- Search crumb bar ---------- */
+  .crumb{
+    display:flex;align-items:stretch;gap:1px;
+    background:var(--line);
+    margin:24px 40px 0;flex-wrap:wrap;
+  }
+  .crumb .field{
+    background:var(--cloud);padding:12px 18px;flex:1 1 auto;min-width:150px;
+  }
+  .crumb .field .label{margin-bottom:2px;}
+  .crumb .field .val{
+    font-family:var(--sans);font-size:15px;font-weight:500;
+    letter-spacing:.01em;color:var(--ink);
+  }
+  .crumb .refine{
+    display:flex;align-items:center;padding:12px 22px;
+    background:var(--cloud);
+  }
+  .crumb .refine a{
+    font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+    text-decoration:underline;text-underline-offset:3px;font-weight:500;
+  }
+
+  /* ---------- Section eyebrow ---------- */
+  .stage{
+    display:grid;grid-template-columns:340px 1fr;gap:32px;
+    padding:34px 40px 10px;align-items:start;
+  }
+  @media (max-width:1020px){
+    .stage{grid-template-columns:1fr;}
+  }
+  .col-head{
+    font-family:var(--sans);font-size:12px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink3);
+    margin:0 0 14px;
+  }
+
+  /* ---------- Ranked session rail ---------- */
+  .rail{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--line);}
+  .sess{
+    display:grid;grid-template-columns:1fr auto;gap:8px 14px;
+    align-items:center;
+    padding:16px 16px;border-bottom:1px solid var(--line);
+    background:var(--paper);text-align:left;width:100%;border-left:0;border-right:0;border-top:0;
+    transition:background .15s ease;
+  }
+  .sess:hover{background:#fcfcfc;}
+  .sess[aria-current="true"]{background:var(--blush);}
+  .sess .t{
+    grid-column:1;
+    font-family:var(--geo);font-weight:800;font-size:22px;letter-spacing:.01em;
+    line-height:1.1;
+  }
+  .sess .meta{grid-column:1;}
+  .sess .fmt{
+    font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);
+  }
+  .sess .free{
+    font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);
+    margin-top:2px;
+  }
+  .sess .scorechip{
+    grid-column:2;grid-row:1 / span 2;
+    align-self:center;justify-self:end;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-width:54px;padding:8px 6px;
+    border:1px solid var(--ink);
+  }
+  .sess[aria-current="true"] .scorechip{border-color:var(--berry);}
+  .sess .scorechip .n{
+    font-family:var(--geo);font-weight:800;font-size:22px;line-height:1;
+    color:var(--berry);
+  }
+  .sess .scorechip .k{
+    font-size:9px;letter-spacing:.10em;text-transform:uppercase;color:var(--ink3);
+    margin-top:3px;
+  }
+  .sess.is-best .t::after{
+    content:"TOP PICK";
+    display:inline-block;margin-left:10px;vertical-align:middle;
+    font-family:var(--sans);font-size:9px;font-weight:600;letter-spacing:.12em;
+    background:var(--berry);color:#fff;padding:3px 7px;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero{}
+  .hero-band{
+    background:var(--blush);
+    display:flex;align-items:center;justify-content:space-between;gap:24px;
+    padding:24px 28px;flex-wrap:wrap;
+  }
+  .hero-band .title{
+    font-family:var(--geo);font-weight:800;font-size:30px;line-height:1.12;
+    letter-spacing:.01em;margin:0;
+  }
+  .hero-band .sub{
+    font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink2);
+    margin-top:6px;
+  }
+  .hero-right{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
+  .best-badge{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    width:84px;height:84px;border-radius:50%;
+    background:var(--ink);color:#fff;
+  }
+  .best-badge .n{font-family:var(--geo);font-weight:800;font-size:34px;line-height:1;color:#fff;}
+  .best-badge .k{font-size:9px;letter-spacing:.10em;text-transform:uppercase;color:#cfcfcf;margin-top:3px;}
+  .cta{
+    display:inline-flex;align-items:center;gap:10px;
+    background:var(--ink);color:#fff;text-decoration:none;
+    border:2px solid var(--ink);border-radius:4px;
+    padding:15px 22px;
+    font-family:var(--geo);font-weight:800;font-size:15px;letter-spacing:.04em;
+    text-transform:uppercase;
+    transition:border-color .15s ease;
+  }
+  .cta:hover,.cta:focus-visible{border-color:var(--amber);}
+
+  /* ---------- Auditorium inset (cinematic) ---------- */
+  .auditorium{
+    margin-top:18px;
+    background:linear-gradient(180deg,var(--pit) 0%,var(--pit-2) 100%);
+    padding:26px 22px 30px;
+    border:1px solid var(--ink);
+  }
+  .screen{
+    margin:0 auto 6px;max-width:640px;
+    height:8px;border-radius:50%/100% 100% 0 0;
+    background:linear-gradient(180deg,#f4f4f4,#cfcfcf);
+    box-shadow:0 0 38px 8px rgba(255,255,255,.30);
+  }
+  .screen-label{
+    text-align:center;color:#9aa1a8;
+    font-size:11px;letter-spacing:.34em;text-transform:uppercase;
+    margin:8px 0 22px;
+  }
+  .map{
+    display:flex;flex-direction:column;align-items:center;gap:7px;
+  }
+  .seatrow{display:flex;align-items:center;justify-content:center;gap:5px;}
+  .rowlabel{
+    width:20px;flex:0 0 20px;text-align:center;
+    color:#7c838b;font-size:10px;letter-spacing:.04em;
+    font-variant-numeric:tabular-nums;
+  }
+  .aisle{flex:0 0 auto;}
+  .seat{
+    flex:0 0 auto;height:22px;border-radius:4px;
+    border:1px solid rgba(255,255,255,.06);
+    position:relative;
+  }
+  /* class geometry: standard < recliner < daybed(double) */
+  .seat.standard{width:22px;}
+  .seat.recliner{width:31px;height:23px;border-radius:5px;}
+  .seat.daybed{width:50px;height:25px;border-radius:7px;}
+
+  /* heat buckets - green-best cinematic ramp, glow scales with quality */
+  .seat.weak{background:#2f3a36;box-shadow:none;}
+  .seat.ok{background:#5d6b3c;box-shadow:none;}
+  .seat.good{background:#8fb24a;box-shadow:0 0 7px 1px rgba(143,178,74,.55);}
+  .seat.great{background:#c2e24f;box-shadow:0 0 11px 2px rgba(194,226,79,.65);}
+  .seat.elite{background:#e6ff4d;box-shadow:0 0 16px 3px rgba(230,255,77,.75);}
+  .seat.muted{background:#262b2f;box-shadow:none;border-color:rgba(255,255,255,.04);opacity:.65;}
+  .seat.best{
+    box-shadow:0 0 20px 5px rgba(230,255,77,.85);
+    outline:2px solid #ffffff;outline-offset:1px;z-index:2;
+  }
+  .seat .pin{
+    position:absolute;inset:0;display:none;
+    align-items:center;justify-content:center;
+    font-family:var(--geo);font-weight:800;font-size:11px;color:#10120a;
+  }
+  .seat.best .pin{display:flex;}
+
+  .seat:hover::after,.seat:focus-visible::after{
+    content:attr(data-tip);
+    position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);
+    background:#fff;color:#000;white-space:nowrap;
+    font-size:11px;letter-spacing:.02em;padding:5px 8px;border:1px solid #000;
+    z-index:5;pointer-events:none;
+  }
+
+  /* ---------- Legend ---------- */
+  .legend{
+    display:flex;align-items:center;justify-content:space-between;gap:24px;
+    margin-top:24px;flex-wrap:wrap;
+  }
+  .ramp{display:flex;align-items:center;gap:0;}
+  .ramp .swatch{width:34px;height:14px;}
+  .ramp .s-weak{background:#2f3a36;}
+  .ramp .s-ok{background:#5d6b3c;}
+  .ramp .s-good{background:#8fb24a;}
+  .ramp .s-great{background:#c2e24f;}
+  .ramp .s-elite{background:#e6ff4d;}
+  .ramp-wrap{display:flex;flex-direction:column;gap:7px;}
+  .ramp-ends{display:flex;justify-content:space-between;}
+  .ramp-ends span{font-size:10px;letter-spacing:.10em;text-transform:uppercase;color:#9aa1a8;}
+  .classtags{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .ctag{
+    display:inline-flex;align-items:center;gap:8px;
+    border:1px solid rgba(255,255,255,.25);padding:6px 10px;
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#cfd4d9;
+  }
+  .ctag .glyph{display:inline-block;height:13px;border-radius:3px;background:#7c838b;}
+  .ctag.standard .glyph{width:14px;}
+  .ctag.recliner .glyph{width:22px;}
+  .ctag.daybed .glyph{width:32px;}
+  .legend-note{font-size:11px;letter-spacing:.04em;color:#7c838b;text-transform:uppercase;}
+
+  /* ---------- Footer ---------- */
+  footer{
+    margin-top:40px;padding:22px 40px;border-top:1px solid var(--line);
+    font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink3);
+  }
+</style>
+</head>
+<body>
+  <div class="promo">Live seat data · hands off to official booking</div>
+
+  <header class="topbar">
+    <div class="wordmark"><span class="mark" aria-hidden="true">◐</span> AusCinema Seat Finder</div>
+    <nav class="nav" aria-label="Primary">
+      <span class="label">What's On</span>
+      <span class="label">Cinemas</span>
+      <div class="modes" role="group" aria-label="Ranking mode">
+        <button type="button" aria-pressed="true">Best Seat</button>
+        <button type="button" aria-pressed="false">Seats Together</button>
+      </div>
+    </nav>
+  </header>
+
+  <section class="crumb" aria-label="Search summary">
+    <div class="field"><div class="label">Movie</div><div class="val">Toy Story 5</div></div>
+    <div class="field"><div class="label">Chain</div><div class="val">Event Cinemas</div></div>
+    <div class="field"><div class="label">Cinema</div><div class="val">George Street</div></div>
+    <div class="field"><div class="label">Date</div><div class="val">Tonight</div></div>
+    <div class="refine"><a href="#" role="button">Refine ↗</a></div>
+  </section>
+
+  <main class="stage">
+    <section aria-label="Ranked sessions">
+      <h2 class="col-head">Ranked Sessions · Tonight</h2>
+      <div class="rail" id="rail"></div>
+    </section>
+
+    <section class="hero" aria-label="Selected session seat map">
+      <div class="hero-band">
+        <div>
+          <h1 class="title">7:00 PM · V-Max Recliner · George Street</h1>
+          <div class="sub">Screen 8 · 148 seats free</div>
+        </div>
+        <div class="hero-right">
+          <div class="best-badge"><span class="n mono">98</span><span class="k">Best Seat</span></div>
+          <a class="cta" href="#" target="_blank" rel="noopener">Book on Event Cinemas ↗</a>
+        </div>
+      </div>
+
+      <div class="auditorium">
+        <div class="screen" aria-hidden="true"></div>
+        <div class="screen-label">Screen</div>
+        <div class="map" id="map"
+             role="img"
+             aria-label="Heat-mapped auditorium plan for the 7:00 PM V-Max Recliner session. Screen is at the top, ten rows run front to back, 156 seats across daybed, recliner and standard classes. Brighter glowing seats indicate higher viewing quality; the five best available seats are ringed in white.">
+        </div>
+
+        <div class="legend">
+          <div class="ramp-wrap">
+            <div class="ramp" aria-hidden="true">
+              <span class="swatch s-weak"></span>
+              <span class="swatch s-ok"></span>
+              <span class="swatch s-good"></span>
+              <span class="swatch s-great"></span>
+              <span class="swatch s-elite"></span>
+            </div>
+            <div class="ramp-ends"><span>Poor</span><span>Best</span></div>
+          </div>
+          <div class="classtags">
+            <span class="ctag standard"><span class="glyph"></span>Standard</span>
+            <span class="ctag recliner"><span class="glyph"></span>Recliner</span>
+            <span class="ctag daybed"><span class="glyph"></span>Daybed</span>
+          </div>
+          <div class="legend-note" id="legend-note"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Direction G · Glossier x SOH hybrid · real Event recliner layout, cinematic heatmap</footer>
+
+<script>
+  "use strict";
+
+  // ---- Sample ranked sessions (verbatim) ----
+  const sessions=[
+    {t:"7:00 PM",fmt:"V-Max Recliner",cin:"George Street",free:148,score:98},
+    {t:"6:00 PM",fmt:"Gold Class",cin:"George Street",free:50,score:88},
+    {t:"8:30 PM",fmt:"Gold Class",cin:"George Street",free:49,score:88},
+    {t:"6:15 PM",fmt:"V-Max",cin:"George Street",free:144,score:86},
+    {t:"7:00 PM",fmt:"Standard",cin:"George Street",free:60,score:69},
+    {t:"9:10 PM",fmt:"Standard",cin:"George Street",free:31,score:61},
+  ];
+
+  // ---- Real Event Cinemas layout (event-15433720), inlined ----
+  const LAYOUT={"label":"Event Cinemas - mixed (Recliner + Daybed + Standard)","chain":"event","screenName":null,"rowCount":10,"colMin":-20,"colMax":-1,"seats":156,"available":148,"sold":0,"classes":{"daybed":10,"recliner":80,"standard":66},"scoreMin":18,"scoreMax":98,"cells":[{"n":"A1","r":-11,"c":-17,"st":"available","k":"daybed","q":null},{"n":"A2","r":-11,"c":-16,"st":"available","k":"daybed","q":null},{"n":"A3","r":-11,"c":-14,"st":"available","k":"daybed","q":null},{"n":"A4","r":-11,"c":-13,"st":"available","k":"daybed","q":null},{"n":"A5","r":-11,"c":-11,"st":"available","k":"daybed","q":null},{"n":"A6","r":-11,"c":-10,"st":"available","k":"daybed","q":null},{"n":"A7","r":-11,"c":-8,"st":"available","k":"daybed","q":null},{"n":"A8","r":-11,"c":-7,"st":"available","k":"daybed","q":null},{"n":"A9","r":-11,"c":-5,"st":"available","k":"daybed","q":null},{"n":"A10","r":-11,"c":-4,"st":"available","k":"daybed","q":null},{"n":"B1","r":-10,"c":-20,"st":"available","k":"recliner","q":null},{"n":"B2","r":-10,"c":-19,"st":"available","k":"recliner","q":null},{"n":"B3","r":-10,"c":-18,"st":"available","k":"recliner","q":null},{"n":"B4","r":-10,"c":-17,"st":"available","k":"recliner","q":null},{"n":"B5","r":-10,"c":-16,"st":"available","k":"recliner","q":null},{"n":"B6","r":-10,"c":-14,"st":"available","k":"recliner","q":null},{"n":"B7","r":-10,"c":-13,"st":"available","k":"recliner","q":null},{"n":"B8","r":-10,"c":-12,"st":"available","k":"recliner","q":null},{"n":"B9","r":-10,"c":-11,"st":"available","k":"recliner","q":null},{"n":"B10","r":-10,"c":-10,"st":"available","k":"recliner","q":null},{"n":"B11","r":-10,"c":-9,"st":"available","k":"recliner","q":null},{"n":"B12","r":-10,"c":-8,"st":"available","k":"recliner","q":null},{"n":"B13","r":-10,"c":-7,"st":"available","k":"recliner","q":null},{"n":"B14","r":-10,"c":-5,"st":"available","k":"recliner","q":null},{"n":"B15","r":-10,"c":-4,"st":"available","k":"recliner","q":null},{"n":"B16","r":-10,"c":-3,"st":"available","k":"recliner","q":null},{"n":"B17","r":-10,"c":-2,"st":"available","k":"recliner","q":null},{"n":"B18","r":-10,"c":-1,"st":"available","k":"recliner","q":null},{"n":"C1","r":-9,"c":-20,"st":"available","k":"recliner","q":null},{"n":"C2","r":-9,"c":-19,"st":"available","k":"recliner","q":null},{"n":"C3","r":-9,"c":-18,"st":"available","k":"recliner","q":null},{"n":"C4","r":-9,"c":-17,"st":"companion","k":"recliner","q":null},{"n":"C5","r":-9,"c":-16,"st":"special","k":"recliner","q":null},{"n":"C6","r":-9,"c":-14,"st":"special","k":"recliner","q":null},{"n":"C7","r":-9,"c":-13,"st":"companion","k":"recliner","q":null},{"n":"C8","r":-9,"c":-12,"st":"available","k":"recliner","q":null},{"n":"C9","r":-9,"c":-11,"st":"available","k":"recliner","q":null},{"n":"C10","r":-9,"c":-10,"st":"available","k":"recliner","q":null},{"n":"C11","r":-9,"c":-9,"st":"available","k":"recliner","q":null},{"n":"C12","r":-9,"c":-8,"st":"companion","k":"recliner","q":null},{"n":"C13","r":-9,"c":-7,"st":"special","k":"recliner","q":null},{"n":"C14","r":-9,"c":-5,"st":"special","k":"recliner","q":null},{"n":"C15","r":-9,"c":-4,"st":"companion","k":"recliner","q":null},{"n":"C16","r":-9,"c":-3,"st":"available","k":"recliner","q":null},{"n":"C17","r":-9,"c":-2,"st":"available","k":"recliner","q":null},{"n":"C18","r":-9,"c":-1,"st":"available","k":"recliner","q":null},{"n":"D4","r":-7,"c":-17,"st":"available","k":"recliner","q":null},{"n":"D5","r":-7,"c":-16,"st":"available","k":"recliner","q":null},{"n":"D6","r":-7,"c":-14,"st":"available","k":"recliner","q":null},{"n":"D7","r":-7,"c":-13,"st":"available","k":"recliner","q":null},{"n":"D8","r":-7,"c":-12,"st":"available","k":"recliner","q":null},{"n":"D10","r":-7,"c":-10,"st":"available","k":"recliner","q":null},{"n":"D11","r":-7,"c":-9,"st":"available","k":"recliner","q":null},{"n":"D12","r":-7,"c":-8,"st":"available","k":"recliner","q":null},{"n":"D13","r":-7,"c":-7,"st":"available","k":"recliner","q":null},{"n":"D14","r":-7,"c":-6,"st":"available","k":"recliner","q":null},{"n":"D15","r":-7,"c":-4,"st":"available","k":"recliner","q":null},{"n":"D16","r":-7,"c":-3,"st":"available","k":"recliner","q":null},{"n":"D17","r":-7,"c":-2,"st":"available","k":"recliner","q":null},{"n":"D18","r":-7,"c":-1,"st":"available","k":"recliner","q":null},{"n":"E4","r":-6,"c":-17,"st":"available","k":"recliner","q":null},{"n":"E5","r":-6,"c":-16,"st":"available","k":"recliner","q":null},{"n":"E6","r":-6,"c":-14,"st":"available","k":"recliner","q":null},{"n":"E7","r":-6,"c":-13,"st":"available","k":"recliner","q":null},{"n":"E8","r":-6,"c":-12,"st":"available","k":"recliner","q":null},{"n":"E9","r":-6,"c":-11,"st":"available","k":"recliner","q":null},{"n":"E10","r":-6,"c":-10,"st":"available","k":"recliner","q":null},{"n":"E11","r":-6,"c":-9,"st":"available","k":"recliner","q":null},{"n":"E12","r":-6,"c":-8,"st":"available","k":"recliner","q":null},{"n":"E13","r":-6,"c":-7,"st":"available","k":"recliner","q":null},{"n":"E14","r":-6,"c":-6,"st":"available","k":"recliner","q":null},{"n":"E15","r":-6,"c":-4,"st":"available","k":"recliner","q":null},{"n":"E16","r":-6,"c":-3,"st":"available","k":"recliner","q":null},{"n":"E17","r":-6,"c":-2,"st":"available","k":"recliner","q":null},{"n":"E18","r":-6,"c":-1,"st":"available","k":"recliner","q":null},{"n":"F4","r":-5,"c":-17,"st":"available","k":"recliner","q":null},{"n":"F5","r":-5,"c":-16,"st":"available","k":"recliner","q":null},{"n":"F6","r":-5,"c":-14,"st":"available","k":"recliner","q":null},{"n":"F7","r":-5,"c":-13,"st":"available","k":"recliner","q":null},{"n":"F8","r":-5,"c":-12,"st":"available","k":"recliner","q":null},{"n":"F9","r":-5,"c":-11,"st":"available","k":"recliner","q":null},{"n":"F10","r":-5,"c":-10,"st":"available","k":"recliner","q":null},{"n":"F11","r":-5,"c":-9,"st":"available","k":"recliner","q":null},{"n":"F12","r":-5,"c":-8,"st":"available","k":"recliner","q":null},{"n":"F13","r":-5,"c":-7,"st":"available","k":"recliner","q":null},{"n":"F14","r":-5,"c":-6,"st":"available","k":"recliner","q":null},{"n":"F15","r":-5,"c":-4,"st":"available","k":"recliner","q":null},{"n":"F16","r":-5,"c":-3,"st":"available","k":"recliner","q":null},{"n":"F17","r":-5,"c":-2,"st":"available","k":"recliner","q":null},{"n":"F18","r":-5,"c":-1,"st":"available","k":"recliner","q":null},{"n":"G4","r":-4,"c":-17,"st":"available","k":"standard","q":null},{"n":"G5","r":-4,"c":-16,"st":"available","k":"standard","q":null},{"n":"G6","r":-4,"c":-14,"st":"available","k":"standard","q":null},{"n":"G7","r":-4,"c":-13,"st":"available","k":"standard","q":null},{"n":"G8","r":-4,"c":-12,"st":"available","k":"standard","q":null},{"n":"G9","r":-4,"c":-11,"st":"available","k":"standard","q":null},{"n":"G10","r":-4,"c":-10,"st":"available","k":"standard","q":null},{"n":"G11","r":-4,"c":-9,"st":"available","k":"standard","q":null},{"n":"G12","r":-4,"c":-8,"st":"available","k":"standard","q":null},{"n":"G13","r":-4,"c":-7,"st":"available","k":"standard","q":null},{"n":"G14","r":-4,"c":-6,"st":"available","k":"standard","q":null},{"n":"G15","r":-4,"c":-4,"st":"available","k":"standard","q":null},{"n":"G16","r":-4,"c":-3,"st":"available","k":"standard","q":null},{"n":"G17","r":-4,"c":-2,"st":"available","k":"standard","q":null},{"n":"G18","r":-4,"c":-1,"st":"available","k":"standard","q":null},{"n":"H4","r":-3,"c":-17,"st":"available","k":"standard","q":null},{"n":"H5","r":-3,"c":-16,"st":"available","k":"standard","q":null},{"n":"H6","r":-3,"c":-14,"st":"available","k":"standard","q":null},{"n":"H7","r":-3,"c":-13,"st":"available","k":"standard","q":null},{"n":"H8","r":-3,"c":-12,"st":"available","k":"standard","q":null},{"n":"H9","r":-3,"c":-11,"st":"available","k":"standard","q":null},{"n":"H10","r":-3,"c":-10,"st":"available","k":"standard","q":null},{"n":"H11","r":-3,"c":-9,"st":"available","k":"standard","q":null},{"n":"H12","r":-3,"c":-8,"st":"available","k":"standard","q":null},{"n":"H13","r":-3,"c":-7,"st":"available","k":"standard","q":null},{"n":"H14","r":-3,"c":-6,"st":"available","k":"standard","q":null},{"n":"H15","r":-3,"c":-4,"st":"available","k":"standard","q":null},{"n":"H16","r":-3,"c":-3,"st":"available","k":"standard","q":null},{"n":"H17","r":-3,"c":-2,"st":"available","k":"standard","q":null},{"n":"H18","r":-3,"c":-1,"st":"available","k":"standard","q":null},{"n":"J1","r":-2,"c":-20,"st":"available","k":"standard","q":null},{"n":"J2","r":-2,"c":-19,"st":"available","k":"standard","q":null},{"n":"J3","r":-2,"c":-18,"st":"available","k":"standard","q":null},{"n":"J4","r":-2,"c":-17,"st":"available","k":"standard","q":null},{"n":"J5","r":-2,"c":-16,"st":"available","k":"standard","q":null},{"n":"J6","r":-2,"c":-14,"st":"available","k":"standard","q":null},{"n":"J7","r":-2,"c":-13,"st":"available","k":"standard","q":null},{"n":"J8","r":-2,"c":-12,"st":"available","k":"standard","q":null},{"n":"J9","r":-2,"c":-11,"st":"available","k":"standard","q":null},{"n":"J10","r":-2,"c":-10,"st":"available","k":"standard","q":null},{"n":"J11","r":-2,"c":-9,"st":"available","k":"standard","q":null},{"n":"J12","r":-2,"c":-8,"st":"available","k":"standard","q":null},{"n":"J13","r":-2,"c":-7,"st":"available","k":"standard","q":null},{"n":"J14","r":-2,"c":-6,"st":"available","k":"standard","q":null},{"n":"J15","r":-2,"c":-4,"st":"available","k":"standard","q":null},{"n":"J16","r":-2,"c":-3,"st":"available","k":"standard","q":null},{"n":"J17","r":-2,"c":-2,"st":"available","k":"standard","q":null},{"n":"J18","r":-2,"c":-1,"st":"available","k":"standard","q":null},{"n":"K1","r":-1,"c":-20,"st":"available","k":"standard","q":null},{"n":"K2","r":-1,"c":-19,"st":"available","k":"standard","q":null},{"n":"K3","r":-1,"c":-18,"st":"available","k":"standard","q":null},{"n":"K4","r":-1,"c":-17,"st":"available","k":"standard","q":null},{"n":"K5","r":-1,"c":-16,"st":"available","k":"standard","q":null},{"n":"K6","r":-1,"c":-14,"st":"available","k":"standard","q":null},{"n":"K7","r":-1,"c":-13,"st":"available","k":"standard","q":null},{"n":"K8","r":-1,"c":-12,"st":"available","k":"standard","q":null},{"n":"K9","r":-1,"c":-11,"st":"available","k":"standard","q":null},{"n":"K10","r":-1,"c":-10,"st":"available","k":"standard","q":null},{"n":"K11","r":-1,"c":-9,"st":"available","k":"standard","q":null},{"n":"K12","r":-1,"c":-8,"st":"available","k":"standard","q":null},{"n":"K13","r":-1,"c":-7,"st":"available","k":"standard","q":null},{"n":"K14","r":-1,"c":-6,"st":"available","k":"standard","q":null},{"n":"K15","r":-1,"c":-4,"st":"available","k":"standard","q":null},{"n":"K16","r":-1,"c":-3,"st":"available","k":"standard","q":null},{"n":"K17","r":-1,"c":-2,"st":"available","k":"standard","q":null},{"n":"K18","r":-1,"c":-1,"st":"available","k":"standard","q":null}]};
+
+  // ---- Cinematic quality scoring (source q is null; derive from real geometry) ----
+  // Best viewing ~ horizontally centred, around the rear recliner rake. Range clamped 18-98.
+  const cells=LAYOUT.cells;
+  const centerC=(LAYOUT.colMin+LAYOUT.colMax)/2;      // -10.5
+  const rowMin=Math.min(...cells.map(s=>s.r));         // -11 (front, near screen)
+  const rowMax=Math.max(...cells.map(s=>s.r));         // -1  (back)
+  const idealY=0.60;                                   // sweet spot: rear recliners
+  const classBonus={recliner:3,daybed:1,standard:0};
+  function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+
+  cells.forEach(s=>{
+    const dx=Math.abs(s.c-centerC);
+    const yNorm=(s.r-rowMin)/(rowMax-rowMin);
+    const raw=98 - dx*4.8 - Math.abs(yNorm-idealY)*55 + (classBonus[s.k]||0);
+    s._q=Math.round(clamp(raw,18,98));
+    s._bookable=(s.st==="available");
+  });
+
+  // best:1 -> top 5 bookable seats by score
+  const best=[...cells].filter(s=>s._bookable).sort((a,b)=>b._q-a._q).slice(0,5);
+  best.forEach(s=>s._best=true);
+
+  function bucket(q){
+    if(q>=88) return "elite";
+    if(q>=74) return "great";
+    if(q>=58) return "good";
+    if(q>=40) return "ok";
+    return "weak";
+  }
+
+  // ---- Render ranked session rail ----
+  const rail=document.getElementById("rail");
+  sessions.forEach((s,i)=>{
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="sess"+(s.score>=90?" is-best":"");
+    if(i===0){b.setAttribute("aria-current","true");}
+    b.innerHTML=
+      '<div class="t">'+s.t+'</div>'+
+      '<div class="meta"><div class="fmt">'+s.fmt+'</div>'+
+      '<div class="free mono">'+s.free+' seats free · '+s.cin+'</div></div>'+
+      '<div class="scorechip"><span class="n mono">'+s.score+'</span><span class="k">Score</span></div>';
+    b.addEventListener("click",()=>{
+      rail.querySelectorAll(".sess").forEach(el=>el.removeAttribute("aria-current"));
+      b.setAttribute("aria-current","true");
+    });
+    rail.appendChild(b);
+  });
+
+  // ---- Render seat map (real geometry, class-sized cells, aisle gaps) ----
+  const map=document.getElementById("map");
+  const byRow=new Map();
+  cells.forEach(s=>{
+    if(!byRow.has(s.r)) byRow.set(s.r,[]);
+    byRow.get(s.r).push(s);
+  });
+  const rowsSorted=[...byRow.keys()].sort((a,b)=>a-b); // front (rowMin) -> back
+
+  const COL_UNIT=14; // px per empty column for aisle gaps
+  rowsSorted.forEach(r=>{
+    const seatsInRow=byRow.get(r).sort((a,b)=>a.c-b.c);
+    const rowEl=document.createElement("div");
+    rowEl.className="seatrow";
+
+    const lbl=document.createElement("span");
+    lbl.className="rowlabel";
+    lbl.textContent=seatsInRow[0].n.replace(/[0-9]+$/,""); // row letter
+    rowEl.appendChild(lbl);
+
+    let prevC=null;
+    seatsInRow.forEach(s=>{
+      if(prevC!==null && (s.c-prevC)>1){
+        const gap=document.createElement("span");
+        gap.className="aisle";
+        gap.style.width=((s.c-prevC-1)*COL_UNIT)+"px";
+        rowEl.appendChild(gap);
+      }
+      prevC=s.c;
+
+      const seat=document.createElement("span");
+      const heat=s._bookable?bucket(s._q):"muted";
+      seat.className="seat "+s.k+" "+heat+(s._best?" best":"");
+      seat.setAttribute("tabindex","0");
+      const statusTxt=s._bookable?("Q "+s._q):(s.st.charAt(0).toUpperCase()+s.st.slice(1));
+      seat.setAttribute("data-tip",s.n+" · "+s.k+" · "+statusTxt+(s._best?" · TOP PICK":""));
+      seat.setAttribute("aria-label",s.n+" "+s.k+", "+(s._bookable?("quality "+s._q+(s._best?", a top pick":"")):s.st));
+      if(s._best){
+        const pin=document.createElement("span");
+        pin.className="pin";
+        pin.textContent="★";
+        seat.appendChild(pin);
+      }
+      rowEl.appendChild(seat);
+    });
+    map.appendChild(rowEl);
+  });
+
+  // ---- Legend note: reflect what's actually in this auditorium ----
+  document.getElementById("legend-note").textContent=
+    LAYOUT.classes.daybed+" daybed · "+LAYOUT.classes.recliner+" recliner · "+LAYOUT.classes.standard+" standard · 156 seats";
+</script>
+</body>
+</html>
