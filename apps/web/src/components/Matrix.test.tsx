@@ -55,6 +55,24 @@ describe("Matrix (L3.1)", () => {
     ]);
   });
 
+  it("D1 renders date column headers with weekday, day, and month abbreviation", () => {
+    const model = buildMatrix(
+      [
+        result(
+          { id: "jul-2", cinemaId: "A", cinemaName: "Cinema A", startTime: "2026-07-02T19:00:00.000Z" },
+          block(92),
+        ),
+      ],
+      ALL,
+    );
+    const { container } = render(<Matrix model={model} onCellClick={() => {}} />);
+    const header = container.querySelector('[data-date="2026-07-02"]');
+
+    expect(header).not.toBeNull();
+    expect(header?.textContent).toMatch(/Thu\s+2\s+Jul/);
+    expect(header?.textContent).toMatch(/Jul/);
+  });
+
   it("L3.1 first column is sticky (mobile class present)", () => {
     const model = buildMatrix(fixture(), ALL);
     const { container } = render(<Matrix model={model} onCellClick={() => {}} />);
