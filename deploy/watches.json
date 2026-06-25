@@ -1,7 +1,17 @@
 [
   {
     "chain": "event",
-    "cinemaIds": ["15", "96"],
+    "cinemaIds": ["15"],
+    "dateFrom": "2026-06-25",
+    "dateTo": "2026-07-20",
+    "movieId": null,
+    "party": 2,
+    "minScore": 74,
+    "enabled": true
+  },
+  {
+    "chain": "event",
+    "cinemaIds": ["96"],
     "dateFrom": "2026-06-25",
     "dateTo": "2026-07-20",
     "movieId": null,
