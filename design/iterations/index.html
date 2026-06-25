@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AusCinema Seat Finder - UI exploration</title>
+<style>
+  :root{ --bg:#0c0e13; --panel:#15191f; --panel-2:#1b2030; --line:#2a313c; --line-2:#3a4354;
+    --text:#eef2f8; --muted:#9aa3b2; --accent:#f5b941; --real:#2fd27a; --info:#5aa9ff; }
+  *{box-sizing:border-box;min-width:0}
+  body{margin:0;background:radial-gradient(1100px 520px at 88% -12%, #161b27 0%, var(--bg) 58%);
+    color:var(--text);font:16px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  :focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:4px}
+  header{padding:40px 28px 8px;max-width:1440px;margin:0 auto}
+  h1{margin:0 0 6px;font-size:28px;letter-spacing:-.015em}
+  h1 b{color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 14px;max-width:760px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);
+    border-top:1px solid var(--line);padding-top:14px;margin-top:6px}
+  .legend b{color:var(--text);font-weight:600}
+  .tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+    padding:3px 8px;border-radius:999px;border:1px solid var(--line-2);color:var(--muted);white-space:nowrap}
+  .tag--real{color:var(--real);border-color:rgba(47,210,122,.5);background:rgba(47,210,122,.08)}
+  .tag--grounded{color:var(--accent);border-color:rgba(245,185,65,.45);background:rgba(245,185,65,.07)}
+  .grid{max-width:1440px;margin:0 auto;padding:16px 28px 64px;display:grid;grid-template-columns:repeat(2,1fr);gap:26px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .card .meta{padding:16px 18px;border-bottom:1px solid var(--line)}
+  .row1{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .card h2{margin:0;font-size:18px}
+  .card h2 a{text-decoration:none}
+  .card h2 a:hover{color:var(--accent)}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .card p{margin:6px 0 0;color:var(--muted);font-size:13.5px}
+  .links{margin-top:10px;display:flex;gap:14px;font-size:12.5px}
+  .links a{color:var(--accent);text-decoration:none}
+  .links a:hover{text-decoration:underline}
+  .links a.spec{color:var(--info)}
+  .frame{position:relative;aspect-ratio:1320/900;background:#000;overflow:hidden}
+  .frame iframe{position:absolute;top:0;left:0;width:1320px;height:900px;border:0;transform:scale(.5);transform-origin:top left}
+  footer{max-width:1440px;margin:0 auto;padding:0 28px 60px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line)}
+  footer a{color:var(--info)}
+</style>
+</head>
+<body>
+  <header>
+    <h1>AusCinema <b>Seat Finder</b> - UI exploration</h1>
+    <p class="lede">Seven whole-page directions for the same product: find the cinema seat actually
+      worth sitting in. Every mock shares the same data, so the only variable is design. Several are
+      grounded in design systems extracted from live sites; the hybrid renders a real auditorium.</p>
+    <div class="legend">
+      <span><b>Same data</b> across all mocks (Toy Story 5 / Event George St / 6 sessions)</span>
+      <span><span class="tag tag--grounded">grounded</span> built from a system extracted off a live site</span>
+      <span><span class="tag tag--real">real layout</span> renders a real captured auditorium, not a synthetic grid</span>
+    </div>
+  </header>
+  <div class="grid" id="grid"></div>
+  <footer>
+    <p>Method: design systems extracted with Playwright into <code>extractions/*-DESIGN.md</code>;
+      real auditorium geometry pulled through the project's own chain adapters and scorer into
+      <code>data/real-layouts.json</code>. See <a href="README.md">README</a> for the write-up.
+      Every mock is a single self-contained file (no external fonts, images, or scripts).</p>
+  </footer>
+  <script>
+    // direction: [letter+title, file, description, groundedIn{label,href}|null, realData bool, note]
+    const cards = [
+      ["A - Transit Board", "mocks/a-transit.html",
+        "Light departure-board / boarding-pass aesthetic. Tabular mono times, ticket-stub hero, one amber signal colour for live status and the heatmap.",
+        null, false],
+      ["B - Locomotive", "mocks/b-locomotive.html",
+        "Swiss-brutalist editorial. Black on white, serif display numerals, hairline catalogue rows, underlined-text CTA. The seat heatmap is the only colour on the page.",
+        {label:"locomotive.ca", href:"extractions/locomotive-DESIGN.md"}, false],
+      ["C - Terminal", "mocks/c-terminal.html",
+        "Dense power-user / keyboard-first (Linear / Raycast). Command-bar query, kbd hints, mono ranked table, data-grid heatmap, editor status bar.",
+        null, false],
+      ["D - Cinematic", "mocks/d-cinematic.html",
+        "Immersive dark auditorium. Glowing curved screen, seat rows raked into perspective, seat quality rendered as luminance so good seats glow in the dark room.",
+        null, false],
+      ["E - Glossier", "mocks/e-glossier.html",
+        "Soft minimalist. White page, humanist Apercu sans, signature blush-pink fields, solid-black radius-0 CTA. Heatmap reworked as a cosmetics swatch ramp (cream to berry).",
+        {label:"glossier.com", href:"extractions/glossier-DESIGN.md"}, false],
+      ["F - Sydney Opera House", "mocks/f-soh-whats-on.html",
+        "A different page: a 'What's On' browse view. Animated full-bleed CSS hero (crossfade + Ken Burns), heavy geometric type, and a mosaic of poster cards with vivid SOH colour-block captions. A best-seat heat chip on each poster keeps the thesis.",
+        {label:"sydneyoperahouse.com", href:"extractions/soh-DESIGN.md"}, false],
+      ["G - Glossier x SOH hybrid", "mocks/g-glossier-soh-hybrid.html",
+        "The convergence: Glossier white / blush / humanist base plus SOH heavy geometric headlines and a single saturated accent. Renders a real Event recliner auditorium (156 seats; daybed / recliner / standard widths) on a charcoal inset with a cinematic glow heatmap.",
+        {label:"Glossier x SOH", href:"extractions/glossier-DESIGN.md"}, true,
+        "Real geometry, seat classes and status; per-seat scores recomputed at render."],
+    ];
+    const grid = document.getElementById("grid");
+    for (const [title, file, desc, grounded, real, note] of cards) {
+      const c = document.createElement("div"); c.className = "card";
+      const tags = [];
+      if (grounded) tags.push(`<span class="tag tag--grounded">grounded</span>`);
+      if (real) tags.push(`<span class="tag tag--real">real layout</span>`);
+      const links = [`<a href="${file}" target="_blank" rel="noopener">Open full screen ↗</a>`];
+      if (grounded) links.push(`<a class="spec" href="${grounded.href}" target="_blank" rel="noopener">Extracted system: ${grounded.label}</a>`);
+      c.innerHTML =
+        `<div class="meta">
+           <div class="row1"><h2><a href="${file}">${title}</a></h2><span class="tags">${tags.join("")}</span></div>
+           <p>${desc}${note ? ` <em style="color:#7d8696">(${note})</em>` : ""}</p>
+           <div class="links">${links.join("")}</div>
+         </div>
+         <div class="frame"><iframe src="${file}" loading="lazy" title="${title}" scrolling="no"></iframe></div>`;
+      grid.appendChild(c);
+    }
+  </script>
+</body>
+</html>

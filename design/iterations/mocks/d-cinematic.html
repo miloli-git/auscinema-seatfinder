@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AusCinema Seat Finder - Cinematic</title>
+<style>
+  /* Direction D - Cinematic / Spatial. THE ROOM is the hero. */
+  *{ box-sizing:border-box; min-width:0 }
+  :root{
+    --bg:#06070c;
+    --bg2:#0a0c14;
+    --ink:#eef1f8;
+    --muted:#8c93ab;
+    --faint:#5b6178;
+    --line:rgba(255,255,255,.08);
+    --gold:#e9c267;
+    --gold-soft:#f3d590;
+    --blue:#6fb6ff;
+    /* heat ramp */
+    --c-weak:#1c2030;
+    --c-ok:#2f3a52;
+    --c-good:#3f6f8f;
+    --c-great:#5fb1b0;
+    --c-elite:#ffd27a;
+    --c-sold:#15161c;
+  }
+  html,body{ margin:0; padding:0; background:var(--bg); color:var(--ink); }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(120,150,210,.10), transparent 55%),
+      radial-gradient(140% 120% at 50% 120%, #04040a, var(--bg) 60%);
+    overflow-x:hidden;
+  }
+
+  .wrap{ max-width:1180px; margin:0 auto; padding:18px clamp(14px,3vw,30px) 60px; }
+
+  /* ---- top bar ---- */
+  header.top{
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+    padding:6px 2px 16px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.2px; font-size:18px; }
+  .brand .glyph{ font-size:20px; color:var(--gold); text-shadow:0 0 16px rgba(233,194,103,.55); }
+  .brand b{ font-weight:700 }
+  .brand span{ color:var(--muted); font-weight:600 }
+
+  .modes{ display:flex; gap:4px; padding:4px; background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:999px; }
+  .modes button{
+    font:inherit; font-size:13px; font-weight:600; cursor:pointer;
+    color:var(--muted); background:transparent; border:0; padding:7px 15px; border-radius:999px;
+  }
+  .modes button[aria-pressed="true"]{
+    color:#1a1408; background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+    box-shadow:0 0 18px rgba(233,194,103,.35);
+  }
+  .spacer{ flex:1 1 auto }
+
+  /* ---- crumb ---- */
+  .crumb{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-size:13px; color:var(--muted);
+    border:1px solid var(--line); background:rgba(255,255,255,.025);
+    border-radius:12px; padding:10px 14px; margin-bottom:22px;
+  }
+  .crumb .k{ color:var(--faint); text-transform:uppercase; letter-spacing:.12em; font-size:10px; }
+  .crumb .v{ color:var(--ink); font-weight:600; }
+  .crumb .dot{ color:var(--line); }
+  .crumb .refine{
+    margin-left:auto; font:inherit; font-size:12px; font-weight:600; cursor:pointer;
+    color:var(--gold-soft); background:transparent; border:1px solid rgba(233,194,103,.4);
+    padding:6px 13px; border-radius:999px;
+  }
+
+  /* ---- layout ---- */
+  .stage{ display:grid; grid-template-columns:1fr 280px; gap:24px; align-items:start; }
+  @media (max-width:880px){ .stage{ grid-template-columns:1fr } }
+
+  /* ---- hero room ---- */
+  .room{
+    position:relative; border-radius:20px; overflow:hidden;
+    border:1px solid var(--line);
+    background:
+      radial-gradient(85% 60% at 50% 0%, rgba(150,180,235,.14), transparent 60%),
+      linear-gradient(180deg, #0b0e18 0%, #070810 55%, #040509 100%);
+    padding:18px clamp(8px,2vw,26px) 30px;
+  }
+  /* heavy vignette: darkness creeps in from the edges / back */
+  .room::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(120% 90% at 50% 8%, transparent 40%, rgba(2,3,7,.0) 50%, rgba(2,3,7,.85) 100%);
+  }
+
+  .room-head{ display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; position:relative; z-index:2; margin-bottom:6px; }
+  .sess-title{ font-size:13px; color:var(--muted); }
+  .sess-title b{ color:var(--ink); font-weight:700; }
+  .sess-time{ font-size:30px; font-weight:800; letter-spacing:-.5px; line-height:1; }
+  .sess-time small{ font-size:13px; font-weight:600; color:var(--gold-soft); letter-spacing:0; margin-left:8px; }
+  .score-badge{ margin-left:auto; text-align:right; }
+  .score-badge .num{
+    font-size:46px; font-weight:800; line-height:.9; letter-spacing:-1px;
+    color:var(--gold); text-shadow:0 0 26px rgba(233,194,103,.5);
+  }
+  .score-badge .lbl{ font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+
+  /* the curved glowing screen */
+  .screen{
+    position:relative; z-index:2;
+    height:54px; margin:14px auto 4px; max-width:78%;
+    border-radius:50% 50% 50% 50% / 100% 100% 8% 8%;
+    background:linear-gradient(180deg, rgba(220,232,255,.95), rgba(150,180,235,.25) 55%, transparent);
+    box-shadow:0 0 60px 14px rgba(150,185,255,.35), 0 0 120px 30px rgba(120,160,235,.18);
+    border-top:1px solid rgba(255,255,255,.7);
+  }
+  .screen-label{
+    position:relative; z-index:2; text-align:center; font-size:10px; letter-spacing:.4em;
+    text-transform:uppercase; color:#bcd0f5; margin-bottom:8px; opacity:.8;
+  }
+
+  /* perspective field */
+  .field-clip{ position:relative; z-index:2; overflow-x:auto; overflow-y:hidden; padding:6px 0 4px; }
+  .field{
+    perspective:1000px; perspective-origin:50% -10%;
+    width:max-content; min-width:100%;
+    margin:0 auto;
+  }
+  .grid{
+    transform:rotateX(24deg) scale(1);
+    transform-origin:50% 0%;
+    transform-style:preserve-3d;
+    display:flex; flex-direction:column; gap:6px;
+    padding-bottom:24px;
+  }
+  .row{ display:flex; align-items:center; gap:5px; justify-content:center; }
+  .rlabel{
+    width:18px; text-align:center; font-size:10px; font-weight:700; color:var(--muted);
+    transform:rotateX(-24deg); /* counter-rotate so labels stay readable */
+    flex:0 0 auto;
+  }
+  .seat{
+    width:22px; height:18px; border-radius:4px 4px 3px 3px; flex:0 0 auto;
+    border:1px solid rgba(255,255,255,.05);
+    transform:rotateX(-24deg); /* keep seat faces upright/legible */
+    position:relative;
+  }
+  .gap{ width:14px; height:18px; flex:0 0 auto; background:transparent; border:0; }
+
+  .seat.weak{  background:var(--c-weak); }
+  .seat.ok{    background:var(--c-ok);  box-shadow:0 0 5px rgba(90,110,150,.25); }
+  .seat.good{  background:var(--c-good); box-shadow:0 0 9px rgba(63,111,143,.55); }
+  .seat.great{ background:var(--c-great); box-shadow:0 0 14px rgba(95,177,176,.7); }
+  .seat.elite{ background:var(--c-elite); box-shadow:0 0 20px rgba(255,210,122,.85); }
+  .seat.sold{
+    background:var(--c-sold); border-color:rgba(255,255,255,.04);
+    box-shadow:inset 0 0 6px rgba(0,0,0,.7); opacity:.6;
+  }
+  .seat.sold::after{
+    content:""; position:absolute; inset:5px 4px; border-top:1px solid rgba(255,255,255,.13);
+    transform:rotate(-18deg);
+  }
+  .seat.best{
+    outline:2px solid var(--gold);
+    box-shadow:0 0 24px 4px rgba(255,210,122,.95), 0 0 40px 10px rgba(255,200,100,.4);
+    z-index:3;
+  }
+  .seat:focus-visible{ outline:2px solid #fff; outline-offset:2px; z-index:4; }
+
+  /* ---- legend + classes under room ---- */
+  .room-foot{
+    position:relative; z-index:2; display:flex; gap:22px; flex-wrap:wrap; align-items:center;
+    margin-top:8px; padding-top:14px; border-top:1px solid var(--line);
+  }
+  .ramp{ display:flex; align-items:center; gap:8px; font-size:11px; color:var(--muted); }
+  .ramp .swatches{ display:flex; gap:3px; }
+  .ramp i{ width:18px; height:10px; border-radius:2px; display:block; }
+  .classes{ display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--muted); }
+  .classes b{ color:var(--ink); font-weight:600; }
+  .tag{ display:inline-flex; align-items:center; gap:6px; }
+  .tag .pip{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+  .cta-row{ position:relative; z-index:2; margin-top:18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .cta{
+    font:inherit; font-size:14px; font-weight:700; cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; gap:8px;
+    color:#1a1408; background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+    padding:13px 22px; border-radius:12px; border:0;
+    box-shadow:0 0 30px rgba(233,194,103,.4);
+  }
+  .cta:focus-visible{ outline:2px solid #fff; outline-offset:3px; }
+  .cta-note{ font-size:12px; color:var(--muted); }
+
+  /* ---- side rail (secondary) ---- */
+  .rail h2{ font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:2px 0 12px; font-weight:700; }
+  .sess{
+    width:100%; text-align:left; cursor:pointer; font:inherit;
+    display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center;
+    background:rgba(255,255,255,.025); border:1px solid var(--line); border-radius:12px;
+    padding:11px 13px; margin-bottom:8px; color:var(--ink);
+  }
+  .sess:hover{ background:rgba(255,255,255,.05); }
+  .sess[aria-current="true"]{
+    border-color:rgba(233,194,103,.55);
+    background:linear-gradient(180deg, rgba(233,194,103,.10), rgba(233,194,103,.02));
+    box-shadow:0 0 22px rgba(233,194,103,.16);
+  }
+  .sess:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+  .sess .t{ font-size:15px; font-weight:700; }
+  .sess .meta{ font-size:11px; color:var(--muted); }
+  .sess .meta b{ color:var(--ink); font-weight:600; }
+  .sess .sc{ text-align:right; }
+  .sess .sc .n{ font-size:19px; font-weight:800; line-height:1; }
+  .sess .sc .free{ font-size:10px; color:var(--muted); }
+  .band-elite .n{ color:var(--gold); }
+  .band-great .n{ color:var(--c-great); }
+  .band-good  .n{ color:var(--c-good); }
+
+  footer{ margin-top:30px; text-align:center; font-size:11px; color:var(--faint); color:#4a5066; letter-spacing:.04em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand"><span class="glyph">◐</span> <b>AusCinema</b> <span>Seat Finder</span></div>
+    <div class="modes" role="group" aria-label="Search mode">
+      <button type="button" aria-pressed="true">Best seat</button>
+      <button type="button" aria-pressed="false">Seats together</button>
+    </div>
+    <div class="spacer"></div>
+  </header>
+
+  <div class="crumb">
+    <span class="k">Movie</span><span class="v">Toy Story 5</span><span class="dot">·</span>
+    <span class="k">Chain</span><span class="v">Event Cinemas</span><span class="dot">·</span>
+    <span class="k">Cinema</span><span class="v">George Street</span><span class="dot">·</span>
+    <span class="k">Date</span><span class="v">Tonight</span>
+    <button type="button" class="refine">Refine ▾</button>
+  </div>
+
+  <div class="stage">
+
+    <!-- HERO ROOM -->
+    <section class="room" aria-label="Auditorium seat heatmap">
+      <div class="room-head">
+        <div>
+          <div class="sess-time">7:00 PM <small>4DX</small></div>
+          <div class="sess-title"><b>George Street</b> · Screen 8 · 120 seats free</div>
+        </div>
+        <div class="score-badge">
+          <div class="num">94</div>
+          <div class="lbl">Best seat score</div>
+        </div>
+      </div>
+
+      <div class="screen" aria-hidden="true"></div>
+      <div class="screen-label">screen</div>
+
+      <div class="field-clip">
+        <div class="field">
+          <div class="grid" id="grid" role="grid" aria-label="Seat quality heatmap, screen at top, front rows brightest"></div>
+        </div>
+      </div>
+
+      <div class="room-foot">
+        <div class="ramp" aria-hidden="true">
+          <span>Poor</span>
+          <span class="swatches">
+            <i style="background:var(--c-weak)"></i>
+            <i style="background:var(--c-ok)"></i>
+            <i style="background:var(--c-good)"></i>
+            <i style="background:var(--c-great)"></i>
+            <i style="background:var(--c-elite);box-shadow:0 0 8px rgba(255,210,122,.8)"></i>
+          </span>
+          <span>Best</span>
+        </div>
+        <div class="classes">
+          <span class="tag"><span class="pip" style="background:var(--c-good)"></span><b>Standard</b></span>
+          <span class="tag"><span class="pip" style="background:var(--c-great)"></span><b>Recliner</b></span>
+          <span class="tag"><span class="pip" style="background:var(--c-elite)"></span><b>Gold Class</b></span>
+        </div>
+      </div>
+
+      <div class="cta-row">
+        <a class="cta" href="#" aria-label="Book on Event Cinemas, opens official booking page">Book on Event Cinemas ↗</a>
+        <span class="cta-note">Best pick: Row F, centre. Hands off to the official booking page.</span>
+      </div>
+    </section>
+
+    <!-- SECONDARY RAIL -->
+    <aside class="rail">
+      <h2>Ranked sessions</h2>
+      <div id="rail"></div>
+    </aside>
+
+  </div>
+
+  <footer>Direction D - Cinematic. Static design mock, no live data.</footer>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  // ---- sessions (verbatim) ----
+  const sessions=[
+    {t:"7:00 PM",fmt:"4DX",cin:"George Street",free:120,score:94,band:"elite"},
+    {t:"6:00 PM",fmt:"Gold Class",cin:"George Street",free:50,score:88,band:"great"},
+    {t:"8:30 PM",fmt:"Gold Class",cin:"George Street",free:49,score:88,band:"great"},
+    {t:"6:15 PM",fmt:"V-Max",cin:"George Street",free:144,score:86,band:"great"},
+    {t:"7:00 PM",fmt:"Standard",cin:"George Street",free:60,score:69,band:"good"},
+    {t:"9:10 PM",fmt:"Standard",cin:"George Street",free:31,score:61,band:"good"},
+  ];
+  const rail=document.getElementById("rail");
+  sessions.forEach(function(s,i){
+    const b=document.createElement("button");
+    b.type="button"; b.className="sess band-"+s.band;
+    b.setAttribute("aria-current", i===0 ? "true":"false");
+    b.innerHTML=
+      '<div class="t">'+s.t+'</div>'+
+      '<div class="meta"><b>'+s.fmt+'</b><br>'+s.cin+'</div>'+
+      '<div class="sc"><div class="n">'+s.score+'</div><div class="free">'+s.free+' free</div></div>';
+    b.addEventListener("click",function(){
+      rail.querySelectorAll(".sess").forEach(function(x){x.setAttribute("aria-current","false");});
+      b.setAttribute("aria-current","true");
+    });
+    rail.appendChild(b);
+  });
+
+  // ---- seat heatmap (verbatim logic) ----
+  const ROWS="ABCDEFGHJKLMNP".split(""), COLS=20, target=0.62;
+  const bucket=v=>v>=.88?"elite":v>=.74?"great":v>=.58?"good":v>=.4?"ok":"weak";
+  const sold=new Set(["A3","A4","B11","C11","D11","H8","H9","K2","M15","N6","N7","P12","F18","G18"]);
+  const gapCols=new Set([10]); // centre aisle (render as empty space)
+
+  const grid=document.getElementById("grid");
+  const avail=[]; // collect available seats to mark top 5 best-pick
+
+  ROWS.forEach(function(r,ri){
+    const depth=ri/(ROWS.length-1);
+    const rowEl=document.createElement("div");
+    rowEl.className="row"; rowEl.setAttribute("role","row");
+
+    const lblL=document.createElement("span"); lblL.className="rlabel"; lblL.textContent=r;
+    rowEl.appendChild(lblL);
+
+    // front rows larger/brighter, back rows smaller/dimmer
+    const scale=1-(depth*0.34);
+    const dim=1-(depth*0.45);
+
+    for(let c=0;c<COLS;c++){
+      if(gapCols.has(c)){
+        const g=document.createElement("span"); g.className="gap"; rowEl.appendChild(g);
+        continue;
+      }
+      const centre=(COLS-1)/2, central=1-Math.abs(c-centre)/centre;
+      const score=Math.max(0,1-(Math.abs(depth-target)*1.15)-((1-central)*0.55));
+      const id=r+(c+1);
+      const isSold=sold.has(id);
+      const band=bucket(score);
+
+      const seat=document.createElement("button");
+      seat.type="button"; seat.setAttribute("role","gridcell");
+      seat.className="seat "+(isSold?"sold":band);
+      seat.style.width=(22*scale)+"px";
+      seat.style.height=(18*scale)+"px";
+      if(!isSold) seat.style.opacity=String(0.55+dim*0.45);
+      seat.setAttribute("aria-label",
+        "Seat "+id+", "+(isSold?"sold":("quality "+band+", score "+score.toFixed(2))));
+      rowEl.appendChild(seat);
+
+      if(!isSold) avail.push({el:seat,score:score,id:id});
+    }
+
+    const lblR=document.createElement("span"); lblR.className="rlabel"; lblR.textContent=r;
+    rowEl.appendChild(lblR);
+    grid.appendChild(rowEl);
+  });
+
+  // outline top 5 available as best-pick (strongest glow)
+  avail.sort((a,b)=>b.score-a.score).slice(0,5).forEach(function(s){
+    s.el.classList.add("best");
+    s.el.setAttribute("aria-label", s.el.getAttribute("aria-label")+", best pick");
+  });
+
+  // mode toggle
+  document.querySelectorAll(".modes button").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      document.querySelectorAll(".modes button").forEach(function(b){b.setAttribute("aria-pressed","false");});
+      btn.setAttribute("aria-pressed","true");
+    });
+  });
+});
+</script>
+</body>
+</html>

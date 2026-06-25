@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AusCinema Seat Finder · Direction E (Glossier)</title>
+<style>
+  * { box-sizing: border-box; min-width: 0; }
+
+  :root{
+    --ink:#000000;
+    --paper:#FFFFFF;
+    --blush:#F6E3E6;
+    --cloud:#F7F7F7;
+    --line:#E8E8E8;
+    --ink2:#333333;
+    --ink3:#666666;
+    --sans:'Gill Sans','Gill Sans MT',Calibri,system-ui,-apple-system,sans-serif;
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    /* swatch heat ramp */
+    --weak:#FBF1EC;   /* pale cream */
+    --ok:#F6E3E6;     /* blush */
+    --good:#F2A0A0;   /* coral */
+    --great:#E86A6A;  /* warm rose */
+    --elite:#B02E4A;  /* deep berry */
+    --sold:#F7F7F7;   /* grey */
+  }
+
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.45;
+    font-weight:400;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .label{
+    font-size:12px;
+    line-height:1.7;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    font-weight:400;
+  }
+  .mono{ font-family:var(--mono); }
+
+  a{ color:inherit; }
+
+  :focus-visible{
+    outline:2px solid var(--ink);
+    outline-offset:2px;
+  }
+
+  /* ---- promo strip ---- */
+  .promo{
+    background:var(--ink);
+    color:var(--paper);
+    text-align:center;
+    padding:9px 12px;
+    font-size:12px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+  }
+
+  /* ---- header ---- */
+  header{
+    border-bottom:1px solid var(--line);
+    padding:26px 24px 22px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:18px;
+  }
+  .wordmark{
+    font-size:30px;
+    font-weight:500;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    line-height:1.1;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .wordmark .disc{ font-size:26px; }
+
+  /* mode toggle */
+  .modes{ display:flex; gap:26px; align-items:center; }
+  .mode{
+    background:none;
+    border:0;
+    padding:6px 0 8px;
+    cursor:pointer;
+    color:var(--ink3);
+    font-family:var(--sans);
+    position:relative;
+  }
+  .mode.active{ color:var(--ink); }
+  .mode.active::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height:3px;
+    background:var(--blush);
+  }
+
+  /* ---- layout ---- */
+  main{
+    max-width:1180px;
+    margin:0 auto;
+    padding:34px 24px 60px;
+  }
+  .section-label{
+    color:var(--ink3);
+    margin:0 0 14px;
+  }
+
+  /* ---- search crumb ---- */
+  .crumb{
+    display:flex;
+    align-items:stretch;
+    flex-wrap:wrap;
+    gap:1px;
+    margin-bottom:44px;
+  }
+  .crumb-field{
+    background:var(--cloud);
+    border:1px solid var(--cloud);
+    padding:14px 18px 10px;
+    flex:1 1 160px;
+    min-width:0;
+  }
+  .crumb-field .k{
+    display:block;
+    color:var(--ink3);
+    margin-bottom:3px;
+  }
+  .crumb-field .v{ font-size:16px; }
+  .crumb-refine{
+    background:none;
+    border:0;
+    border-bottom:1px solid var(--ink);
+    align-self:center;
+    margin-left:14px;
+    padding:2px 0;
+    cursor:pointer;
+    font-family:var(--sans);
+    font-size:12px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink);
+    text-decoration:none;
+  }
+
+  /* ---- grid ---- */
+  .grid{
+    display:grid;
+    grid-template-columns:340px 1fr;
+    gap:46px;
+    align-items:start;
+  }
+
+  /* ---- session list ---- */
+  .sessions{ list-style:none; margin:0; padding:0; border-top:1px solid var(--line); }
+  .session{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    width:100%;
+    text-align:left;
+    background:none;
+    border:0;
+    border-bottom:1px solid var(--line);
+    padding:18px 16px;
+    cursor:pointer;
+    font-family:var(--sans);
+    color:var(--ink);
+  }
+  .session.selected{ background:var(--blush); }
+  .session:hover:not(.selected){ background:var(--cloud); }
+  .session .time{ font-size:20px; line-height:1.2; }
+  .session .meta{ color:var(--ink3); margin-top:3px; }
+  .score-chip{
+    font-family:var(--mono);
+    font-size:15px;
+    border:1px solid var(--ink);
+    padding:5px 9px;
+    min-width:42px;
+    text-align:center;
+    flex:0 0 auto;
+  }
+  .session.selected .score-chip{ background:var(--paper); }
+
+  /* ---- hero seat map ---- */
+  .hero{ border:1px solid var(--line); }
+  .hero-band{
+    background:var(--blush);
+    padding:18px 22px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:18px;
+    flex-wrap:wrap;
+  }
+  .hero-band h2{
+    margin:0;
+    font-size:20px;
+    font-weight:400;
+    line-height:1.4;
+  }
+  .hero-band .sub{ color:var(--ink2); margin-top:4px; }
+  .hero-best{ text-align:right; }
+  .hero-best .n{ font-family:var(--mono); font-size:34px; line-height:1; }
+  .hero-best .k{ color:var(--ink2); display:block; margin-top:4px; }
+
+  .hero-body{ padding:26px 22px 24px; }
+
+  .screen{
+    margin:0 auto 26px;
+    max-width:560px;
+  }
+  .screen-line{ height:1px; background:var(--ink); }
+  .screen-label{
+    text-align:center;
+    color:var(--ink3);
+    margin-top:8px;
+  }
+
+  /* seat map - scrolls inside its own box on small screens */
+  .map-wrap{ overflow-x:auto; padding-bottom:6px; }
+  .map{
+    display:grid;
+    grid-template-columns:22px repeat(20, 1fr);
+    gap:5px;
+    min-width:520px;
+    margin:0 auto;
+    max-width:640px;
+  }
+  .rowhdr{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink3);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .seat{
+    aspect-ratio:1/1;
+    background:var(--weak);
+  }
+  .seat.weak{ background:var(--weak); }
+  .seat.ok{ background:var(--ok); }
+  .seat.good{ background:var(--good); }
+  .seat.great{ background:var(--great); }
+  .seat.elite{ background:var(--elite); }
+  .seat.sold{ background:var(--sold); position:relative; }
+  .seat.sold::after{
+    content:"";
+    position:absolute;
+    inset:30%;
+    border-top:1px solid var(--ink3);
+    transform:rotate(45deg);
+    transform-origin:center;
+  }
+  .seat.gap{ background:transparent; }
+  .seat.best{ outline:1px solid var(--ink); outline-offset:-1px; }
+
+  /* legend */
+  .legend{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin:26px 0 6px;
+    flex-wrap:wrap;
+  }
+  .legend .ramp{ display:flex; gap:3px; }
+  .legend .sw{ width:26px; height:14px; display:inline-block; }
+  .legend .cap{ color:var(--ink3); }
+
+  /* seat-class tags */
+  .tags{ display:flex; gap:10px; flex-wrap:wrap; margin-top:20px; }
+  .tag{
+    border:1px solid var(--line);
+    padding:7px 12px;
+    color:var(--ink2);
+  }
+
+  /* ---- CTA ---- */
+  .cta-wrap{ margin-top:28px; }
+  .btn{
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    height:46px;
+    padding:0 26px;
+    background:var(--ink);
+    color:var(--paper);
+    border:1px solid var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    text-decoration:none;
+    cursor:pointer;
+    width:100%;
+    max-width:420px;
+  }
+  /* marching-ants dashed outline on hover - fill stays black */
+  .btn::before{
+    content:"";
+    position:absolute;
+    inset:3px;
+    pointer-events:none;
+    opacity:0;
+    background:
+      repeating-linear-gradient(90deg,#fff 0,#fff 6px,transparent 6px,transparent 12px) top/100% 1px no-repeat,
+      repeating-linear-gradient(90deg,#fff 0,#fff 6px,transparent 6px,transparent 12px) bottom/100% 1px no-repeat,
+      repeating-linear-gradient(0deg,#fff 0,#fff 6px,transparent 6px,transparent 12px) left/1px 100% no-repeat,
+      repeating-linear-gradient(0deg,#fff 0,#fff 6px,transparent 6px,transparent 12px) right/1px 100% no-repeat;
+  }
+  .btn:hover::before,
+  .btn:focus-visible::before{
+    opacity:1;
+    animation:ants 0.6s linear infinite;
+  }
+  @keyframes ants{
+    to{ background-position:top 0 left 12px, bottom 0 left 12px, left 0 top 12px, right 0 top 12px; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .btn:hover::before,.btn:focus-visible::before{ animation:none; }
+  }
+
+  footer{
+    border-top:1px solid var(--line);
+    margin-top:54px;
+    padding:22px 24px;
+    color:var(--ink3);
+    text-align:center;
+  }
+
+  /* ---- responsive ---- */
+  @media (max-width:880px){
+    .grid{ grid-template-columns:1fr; gap:38px; }
+  }
+  @media (max-width:560px){
+    header{ padding:20px 16px; }
+    .wordmark{ font-size:23px; }
+    main{ padding:26px 16px 48px; }
+    .crumb-refine{ margin-left:0; margin-top:12px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="promo">Live seat data - hands off to official booking</div>
+
+  <header>
+    <div class="wordmark"><span class="disc" aria-hidden="true">◐</span> AusCinema Seat Finder</div>
+    <nav class="modes" aria-label="Search mode">
+      <button class="mode active label" aria-pressed="true">Best seat</button>
+      <button class="mode label" aria-pressed="false">Seats together</button>
+    </nav>
+  </header>
+
+  <main>
+
+    <p class="section-label label">Your search</p>
+    <div class="crumb">
+      <div class="crumb-field">
+        <span class="k label">Movie</span>
+        <span class="v">Toy Story 5</span>
+      </div>
+      <div class="crumb-field">
+        <span class="k label">Chain</span>
+        <span class="v">Event Cinemas</span>
+      </div>
+      <div class="crumb-field">
+        <span class="k label">Cinema</span>
+        <span class="v">George Street</span>
+      </div>
+      <div class="crumb-field">
+        <span class="k label">Date</span>
+        <span class="v">Tonight</span>
+      </div>
+      <a href="#" class="crumb-refine">Refine</a>
+    </div>
+
+    <div class="grid">
+
+      <section aria-label="Ranked sessions">
+        <p class="section-label label">Ranked sessions</p>
+        <ul class="sessions" id="sessions"></ul>
+      </section>
+
+      <section aria-label="Seat map for selected session">
+        <p class="section-label label">Best seat preview</p>
+        <div class="hero">
+          <div class="hero-band">
+            <div>
+              <h2>7:00 PM · 4DX · George Street</h2>
+              <div class="sub label">Screen 8 · 120 seats free</div>
+            </div>
+            <div class="hero-best">
+              <span class="n">94</span>
+              <span class="k label">Best seat score</span>
+            </div>
+          </div>
+
+          <div class="hero-body">
+            <div class="screen" aria-hidden="true">
+              <div class="screen-line"></div>
+              <div class="screen-label label">Screen</div>
+            </div>
+
+            <div class="map-wrap">
+              <div class="map" id="map" role="img"
+                   aria-label="Auditorium heat map. Seats coloured by quality from pale cream (weak) to deep berry (best). The five best available seats are outlined in black.">
+              </div>
+            </div>
+
+            <div class="legend" aria-hidden="true">
+              <span class="cap label">Poor</span>
+              <span class="ramp">
+                <span class="sw" style="background:var(--weak)"></span>
+                <span class="sw" style="background:var(--ok)"></span>
+                <span class="sw" style="background:var(--good)"></span>
+                <span class="sw" style="background:var(--great)"></span>
+                <span class="sw" style="background:var(--elite)"></span>
+              </span>
+              <span class="cap label">Best</span>
+            </div>
+
+            <div class="tags">
+              <span class="tag label">Standard</span>
+              <span class="tag label">Recliner</span>
+              <span class="tag label">Gold Class</span>
+            </div>
+
+            <div class="cta-wrap">
+              <a href="#" class="btn">Book on Event Cinemas <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="label">AusCinema Seat Finder mock · Direction E - Glossier</footer>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+
+    /* ---- ranked sessions ---- */
+    const sessions=[
+      {t:"7:00 PM",fmt:"4DX",cin:"George Street",free:120,score:94,band:"elite"},
+      {t:"6:00 PM",fmt:"Gold Class",cin:"George Street",free:50,score:88,band:"great"},
+      {t:"8:30 PM",fmt:"Gold Class",cin:"George Street",free:49,score:88,band:"great"},
+      {t:"6:15 PM",fmt:"V-Max",cin:"George Street",free:144,score:86,band:"great"},
+      {t:"7:00 PM",fmt:"Standard",cin:"George Street",free:60,score:69,band:"good"},
+      {t:"9:10 PM",fmt:"Standard",cin:"George Street",free:31,score:61,band:"good"},
+    ];
+
+    const list=document.getElementById('sessions');
+    sessions.forEach(function(s,i){
+      const li=document.createElement('li');
+      const btn=document.createElement('button');
+      btn.className='session'+(i===0?' selected':'');
+      btn.setAttribute('aria-pressed', i===0?'true':'false');
+      btn.innerHTML=
+        '<span>'+
+          '<span class="time">'+s.t+'</span>'+
+          '<span class="meta label">'+s.fmt+' · '+s.cin+' · '+s.free+' free</span>'+
+        '</span>'+
+        '<span class="score-chip">'+s.score+'</span>';
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+
+    /* ---- seat heatmap ---- */
+    const ROWS="ABCDEFGHJKLMNP".split(""), COLS=20, target=0.62;
+    const bucket=v=>v>=.88?"elite":v>=.74?"great":v>=.58?"good":v>=.4?"ok":"weak";
+    const sold=new Set(["A3","A4","B11","C11","D11","H8","H9","K2","M15","N6","N7","P12","F18","G18"]);
+    const gapCols=new Set([10]); // centre aisle (render as empty space)
+
+    const map=document.getElementById('map');
+    const avail=[]; // collect available seats to outline top 5
+
+    ROWS.forEach(function(r,ri){
+      // row header
+      const hdr=document.createElement('div');
+      hdr.className='rowhdr';
+      hdr.textContent=r;
+      map.appendChild(hdr);
+
+      const depth=ri/(ROWS.length-1);
+      for(let c=0;c<COLS;c++){
+        const cell=document.createElement('div');
+        const id=r+(c+1);
+
+        if(gapCols.has(c)){
+          cell.className='seat gap';
+          map.appendChild(cell);
+          continue;
+        }
+
+        const centre=(COLS-1)/2, central=1-Math.abs(c-centre)/centre;
+        const score=Math.max(0,1-(Math.abs(depth-target)*1.15)-((1-central)*0.55));
+
+        if(sold.has(id)){
+          cell.className='seat sold';
+          cell.title=id+' · sold';
+        }else{
+          const b=bucket(score);
+          cell.className='seat '+b;
+          cell.title=id;
+          avail.push({cell:cell,score:score,id:id});
+        }
+        map.appendChild(cell);
+      }
+    });
+
+    // outline top 5 available as best-pick
+    avail.sort((a,b)=>b.score-a.score).slice(0,5).forEach(function(s){
+      s.cell.classList.add('best');
+      s.cell.title=s.id+' · best pick';
+    });
+
+  });
+</script>
+</body>
+</html>
