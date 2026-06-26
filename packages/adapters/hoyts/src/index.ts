@@ -222,6 +222,7 @@ function mapTypeStatus(typeId: string, seat: Json): SeatStatus {
 /** Push one concrete seat (already known not to be a gap) into the accumulator. */
 function pushSeat(
   seats: Seat[],
+  usedIds: Set<string>,
   seat: Json,
   rowLabel: string,
   rowCoord: number,
@@ -229,8 +230,17 @@ function pushSeat(
   paired: boolean,
 ): void {
   const typeId = (str(seat.typeId) ?? "").toLowerCase();
+  // Bare upstream seat.id repeats across rows (row C "3" and row D "3" both arrive as "3"),
+  // which breaks persistence under session_seats (session_id, seat_id). Keep the bare id when
+  // it is unique within the map; on collision, qualify it by grid position (row/col coords,
+  // which are unique per real seat). Deterministic for the same input ordering. Geometry
+  // (rowLabel/row/col) is untouched.
+  const base = idStr(seat.id);
+  let id = base;
+  if (usedIds.has(id)) id = `${base}|${rowCoord}|${colCoord}`;
+  usedIds.add(id);
   seats.push({
-    id: idStr(seat.id),
+    id,
     name: str(seat.name),
     rowLabel,
     row: rowCoord,
@@ -255,6 +265,8 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
     }));
 
   const seats: Seat[] = [];
+  // Tracks Seat.id values already emitted in this map so colliding bare ids can be qualified.
+  const usedIds = new Set<string>();
   const rows = arr(root?.rows);
   // Row coord: index in the rows array. Hoyts lists front(screen)->back, and core wants
   // HIGHER row = further back - so the index works directly (row 0 = front).
@@ -287,13 +299,13 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
       if (group.length > 0) {
         const paired = group.length > 1;
         for (const member of group) {
-          pushSeat(seats, member, rowLabel, rowIdx, col, paired);
+          pushSeat(seats, usedIds, member, rowLabel, rowIdx, col, paired);
           col += 1;
         }
         continue;
       }
       // Plain single seat (recliner/standard/wheelchair etc.).
-      pushSeat(seats, slot, rowLabel, rowIdx, col, false);
+      pushSeat(seats, usedIds, slot, rowLabel, rowIdx, col, false);
       col += 1;
     }
   });

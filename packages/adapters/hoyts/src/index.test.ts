@@ -79,6 +79,40 @@ test("getSeatMap: maps sold seats and front->back row indices", async () => {
   assert.ok(c1.row > a.row, "row C further back than row A");
 });
 
+test("getSeatMap: real seat ids are unique across rows when Hoyts raw ids repeat", async () => {
+  const adapter = adapterReturning(loadFixture("seats.duplicate-seat-ids.json"));
+
+  const first = await adapter.getSeatMap("DUPCIN:12345");
+  const second = await adapter.getSeatMap("DUPCIN:12345");
+
+  // Hoyts spacers currently carry an empty id; persisted seats are the non-spacer entries.
+  assert.ok(first.seats.some((s) => s.status === "spacer"), "fixture includes a structural spacer");
+  const realSeats = first.seats.filter((s) => s.status !== "spacer");
+  const realSeatIds = realSeats.map((s) => s.id);
+
+  assert.equal(realSeats.length, 4);
+  assert.ok(realSeatIds.every((id) => id.length > 0), "real seats carry booking ids");
+  assert.equal(
+    new Set(realSeatIds).size,
+    realSeats.length,
+    "real Seat.id values must be unique within one Hoyts seat map",
+  );
+
+  const secondRealSeatIds = second.seats.filter((s) => s.status !== "spacer").map((s) => s.id);
+  assert.deepEqual(secondRealSeatIds, realSeatIds, "real Seat.id values are deterministic for the same map");
+
+  const geometry = (name: string): { rowLabel: string; row: number; col: number } => {
+    const seat = realSeats.find((s) => s.name === name);
+    assert.ok(seat, `${name} present`);
+    return { rowLabel: seat.rowLabel, row: seat.row, col: seat.col };
+  };
+
+  assert.deepEqual(geometry("C3"), { rowLabel: "C", row: 0, col: 0 });
+  assert.deepEqual(geometry("C4"), { rowLabel: "C", row: 0, col: 2 });
+  assert.deepEqual(geometry("D3"), { rowLabel: "D", row: 1, col: 0 });
+  assert.deepEqual(geometry("D4"), { rowLabel: "D", row: 1, col: 1 });
+});
+
 test("listSessions: filters per-cinema feed by movieId + date, composites the id", async () => {
   const adapter = adapterReturning(loadFixture("sessions.midcin.json"));
   const sessions = await adapter.listSessions({

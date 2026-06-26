@@ -1,0 +1,61 @@
+{
+  "screenName": "Duplicate Seat Id Fixture",
+  "areas": [
+    {
+      "id": 1,
+      "code": "0000000001",
+      "name": "Standard"
+    }
+  ],
+  "rows": [
+    {
+      "name": "C",
+      "seats": [
+        {
+          "areaId": 1,
+          "name": "C3",
+          "number": "3",
+          "rowNumber": "C",
+          "id": 3,
+          "rowId": 30,
+          "typeId": "standard"
+        },
+        {
+          "typeId": "gap"
+        },
+        {
+          "areaId": 1,
+          "name": "C4",
+          "number": "4",
+          "rowNumber": "C",
+          "id": 4,
+          "rowId": 30,
+          "typeId": "standard"
+        }
+      ]
+    },
+    {
+      "name": "D",
+      "seats": [
+        {
+          "areaId": 1,
+          "name": "D3",
+          "number": "3",
+          "rowNumber": "D",
+          "id": 3,
+          "rowId": 31,
+          "typeId": "standard"
+        },
+        {
+          "areaId": 1,
+          "name": "D4",
+          "number": "4",
+          "rowNumber": "D",
+          "id": 4,
+          "rowId": 31,
+          "typeId": "standard"
+        }
+      ]
+    }
+  ]
+}
