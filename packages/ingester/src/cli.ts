@@ -130,8 +130,11 @@ async function doSeed(argv: string[]): Promise<void> {
   const pool = createPool();
   try {
     const seeds = await loadWatchesFile(path);
-    const { inserted, skipped } = await seedWatches(pool, seeds);
-    log(`seed: ${inserted} inserted, ${skipped} skipped (already present) from ${path}`);
+    const { inserted, reEnabled, disabled, unchanged } = await seedWatches(pool, seeds);
+    log(
+      `seed: ${inserted} inserted, ${reEnabled} re-enabled, ${disabled} disabled, ` +
+        `${unchanged} unchanged from ${path}`,
+    );
   } finally {
     await pool.end();
   }

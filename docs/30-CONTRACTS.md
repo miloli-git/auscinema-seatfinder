@@ -141,6 +141,28 @@ listSessions({ cinemaIds: string[] }) -> Session[]   // union, dedupe by session
 - Watch topology stays split this pass (Q6). Collapse deferred to P30.4 — `seedWatches` only inserts
   new natural keys (`seed.ts:65-86`), so collapse needs explicit orphan-disable, out of scope here.
 
+## C9 — Watch-seed reconciliation + cinema-id validation (P30.4)
+`watches.json` is the AUTHORITATIVE desired enabled set. Seeding must make the DB match it:
+- INSERT watches in the file not yet present (existing behavior).
+- For a file watch whose natural key already exists, ensure `enabled=true` (re-enable if previously disabled).
+- DISABLE (set `enabled=false`, do NOT delete — keep cached sessions) any currently-enabled DB watch
+  whose natural key is NOT in the file. This is what makes the Event collapse safe: old `[15]` and
+  `[96]` single-cinema watches get disabled when the file has the merged `[15,66,96]` watch, so the
+  refresh worker discovers each cinema once, not twice.
+- Natural key = `(chain, cinemaIds-as-sorted-set, movieId)`. `[15,96]` and `[15,66,96]` are DISTINCT keys.
+- VALIDATION GUARD (Codex #41 LOW): reject any watch whose `cinemaIds` contains an element with a comma
+  (e.g. `["15,96"]`) — fail the seed loudly, never silently pass a comma to the adapter. Each cinemaId
+  must be a single non-empty token.
+- Report counts: `seedWatches` return shape becomes `{ inserted, reEnabled, disabled, unchanged }`
+  (replaces `{ inserted, skipped }` — the `cli.ts doSeed` caller must update its log line). No silent reconciliation.
+- TRANSACTIONALITY: a seed with any invalid cinemaId token is all-or-nothing — it rejects loudly and
+  NO insert/re-enable/disable from that call persists (wrap the reconciliation in one transaction).
+- Natural key EXCLUDES the date window: changing only `dateFrom`/`dateTo` of an existing watch is
+  `unchanged` (same natural key), not a new watch.
+- P30.4 watch set (resolved from Milo's cinemas): Event `[15,66,96]` (George St/Parramatta/IMAX),
+  Hoyts `[BROADW,SHOWGR]` (Broadway/EQ), Reading `[auburn]`. Village unwatched (stays `not_cached`).
+  `dateFrom` bumped off the stale hardcoded date to a current window.
+
 ---
 
 ## Phase receipts (Q7 — orchestrator gates on these; resume from last green, never replay arc)
