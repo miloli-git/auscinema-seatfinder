@@ -36,14 +36,17 @@ then a Stage 10 five-user usability test.
   House "What's On" direction as a first-class door, not a side branch).
 - **Decision model:** a **Tradeoff Chooser** — the user picks the tradeoff that matters tonight —
   rather than one globally imposed ranking. (Best-Option-First is kept as a contrast concept, C2.)
-- **v1 lenses:** best seats left / best screen / soonest. "Least crowded" deferred (it is only an
-  availability-ratio proxy, the least trustworthy signal).
+- **v1 lenses:** best seats left / best screen / soonest / **best turnout** (the day where the most of
+  a flexible group can sit together). "Least crowded" deferred (it is only an availability-ratio proxy,
+  the least trustworthy signal).
 - **Context capture:** assumed defaults (near me / tonight / 2 people), skip straight to results,
   refine after. No up-front wizard.
 - **Group availability:** the **organiser is a co-primary persona** (solo = N=1). Group attendance is
   often not locked and varies by day (6 Tue / 7 Wed); the organiser **inputs the day-dependent
-  headcount themselves** and the product weighs turnout. No group RSVP / shareable-poll coordination
-  layer (that is a separate, bigger product). Open: does a "best turnout" lens join the v1 set?
+  headcount themselves** (per-day sliders, progressive disclosure) and the product weighs turnout.
+  "Best turnout" is the 4th v1 lens, defined as the largest adjacent (sit-together) block for the
+  day's headcount. No group RSVP / shareable-poll coordination layer (that is a separate, bigger
+  product). Open for testing: is the per-day slider the right input control?
 
 ## Honesty note
 
