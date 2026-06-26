@@ -135,6 +135,9 @@ listSessions({ cinemaIds: string[] }) -> Session[]   // union, dedupe by session
 ```
 - One request PER cinemaId, merged; NEVER a single comma `cinemaIds=15,96` request (returns 0 today,
   `packages/adapters/event/src/index.ts:54-57`). Test: 2 cinemaIds → union, no comma path.
+- Empty `cinemaIds` → no upstream requests, `[]`. Error path (ratified): if any per-cinema request
+  rejects, `listSessions` rejects with that error (no partial result) — matches the existing
+  Event/Hoyts/Reading convention (listSessions does not catch fetchJson failures).
 - Watch topology stays split this pass (Q6). Collapse deferred to P30.4 — `seedWatches` only inserts
   new natural keys (`seed.ts:65-86`), so collapse needs explicit orphan-disable, out of scope here.
 

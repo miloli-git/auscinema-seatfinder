@@ -51,16 +51,31 @@ export class EventCinemasAdapter implements ChainAdapter {
   }
 
   async listSessions(query: SessionQuery): Promise<Session[]> {
-    const ids = query.cinemaIds.join(",");
-    const url =
-      `${this.base}/Cinemas/GetSessions?cinemaIds=${encodeURIComponent(ids)}` +
-      `&movieId=${encodeURIComponent(query.movieId)}&date=${encodeURIComponent(query.date)}`;
-    const raw = await this.fetchJson(url);
-    const sessions = parseSessions(raw);
+    // C8: one request PER cinemaId (Event's GetSessions returns 0 for a comma-joined cinemaIds),
+    // then merge the per-cinema responses and dedupe by Session.id. Empty cinemaIds -> no requests.
+    // If any per-cinema request rejects, Promise.all propagates it (no partial result) - matches the
+    // existing Event/Hoyts/Reading convention.
+    const perCinema = await Promise.all(
+      query.cinemaIds.map((cinemaId) => {
+        const url =
+          `${this.base}/Cinemas/GetSessions?cinemaIds=${encodeURIComponent(cinemaId)}` +
+          `&movieId=${encodeURIComponent(query.movieId)}&date=${encodeURIComponent(query.date)}`;
+        return this.fetchJson(url).then(parseSessions);
+      }),
+    );
+
+    const byId = new Map<string, Session>();
+    for (const sessions of perCinema) {
+      for (const s of sessions) {
+        if (!byId.has(s.id)) byId.set(s.id, s);
+      }
+    }
+    const merged = [...byId.values()];
+
     // Event's GetSessions IGNORES the movieId param - it returns every movie playing at the
     // cinema/date. Filter to the requested movie client-side (empty movieId = all movies).
     const want = query.movieId.trim();
-    return want ? sessions.filter((s) => s.movieId === want) : sessions;
+    return want ? merged.filter((s) => s.movieId === want) : merged;
   }
 
   async getSeatMap(sessionId: string, _opts?: { preview?: boolean }): Promise<SeatMap> {

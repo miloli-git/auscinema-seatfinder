@@ -17,6 +17,72 @@ function adapterReturning(fixture: unknown): EventCinemasAdapter {
   return new EventCinemasAdapter({ fetchJson });
 }
 
+const C8_QUERY = { movieId: "19797", date: "2026-07-21" } as const;
+
+function sessionsPayload(
+  cinemas: Array<{ id: string; name: string; sessionIds: string[] }>,
+  opts: { movieId?: string; movieName?: string } = {},
+): unknown {
+  const movieId = opts.movieId ?? C8_QUERY.movieId;
+  const movieName = opts.movieName ?? "C8 Movie";
+  return {
+    Success: true,
+    Data: {
+      Movies: [
+        {
+          Id: movieId,
+          Name: movieName,
+          CinemaModels: cinemas.map((cinema, cinemaIndex) => ({
+            Id: cinema.id,
+            Name: cinema.name,
+            Sessions: cinema.sessionIds.map((id, sessionIndex) => ({
+              Id: id,
+              StartTime: `${C8_QUERY.date}T${String(10 + cinemaIndex).padStart(2, "0")}:${String(
+                sessionIndex * 10,
+              ).padStart(2, "0")}`,
+              ScreenTypeName: "Standard",
+              ScreenName: String(sessionIndex + 1),
+              SeatAllocation: true,
+              BookingUrl: `https://www.eventcinemas.com.au/Orders/Tickets#sessionId=${id}`,
+            })),
+          })),
+        },
+      ],
+    },
+  };
+}
+
+const EMPTY_SESSIONS_PAYLOAD = { Success: true, Data: { Movies: [] } };
+
+function requestCinemaIds(urls: string[]): string[] {
+  return urls.map((url) => {
+    const value = new URL(url).searchParams.get("cinemaIds");
+    if (value === null) throw new Error(`missing cinemaIds param in ${url}`);
+    return value;
+  });
+}
+
+function assertGetSessionsRequests(urls: string[], expectedCinemaIds: string[]): void {
+  assert.deepEqual(requestCinemaIds(urls), expectedCinemaIds);
+  for (let i = 0; i < urls.length; i += 1) {
+    const url = urls[i];
+    const expectedCinemaId = expectedCinemaIds[i];
+    assert.ok(url, `missing request ${i}`);
+    assert.ok(expectedCinemaId, `missing expected cinema ${i}`);
+    const parsed = new URL(url);
+    assert.equal(parsed.origin, "https://www.eventcinemas.com.au");
+    assert.equal(parsed.pathname, "/Cinemas/GetSessions");
+    assert.equal(parsed.searchParams.get("cinemaIds"), expectedCinemaId);
+    assert.equal(parsed.searchParams.get("movieId"), C8_QUERY.movieId);
+    assert.equal(parsed.searchParams.get("date"), C8_QUERY.date);
+  }
+  assert.equal(
+    requestCinemaIds(urls).some((cinemaId) => cinemaId.includes(",")),
+    false,
+    "C8 forbids a comma-joined cinemaIds request",
+  );
+}
+
 test("getSeatMap: decodes seats, areas and preserves spacers", async () => {
   const adapter = adapterReturning(loadFixture("getseating.session-15433720.json"));
   const map = await adapter.getSeatMap("15433720");
@@ -233,4 +299,100 @@ test("listSessions: filters to the requested movieId (Event ignores it server-si
 
   const all = await adapter.listSessions({ movieId: "", cinemaIds: ["58"], date: "2026-06-24" });
   assert.equal(all.length, 2, "empty movieId returns all movies");
+});
+
+test("C8 listSessions: fans out one request per cinemaId and never comma-joins", async () => {
+  // C8 declares: listSessions({ cinemaIds: string[] }) -> Session[]   // union, dedupe by session id
+  const urls: string[] = [];
+  const fetchJson: FetchJson = async (url) => {
+    urls.push(url);
+    return EMPTY_SESSIONS_PAYLOAD;
+  };
+  const adapter = new EventCinemasAdapter({ fetchJson });
+
+  await adapter.listSessions({ ...C8_QUERY, cinemaIds: ["15", "96"] });
+
+  assertGetSessionsRequests(urls, ["15", "96"]);
+});
+
+test("C8 listSessions: returns the union of cinema sessions deduped by session id", async () => {
+  const payload15 = sessionsPayload([{ id: "15", name: "George Street", sessionIds: ["shared-41", "15-only"] }]);
+  const payload96 = sessionsPayload([{ id: "96", name: "Parramatta", sessionIds: ["shared-41", "96-only"] }]);
+  const commaPayload = sessionsPayload([
+    { id: "15", name: "George Street", sessionIds: ["shared-41", "15-only"] },
+    { id: "96", name: "Parramatta", sessionIds: ["shared-41", "96-only"] },
+  ]);
+  const fetchJson: FetchJson = async (url) => {
+    const cinemaIds = requestCinemaIds([url])[0];
+    if (cinemaIds === "15") return payload15;
+    if (cinemaIds === "96") return payload96;
+    if (cinemaIds === "15,96") return commaPayload;
+    return EMPTY_SESSIONS_PAYLOAD;
+  };
+  const adapter = new EventCinemasAdapter({ fetchJson });
+
+  const sessions = await adapter.listSessions({ ...C8_QUERY, cinemaIds: ["15", "96"] });
+
+  assert.deepEqual(
+    sessions.map((session) => session.id).sort(),
+    ["15-only", "96-only", "shared-41"],
+  );
+  assert.equal(sessions.filter((session) => session.id === "shared-41").length, 1);
+  assert.equal(sessions.find((session) => session.id === "15-only")?.cinemaId, "15");
+  assert.equal(sessions.find((session) => session.id === "96-only")?.cinemaId, "96");
+});
+
+test("C8 listSessions: single cinemaId still issues exactly one request", async () => {
+  const urls: string[] = [];
+  const fetchJson: FetchJson = async (url) => {
+    urls.push(url);
+    return sessionsPayload([{ id: "15", name: "George Street", sessionIds: ["15-only"] }]);
+  };
+  const adapter = new EventCinemasAdapter({ fetchJson });
+
+  const sessions = await adapter.listSessions({ ...C8_QUERY, cinemaIds: ["15"] });
+
+  assertGetSessionsRequests(urls, ["15"]);
+  assert.deepEqual(
+    sessions.map((session) => session.id),
+    ["15-only"],
+  );
+});
+
+test("C8 listSessions: empty cinemaIds makes no request and returns an empty result", async () => {
+  const urls: string[] = [];
+  const fetchJson: FetchJson = async (url) => {
+    urls.push(url);
+    return sessionsPayload([{ id: "unexpected", name: "Unexpected", sessionIds: ["unexpected"] }]);
+  };
+  const adapter = new EventCinemasAdapter({ fetchJson });
+
+  const sessions = await adapter.listSessions({ ...C8_QUERY, cinemaIds: [] });
+
+  assert.deepEqual(sessions, []);
+  assert.deepEqual(urls, []);
+});
+
+test("C8 listSessions: propagates one per-cinema request failure without returning partial sessions", async () => {
+  const urls: string[] = [];
+  const failure = new UpstreamError("Event C8 cinema 96 failed", { kind: "http", status: 503 });
+  const fetchJson: FetchJson = async (url) => {
+    urls.push(url);
+    const cinemaIds = requestCinemaIds([url])[0];
+    if (cinemaIds === "15") {
+      return sessionsPayload([{ id: "15", name: "George Street", sessionIds: ["15-only"] }]);
+    }
+    if (cinemaIds === "96") throw failure;
+    return EMPTY_SESSIONS_PAYLOAD;
+  };
+  const adapter = new EventCinemasAdapter({ fetchJson });
+
+  await assert.rejects(
+    () => adapter.listSessions({ ...C8_QUERY, cinemaIds: ["15", "96"] }),
+    (err: unknown) => {
+      assert.equal(err, failure);
+      return true;
+    },
+  );
+  assertGetSessionsRequests(urls, ["15", "96"]);
 });

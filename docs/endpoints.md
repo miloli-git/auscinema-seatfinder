@@ -13,8 +13,9 @@ Platform: Vista-style, but Event exposes its own front-end JSON (not raw `WSVist
 ```
 GET /Cinemas/GetSessions?cinemaIds={ids}&movieId={id}&date={YYYY-MM-DD}
 ```
-- `cinemaIds` is **plural**, comma-separated (e.g. `58,5,15`). Singular `cinemaId` is rejected
-  with `{"Message":"cinemasIds not provided"}`.
+- `cinemaIds` is the **plural** query field, but a comma list (e.g. `58,5,15`) returns **0** — the
+  adapter MUST issue ONE request per cinema id and merge (issue #41 / contract C8). Singular `cinemaId`
+  is rejected with `{"Message":"cinemasIds not provided"}`.
 - `movieId` is on the movie page (CDN poster path `/cdn/resources/movies/{id}/...`).
 - Response: `Data.Movies[].CinemaModels[].Sessions[]`, each session:
   `Id`, `MovieId`, `CinemaId`, `StartTime` (local, no tz), `ScreenType`/`ScreenTypeName`,
