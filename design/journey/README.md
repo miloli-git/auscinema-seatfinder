@@ -15,7 +15,8 @@ It is the *why* that precedes the locked [`../DESIGN.md`](../DESIGN.md) spec and
 Flip the product from **cinema/time-forward** (here is a ranked list of sessions, you do the
 wrapping) to **movie-forward**: the user already knows the film, and the job is to find the best
 real-world *way to see it* — cinema, session, screen, seat, timing — then hand off to official
-booking with confidence.
+booking with confidence. Two co-primary users: a solo/fixed-party booker, and a **group organiser**
+coordinating a flexible group whose attendance varies by day.
 
 ## The walk (read in order)
 
@@ -39,6 +40,10 @@ then a Stage 10 five-user usability test.
   availability-ratio proxy, the least trustworthy signal).
 - **Context capture:** assumed defaults (near me / tonight / 2 people), skip straight to results,
   refine after. No up-front wizard.
+- **Group availability:** the **organiser is a co-primary persona** (solo = N=1). Group attendance is
+  often not locked and varies by day (6 Tue / 7 Wed); the organiser **inputs the day-dependent
+  headcount themselves** and the product weighs turnout. No group RSVP / shareable-poll coordination
+  layer (that is a separate, bigger product). Open: does a "best turnout" lens join the v1 set?
 
 ## Honesty note
 
