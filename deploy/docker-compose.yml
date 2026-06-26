@@ -139,6 +139,11 @@ services:
       context: ..
       dockerfile: deploy/api.Dockerfile
     command: ["node", "packages/ingester/dist/cli.js", "refresh"]
+    # The shared api image HEALTHCHECKs http://127.0.0.1:3001/healthz, but the refresh worker serves
+    # no HTTP — it would always read "unhealthy". Disable the inherited probe; the cache-age dead-man
+    # alert (REFRESH_DEAD_MAN_*) is the real liveness signal for this worker.
+    healthcheck:
+      disable: true
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
       REFRESH_TICK_INTERVAL_MS: "${REFRESH_TICK_INTERVAL_MS:-900000}"
