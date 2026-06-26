@@ -28,7 +28,7 @@ Live: **https://seatfinder.miloli.org**
    re-verifying the live seat map only the moment a result is opened. ST-1 (core adjacency) and
    ST-2 (DB + ingester) are shipped; the API + web surface are in progress. See
    [`design/seats-together-design.md`](design/seats-together-design.md) and
-   [`design/seats-together-handover.md`](design/seats-together-handover.md).
+   [`docs/seats-together-handover.md`](docs/seats-together-handover.md).
 
 ## Monorepo map
 

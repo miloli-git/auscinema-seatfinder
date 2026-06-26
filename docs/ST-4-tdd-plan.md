@@ -2,7 +2,7 @@
 
 Status: **active** (authored 2026-06-25, after ST-0 verified). Drives #40, #39, #29 (which absorbs
 #36/#37/#38). Read with `design/seats-together-design.md` § "ST-4 Web UI — LOCKED SPEC" and
-`design/seats-together-handover.md`. This is a repo doc, not a GitHub issue — it is the target a
+`docs/seats-together-handover.md`. This is a repo doc, not a GitHub issue — it is the target a
 `/dual-harness` loop converges on. Companion to `docs/ST-3-api-contract.md` / `docs/codex-review-loop.md`.
 
 ## How to use (loop-runnable)

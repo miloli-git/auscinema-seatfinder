@@ -99,7 +99,7 @@ deploy/watches.json ──seed──▶ Postgres.watches
                     open a result ▶ live /seatmap confirm with the block highlighted ▶ book
 ```
 
-Live-reality notes (from `design/seats-together-handover.md`):
+Live-reality notes (from `docs/seats-together-handover.md`):
 
 - **`session_seats` stores ALL available *scored* seats**, not in-zone-only — so party size `N`
   and `minScore` stay tunable at query time without re-fetching. `watch.min_score` is a query-time
