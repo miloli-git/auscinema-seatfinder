@@ -36,17 +36,18 @@ then a Stage 10 five-user usability test.
   House "What's On" direction as a first-class door, not a side branch).
 - **Decision model:** a **Tradeoff Chooser** — the user picks the tradeoff that matters tonight —
   rather than one globally imposed ranking. (Best-Option-First is kept as a contrast concept, C2.)
-- **v1 lenses:** best seats left / best screen / soonest / **best turnout** (the day where the most of
-  a flexible group can sit together). "Least crowded" deferred (it is only an availability-ratio proxy,
-  the least trustworthy signal).
+- **v1 lenses:** best seats left / best screen / soonest / **most together** (the night where the most
+  of a flexible group can sit together). "Least crowded" deferred (it is only an availability-ratio
+  proxy, the least trustworthy signal).
 - **Context capture:** assumed defaults (near me / tonight / 2 people), skip straight to results,
   refine after. No up-front wizard.
 - **Group availability:** the **organiser is a co-primary persona** (solo = N=1). Group attendance is
-  often not locked and varies by day (6 Tue / 7 Wed); the organiser **inputs the day-dependent
-  headcount themselves** (per-day sliders, progressive disclosure) and the product weighs turnout.
-  "Best turnout" is the 4th v1 lens, defined as the largest adjacent (sit-together) block for the
-  day's headcount. No group RSVP / shareable-poll coordination layer (that is a separate, bigger
-  product). Open for testing: is the per-day slider the right input control?
+  often not locked and varies by day (6 Tue / 7 Wed); a visible **"Plan group" mode** lets the
+  organiser **enter the day-dependent headcount** via **per-day steppers**, and the product weighs it.
+  **"Most together"** is the 4th v1 lens — a three-tier **Together / Nearby / Split** fit ranked by the
+  *together* count (seat quality as tiebreaker). No "book if ≥ N" threshold and no group RSVP /
+  shareable-poll coordination layer for v1 (that is a separate, bigger product). Input control settled
+  on steppers after a Codex UX review (sliders are wrong for small-integer headcount).
 
 ## Honesty note
 

@@ -8,12 +8,13 @@ concepts). Built on [01 · Framing Brief](./01-framing-brief.md) and
 - Two co-primary personas: solo / fixed party and group organiser (solo = N=1).
 - Entry: movie-first primary, browse co-equal (the SOH direction = browse surface).
 - Decision model: Tradeoff Chooser.
-- v1 lenses (4): best seats left / best screen / soonest / best turnout (crowding deferred).
-- Turnout = largest adjacent (sit-together) block for that day's headcount.
-- Context: solo defaults + skip-to-results; organiser sets per-day headcount via sliders.
-- **Organiser mode = progressive disclosure:** solo is the default; opening a "group" panel reveals
-  the per-day sliders and unlocks the turnout lens. (Alternative not taken: a hard "just me / a group"
-  toggle at entry — flagged for the usability test.)
+- v1 lenses (4): best seats left / best screen / soonest / most together (crowding deferred).
+- Most together (turnout) = three-tier fit (Together / Nearby / Split) for that day's headcount.
+- Context: solo defaults + skip-to-results; organiser sets per-day headcount via steppers.
+- **Organiser mode = a visible "Plan group" toggle** on the context bar (revised after a Codex UX
+  review): solo stays the default skip-to-results path, the toggle reveals the per-day steppers and the
+  "Most together" lens. (Earlier draft buried this behind a hidden "+ group" tap; changed to a visible
+  mode so the co-primary organiser isn't discovered by accident.)
 
 Still lo-fi. Flows are boxes and arrows; concepts are described layouts, not styled mocks.
 
@@ -24,12 +25,12 @@ Still lo-fi. Flows are boxes and arrows; concepts are described layouts, not sty
 flowchart TD
   A["Search / name the film"] --> B["Results load on assumed defaults:<br/>near me, tonight, 2 people"]
   B --> C["Best Ways view (default lens 'best seats left')"]
-  C --> G1{"Organising a group?"}
-  G1 -->|no| D{"Refine or open?"}
-  G1 -->|yes| O["Open group panel:<br/>per-day headcount sliders (6 Tue, 7 Wed)"]
-  O --> C2["Results re-rank; 'best turnout' lens now available"]
+  C --> G1{"Toggle 'Plan group'?"}
+  G1 -->|no, just me| D{"Refine or open?"}
+  G1 -->|plan group| O["Group panel: per-day headcount<br/>steppers (6 Tue, 7 Wed)"]
+  O --> C2["Results re-rank; 'Most together' lens now available"]
   C2 --> D
-  D -->|open| E["Option detail: seat-quality + confidence +<br/>group-fit (all 7 / fits 6 of 7)"]
+  D -->|open| E["Option detail: seat-quality + confidence +<br/>group-fit tier (all 7 / 6 of 7)"]
   D -->|refine| F["Adjust context inline or switch tradeoff lens"]
   F --> C
   E --> H{"Trust it?"}
@@ -37,7 +38,7 @@ flowchart TD
   H -->|no| C
 ```
 Solo never has to declare itself; the organiser opts in by opening the group panel. The per-day
-sliders are the one input the organiser can't be defaulted into, because counts vary by day.
+steppers are the one input the organiser can't be defaulted into, because counts vary by day.
 
 ### 6b. Browse entry (co-equal, resolves into the spine)
 ```mermaid
@@ -56,14 +57,14 @@ flowchart LR
   B -->|best seats left| C["Re-rank by seat-quality score"]
   B -->|best screen| D["Re-rank by format/class:<br/>Vmax / Xtremescreen / recliner / Gold"]
   B -->|soonest| E["Re-rank by start time"]
-  B -->|best turnout| T["Re-rank by group-fit: largest adjacent<br/>block vs that day's headcount"]
+  B -->|most together| T["Re-rank by group-fit tier (Together /<br/>Nearby / Split) for that day's headcount"]
   C --> F["Same session set, re-ordered + re-labelled 'why'"]
   D --> F
   E --> F
   T --> F
 ```
 Switching a lens **re-ranks the same candidate set and changes the one-line "why"** on each option.
-The **best turnout** chip only appears once group mode is on (it is meaningless for a solo user). It
+The **most together** chip only appears once group mode is on (it is meaningless for a solo user). It
 does not reload or send the user elsewhere — the "let me weigh it my way" payoff.
 
 ### 6d. No-good-seats / partial-group honest state (designed, not an error)
@@ -72,7 +73,7 @@ flowchart TD
   A["Best Ways view"] --> B{"Good seats for the whole party?"}
   B -->|yes| C["Normal options"]
   B -->|no seats| D["Honest banner: 'No great seats left nearby tonight'"]
-  B -->|partial group| P["Honest banner: 'Fits 6 of your 7 here'"]
+  B -->|partial group| P["Honest banner: '6 of your 7 together here'"]
   D --> E["Offer real tradeoffs: later session / further cinema / different night"]
   P --> Q["Offer the day or session where all 7 sit together"]
   E --> A
@@ -96,13 +97,13 @@ Avoid first-idea lock-in. Concept C1 is the chosen spine; C2 to C4 are genuine a
 so we test rather than assume. All are lo-fi layout descriptions, not styled.
 
 ### C1. Tradeoff Chooser (the spine — design this first)
-- Film + light context summary pinned at the top (editable inline), with a **"+ group" affordance**
-  that opens the per-day headcount sliders.
-- A row of **lens chips**: [Best seats left] [Best screen] [Soonest] — plus **[Best turnout]** once
-  group mode is on. One is active.
-- Under it, a **short ranked list of session cards** (3 to 6), each: cinema + time + format, a
-  seat-quality signal, a **group-fit count when in group mode** ("all 7" / "6 of 7"), and a one-line
-  "why it's top for *this* lens".
+- Film + light context summary pinned at the top, with a visible **"Just me / Plan group" toggle**;
+  Plan group opens the per-day headcount steppers.
+- A row of **lens chips**: [Best seats left] [Best screen] [Soonest] — plus **[Most together]** once
+  Plan group is on. One is active.
+- Under it, a **short ranked list of session cards** (3 to 6), each: cinema + day + time + format, a
+  seat-quality signal, a **group-fit tier in group mode** (Together / Nearby / Split, e.g. "all 7
+  together" / "6 of 7"), and a one-line "why it's top for *this* lens".
 - Tapping a card opens the **option detail** (seat-quality view + confidence + group-fit + handoff).
 - Strength: directly expresses the reframe's bet. Risk: lens chips must be instantly legible or it
   reads as just another sort dropdown.
@@ -118,7 +119,7 @@ so we test rather than assume. All are lo-fi layout descriptions, not styled.
 ### C3. Film Night Planner (alternate — conversational entry)
 - A single editable sentence: "See **[film]** **[this week]** near **[me]** with **[6–7 of us]**, I
   care most about **[everyone together]**." Each bracket is a tap-to-change token; the headcount token
-  expands to the per-day sliders.
+  expands to the per-day steppers.
 - Submitting resolves straight into the Best Ways view.
 - Strength: makes the movie-forward + organiser mental model explicit and human. Risk: sentence
   builders can feel gimmicky if the tokens are fiddly on mobile.

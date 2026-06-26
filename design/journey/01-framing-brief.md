@@ -124,12 +124,13 @@ Flagging explicitly so we do not treat it as fact:
 - A5. The official-booking handoff is acceptable, not a dealbreaker ("why not just book here?").
 - A6. ~~Party size is a single fixed input.~~ **DECIDED:** group attendance is often **not locked and
   varies by day** (6 Tue / 7 Wed), and the **organiser is a co-primary persona** (solo = N=1).
-  Handled by **organiser input** — the page user enters the day-dependent headcount themselves (via a
-  **per-day headcount slider**) and the product weighs it. **Out of scope:** collecting availability
-  from the group (RSVP / shareable poll), which would make it a multi-user coordination tool.
-  **Resolved:** "best turnout" is the **4th v1 lens** (best seats / best screen / soonest / best
-  turnout); turnout is defined as the **largest adjacent (sit-together) block** for that day's
-  headcount, so it is coupled to seats-together; the seats-together block size is **day-dependent**.
+  Handled by **organiser input** — a **visible "Plan group" mode** on the context bar reveals a
+  **per-day headcount stepper** (small integers, plain count, no minimum-threshold for v1). **Out of
+  scope:** collecting availability from the group (RSVP / shareable poll), which would make it a
+  multi-user coordination tool. **Resolved (Codex UX review 2026-06-26):** the **4th v1 lens** is
+  **"Most together"** (turnout) — defined as a three-tier **Together / Nearby / Split** fit, ranked by
+  the *together* count with seat quality as tiebreaker, lower-confidence for approximate-geometry
+  chains (Hoyts); the seats-together block size is **day-dependent**.
 
 **Cheapest validation (later):** the 5 discovery questions ("tell me about the last time you chose a
 movie session...", and for groups "...the last time you organised people for a movie") with 5 to 8
@@ -144,18 +145,17 @@ labelled as such.
 - Stage 7 — Divergent concepts: Best Option First, Tradeoff Chooser, Film Night Planner, Seat
   Confidence View (second-diamond / Develop).
 
-**Downstream impact of the organiser persona (A6) — propagated 2026-06-26.** The journey, IA, flows
-and wireframes were revised organiser-first: per-day headcount sliders in context capture (progressive
-disclosure — solo stays the default skip-to-results path), the **best turnout** lens (4th), a
-**day-dependent seats-together** block size, group-fit counts on cards and the option detail, and a
-**"fits 6 of your 7" honest state**. (Open for the usability test: is the per-day slider the right
-control, or steppers / quick-pick chips?)
+**Downstream impact of the organiser persona (A6) — propagated 2026-06-26, then revised after a Codex
+UX review.** The journey, IA, flows and wireframes are organiser-first: a visible "Plan group" mode
+(solo stays the default skip-to-results path), per-day headcount **steppers**, the **"Most together"**
+lens (4th), a **day-dependent** three-tier (Together / Nearby / Split) fit shown on cards and the
+option detail, and a **"6 of your 7 together (all 7 at Tue 8:15)" honest state**.
 
 ## Decisions resolved
 - **Entry (A1):** movie-first primary, "what's on" browse co-equal. SOH landing kept as first-class entry.
 - **Decision model (A3):** Tradeoff Chooser is the spine; Best-Option-First demoted to a contrast concept.
-- **Group availability (A6):** organiser co-primary; per-day headcount via sliders (progressive
-  disclosure); **best turnout = 4th v1 lens**, defined as the largest adjacent block for the day's
-  headcount; no group RSVP/coordination layer.
+- **Group availability (A6):** organiser co-primary; visible "Plan group" mode + per-day headcount
+  **steppers**; **"Most together" = 4th v1 lens**, a three-tier (Together / Nearby / Split) fit for the
+  day's headcount; no minimum-threshold and no group RSVP/coordination layer for v1.
 
 Journey map + IA built on this in [02 · Journey Map + IA](./02-journey-and-ia.md).
