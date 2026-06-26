@@ -49,6 +49,10 @@ then a Stage 10 five-user usability test.
   shareable-poll coordination layer for v1 (that is a separate, bigger product). Input control settled
   on steppers after a Codex UX review (sliders are wrong for small-integer headcount).
 
+The group-availability decisions above were stress-tested by an independent
+[Codex UX review](./codex-ux-review-2026-06-26.md) (2026-06-26), which drove the slider→stepper,
+visible-mode, three-tier-turnout, and copy changes.
+
 ## Honesty note
 
 The user research stage (interview 5–8 moviegoers, walk competitor flows) was **not** run for this
