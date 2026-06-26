@@ -6,7 +6,7 @@ is deliberate. Validate the framing before anything downstream is built on it.
 
 See the [journey index](./README.md) for how this fits the Double Diamond.
 
-## BLUF
+## Summary
 The current product is **cinema-forward / time-forward**: it hands the user a ranked list of
 sessions and makes them do the wrapping ("which of these actually gets me a good night?"). The
 reframe is **movie-forward**: the user already knows the film, and the job is to find the best
