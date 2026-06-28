@@ -27,7 +27,7 @@ function catalog(movies: CatalogMovie[] = DEFAULT_MOVIES): CatalogResponse {
   return {
     movies,
     cinemas: [],
-    dates: ["2026-06-27"],
+    dates: ["2099-06-27"],
   };
 }
 
@@ -43,8 +43,8 @@ function session(over: Partial<TogetherSession>): TogetherSession {
     movieName: "Some Movie",
     cinemaId: "C",
     cinemaName: "Cinema",
-    date: "2026-06-27",
-    startTime: "2026-06-27T19:30:00.000Z",
+    date: "2099-06-27",
+    startTime: "2099-06-27T19:30:00.000Z",
     format: "IMAX",
     screen: null,
     seatsAvailable: 100,
@@ -63,7 +63,7 @@ function resultFor(over: {
   date?: string;
   avgScore?: number;
 }): TogetherResult {
-  const date = over.date ?? "2026-06-27";
+  const date = over.date ?? "2099-06-27";
   return {
     session: session({
       id: `${over.cinemaId}-s1`,
