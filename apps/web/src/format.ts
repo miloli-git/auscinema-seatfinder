@@ -1,4 +1,4 @@
-import type { Chain, ScreenFormat, Session } from "./types";
+import type { Chain, RankedSession, ScreenFormat, Session } from "./types";
 
 /** "2026-07-21T09:30" -> "9:30 AM". Falls back to the raw value if unparseable. */
 export function formatTime(startTime: string): string {
@@ -46,6 +46,40 @@ const FORMAT_LABEL: Record<ScreenFormat["kind"], string> = {
 
 export function formatLabel(f: ScreenFormat): string {
   return f.raw?.trim() || FORMAT_LABEL[f.kind];
+}
+
+/**
+ * Large-format / premium screening test (#50). True for the explicitly premium kinds, and for an
+ * "other" kind that carries a real label (e.g. Xtremescreen, Titan XC). An "other" with empty or
+ * whitespace `raw` is an unknown screen and treated as standard.
+ */
+export function isLargeFormat(f: ScreenFormat): boolean {
+  switch (f.kind) {
+    case "imax":
+    case "vmax":
+    case "goldclass":
+    case "premium":
+      return true;
+    case "other":
+      return f.raw?.trim().length > 0;
+    default:
+      return false;
+  }
+}
+
+/**
+ * Badge descriptor for a session's format, or `null` when no chip should render (standard screens,
+ * and unknown "other" screens with no label). `label` surfaces the chain's own `raw` verbatim.
+ */
+export function formatBadge(f: ScreenFormat): { label: string; premium: boolean } | null {
+  if (!isLargeFormat(f)) return null;
+  return { label: formatLabel(f), premium: true };
+}
+
+/** Pure, additive filter: keep only large-format sessions when enabled; pass through unchanged otherwise. */
+export function largeFormatOnly(sessions: RankedSession[], enabled: boolean): RankedSession[] {
+  if (!enabled) return sessions;
+  return sessions.filter((r) => isLargeFormat(r.session.format));
 }
 
 const CHAIN_LABEL: Record<Chain, string> = {

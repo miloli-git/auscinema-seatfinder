@@ -481,6 +481,14 @@ input[type="checkbox"] {
   padding: 1px var(--sp-2);
   font-size: var(--t-xs);
 }
+/* Large-format / premium format chip (#50) - accent-tinted to stand out from neutral meta. */
+.tag--format[data-premium="true"] {
+  background: rgba(245, 185, 65, 0.16);
+  border-color: rgba(245, 185, 65, 0.55);
+  color: var(--accent);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
 .sess__sub {
   color: var(--muted);
   font-size: var(--t-xs);
