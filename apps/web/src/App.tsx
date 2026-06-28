@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QueryForm, DEFAULTS, type FormValues } from "./components/QueryForm";
 import { SessionCard } from "./components/SessionCard";
 import { SeatMapView } from "./components/SeatMapView";
 import { TogetherView } from "./components/TogetherView";
 import { fetchBest, fetchSeatMap, type ScoringParams, API_BASE } from "./api";
 import type { BestResponse, ScoredSeatMap, Session } from "./types";
-import { chainLabel, formatLabel, formatTime, withinWindow } from "./format";
+import { chainLabel, formatLabel, formatTime, largeFormatOnly, withinWindow } from "./format";
 
 function scoringOf(v: FormValues): ScoringParams {
   return {
@@ -27,6 +27,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [refineOpen, setRefineOpen] = useState(true);
   const [summary, setSummary] = useState("");
+  const [largeOnly, setLargeOnly] = useState(false);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [seatMap, setSeatMap] = useState<ScoredSeatMap | null>(null);
@@ -37,39 +38,76 @@ export function App() {
   const [lastScoring, setLastScoring] = useState<ScoringParams>(scoringOf(DEFAULTS));
   const [lastTopN, setLastTopN] = useState(DEFAULTS.topN);
 
-  const visibleSessions = useMemo(() => {
+  const withinTime = useMemo(() => {
     if (!result) return [];
     return result.sessions.filter((r) => withinWindow(r.session, values.from, values.to));
   }, [result, values.from, values.to]);
+
+  const visibleSessions = useMemo(
+    () => largeFormatOnly(withinTime, largeOnly),
+    [withinTime, largeOnly],
+  );
 
   const selectedRanked = useMemo(
     () => visibleSessions.find((r) => r.session.id === selectedId) ?? null,
     [visibleSessions, selectedId],
   );
 
+  // Sequence token for seat-map requests. Only the most recent open commits
+  // seat state, so an older in-flight fetch can't overwrite a newer selection.
+  const seatReqRef = useRef(0);
+
   // Load (or switch to) a session's seat map. Hero model: always select, never toggle closed.
   const openSession = async (session: Session, scoring: ScoringParams) => {
     if (selectedId === session.id) return;
+    const token = ++seatReqRef.current;
     setSelectedId(session.id);
     setSeatMap(null);
     setSeatError(null);
     setSeatLoading(true);
     try {
       const map = await fetchSeatMap(session.chain, session.id, scoring);
+      if (seatReqRef.current !== token) return;
       setSeatMap(map);
     } catch (err) {
+      if (seatReqRef.current !== token) return;
       setSeatError(err instanceof Error ? err.message : String(err));
     } finally {
-      setSeatLoading(false);
+      if (seatReqRef.current === token) setSeatLoading(false);
     }
   };
+
+  // Reconcile selection whenever the visible set changes (e.g. toggling the
+  // large-format filter). If the selected session is no longer visible, open
+  // the first visible one; if none remain, clear selection + seat-map state.
+  useEffect(() => {
+    if (!result) return;
+    const stillVisible =
+      selectedId !== null && visibleSessions.some((r) => r.session.id === selectedId);
+    if (stillVisible) return;
+    const firstVisible = visibleSessions[0];
+    if (firstVisible) {
+      void openSession(firstVisible.session, lastScoring);
+    } else if (selectedId !== null || seatMap !== null || seatError !== null || seatLoading) {
+      seatReqRef.current++; // invalidate any in-flight seat fetch so it can't commit after clear
+      setSelectedId(null);
+      setSeatMap(null);
+      setSeatError(null);
+      setSeatLoading(false);
+    }
+    // openSession is stable in behaviour; intentionally excluded to avoid loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, visibleSessions, selectedId, lastScoring]);
 
   const runSearch = async () => {
     setLoading(true);
     setError(null);
     setResult(null);
+    seatReqRef.current++; // abandon any in-flight seat fetch from the prior result
     setSelectedId(null);
     setSeatMap(null);
+    setSeatError(null);
+    setSeatLoading(false);
     const scoring = scoringOf(values);
     setLastScoring(scoring);
     setLastTopN(values.topN);
@@ -82,11 +120,15 @@ export function App() {
         topN: values.topN,
         ...scoring,
       });
+      // Reset selection + seat state so the reconciliation effect is the sole
+      // auto-select path. It derives the first visible session from the CURRENT
+      // filters (largeOnly/time window), avoiding a stale-closure mis-select and
+      // ensuring exactly one /seatmap fetch per search.
+      setSelectedId(null);
+      setSeatMap(null);
+      setSeatError(null);
       setResult(res);
       setRefineOpen(false);
-      // Auto-select the top-ranked visible session so the hero is never empty.
-      const first = res.sessions.find((r) => withinWindow(r.session, values.from, values.to));
-      if (first) void openSession(first.session, scoring);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -150,6 +192,14 @@ export function App() {
           loading={loading}
           onSummary={setSummary}
         />
+        <label className="field field--check">
+          <input
+            type="checkbox"
+            checked={largeOnly}
+            onChange={(e) => setLargeOnly(e.target.checked)}
+          />
+          <span>Large format only</span>
+        </label>
         <p className="api-base">API · {API_BASE || "same-origin (proxy)"}</p>
       </div>
 
@@ -183,7 +233,11 @@ export function App() {
               <span className="sub">best seat, ranked</span>
             </div>
             {visibleSessions.length === 0 ? (
-              <p className="hint">No sessions match the time window.</p>
+              <p className="hint">
+                {largeOnly && withinTime.length > 0
+                  ? "No large-format sessions match the current filters."
+                  : "No sessions match the time window."}
+              </p>
             ) : (
               <div className="rail">
                 {visibleSessions.map((r) => (

@@ -1,5 +1,5 @@
 import type { RankedSession } from "../types";
-import { formatLabel, formatTime, scoreBand } from "../format";
+import { formatBadge, formatTime, scoreBand } from "../format";
 
 interface Props {
   ranked: RankedSession;
@@ -11,6 +11,7 @@ interface Props {
 export function SessionCard({ ranked, selected, onSelect }: Props) {
   const { session, bestScore } = ranked;
   const band = scoreBand(bestScore);
+  const badge = formatBadge(session.format);
 
   return (
     <button type="button" className="sess" aria-pressed={selected} onClick={() => onSelect(session)}>
@@ -20,10 +21,20 @@ export function SessionCard({ ranked, selected, onSelect }: Props) {
       </span>
       <span>
         <span className="sess__time">{formatTime(session.startTime)}</span>
-        <span className="sess__meta">
-          <span className="tag">{formatLabel(session.format)}</span>
-          {session.screenName && <span className="sess__sub">Screen {session.screenName}</span>}
-        </span>
+        {(badge || session.screenName) && (
+          <span className="sess__meta">
+            {badge && (
+              <span
+                className="tag tag--format"
+                data-format={session.format.kind}
+                {...(badge.premium ? { "data-premium": "true" } : {})}
+              >
+                {badge.label}
+              </span>
+            )}
+            {session.screenName && <span className="sess__sub">Screen {session.screenName}</span>}
+          </span>
+        )}
         <span className="sess__sub">
           {session.cinemaName || session.cinemaId}
           {typeof session.seatsAvailable === "number" ? ` · ${session.seatsAvailable} free` : ""}
