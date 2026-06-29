@@ -7,7 +7,8 @@ import type { Pool } from "./db.js";
 import type { WatchRow } from "./types.js";
 
 const MS_PER_DAY = 86_400_000;
-const MAX_RANGE_DAYS = 366;
+/** Hard cap on the inclusive span `datesInRange` will expand (single source of truth, also clamps the horizon). */
+export const MAX_RANGE_DAYS = 366;
 
 /** Format a Date (UTC fields) as "YYYY-MM-DD". */
 function ymd(d: Date): string {

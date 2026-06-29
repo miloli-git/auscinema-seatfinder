@@ -272,6 +272,31 @@ function sydneyDate(instant: Date): string {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
+// #60 rolling-horizon surface for /catalog. The ingester owns the canonical helpers; api only carries
+// ingester as a devDependency, so the tiny UTC-midnight math is replicated here (no runtime dep).
+const DEFAULT_HORIZON_DAYS = 35;
+const MS_PER_DAY = 86_400_000;
+// Mirrors the ingester's MAX_RANGE_DAYS clamp (datesInRange caps the inclusive span at 366). Duplicated
+// rather than imported because ingester is only a devDependency of api (no runtime dep across the boundary);
+// keep this in lockstep with packages/ingester/src/watches.ts. Bound the advertised horizon so /catalog
+// never promises a window the ingester can't scan.
+const MAX_HORIZON_DAYS = 365; // = MAX_RANGE_DAYS - 1
+
+function resolveHorizonDays(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.REFRESH_HORIZON_DAYS;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isInteger(n) && n > 0 ? Math.min(n, MAX_HORIZON_DAYS) : DEFAULT_HORIZON_DAYS;
+}
+
+function horizonDate(today: string, horizonDays: number): string {
+  const base = Date.parse(`${today}T00:00:00Z`);
+  const d = new Date(base + horizonDays * MS_PER_DAY);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function buildSessionFilter(opts: {
   chain: string;
   movieId?: string;
@@ -769,10 +794,22 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       params,
     );
 
+    // #60: the rolling far edge the cache is attempting, and the furthest date actually cached LIVE
+    // (disappeared_at IS NULL and not past) so the page can state coverage honestly.
+    const sydneyToday = sydneyDate(new Date());
+    const maxWhere = [`disappeared_at IS NULL`, `date >= $${params.length + 1}`];
+    if (chain !== undefined) maxWhere.push(`chain = $1`);
+    const maxRes = await db.query<{ max: string | null }>(
+      `SELECT max(date)::text AS max FROM sessions WHERE ${maxWhere.join(" AND ")}`,
+      [...params, sydneyToday],
+    );
+
     return {
       movies: movies.rows,
       cinemas: cinemas.rows,
       dates: dates.rows.map((r) => r.date),
+      horizonDate: horizonDate(sydneyToday, resolveHorizonDays()),
+      maxCachedDate: maxRes.rows[0]?.max ?? null,
     };
   });
   });

@@ -1,4 +1,4 @@
-import { after, before, beforeEach, test } from "node:test";
+import { after, before, beforeEach, mock, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createPool } from "@auscinema/ingester";
@@ -105,7 +105,46 @@ type CatalogResponse = {
   movies: Array<{ id: string; name: string | null; chain: string }>;
   cinemas: Array<{ id: string; name: string | null; chain: string }>;
   dates: string[];
+  horizonDate: string;
+  maxCachedDate: string | null;
 };
+
+const MS_PER_DAY = 86_400_000;
+const SYDNEY_TZ = "Australia/Sydney";
+const DEFAULT_HORIZON_DAYS = 35;
+const CATALOG_NOW_INSTANT = new Date();
+
+function ymd(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function addCalendarDaysForTest(ymdDate: string, days: number): string {
+  return ymd(new Date(Date.parse(`${ymdDate}T00:00:00Z`) + days * MS_PER_DAY));
+}
+
+function sydneyDateForTest(instant: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: SYDNEY_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(instant);
+  const get = (t: string): string => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function resolveHorizonDaysForTest(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.REFRESH_HORIZON_DAYS;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : DEFAULT_HORIZON_DAYS;
+}
+
+function expectedCatalogHorizonDate(): string {
+  return addCalendarDaysForTest(sydneyDateForTest(CATALOG_NOW_INSTANT), resolveHorizonDaysForTest());
+}
 
 async function insertSession(overrides: SessionSeed = {}): Promise<InsertedSession> {
   const id = overrides.id ?? "S1";
@@ -179,11 +218,16 @@ async function getTogether(query: string): Promise<TogetherResponse> {
 }
 
 async function getCatalog(query = ""): Promise<CatalogResponse> {
-  const server = buildServer({ pool: requirePool(), rateLimit: false, logger: false });
-  const suffix = query.length > 0 ? `?${query}` : "";
-  const res = await server.inject({ method: "GET", url: `/catalog${suffix}` });
-  assert.equal(res.statusCode, 200);
-  return res.json() as CatalogResponse;
+  mock.timers.enable({ apis: ["Date"], now: CATALOG_NOW_INSTANT });
+  try {
+    const server = buildServer({ pool: requirePool(), rateLimit: false, logger: false });
+    const suffix = query.length > 0 ? `?${query}` : "";
+    const res = await server.inject({ method: "GET", url: `/catalog${suffix}` });
+    assert.equal(res.statusCode, 200);
+    return res.json() as CatalogResponse;
+  } finally {
+    mock.timers.reset();
+  }
 }
 
 function assertTogetherShape(body: TogetherResponse): void {
@@ -213,7 +257,7 @@ function assertTogetherShape(body: TogetherResponse): void {
 }
 
 function assertCatalogShape(body: CatalogResponse): void {
-  assert.deepEqual(Object.keys(body).sort(), ["cinemas", "dates", "movies"]);
+  assert.deepEqual(Object.keys(body).sort(), ["cinemas", "dates", "horizonDate", "maxCachedDate", "movies"]);
   for (const movie of body.movies) assert.deepEqual(Object.keys(movie).sort(), ["chain", "id", "name"]);
   for (const cinema of body.cinemas) assert.deepEqual(Object.keys(cinema).sort(), ["chain", "id", "name"]);
 }
@@ -557,6 +601,8 @@ test("/catalog returns distinct sorted movies, cinemas, and dates", { skip: dbSk
       { id: "C-Z", name: "Z Cinema", chain: "event" },
     ],
     dates: ["2099-06-25", "2099-06-26", "2099-06-27"],
+    horizonDate: expectedCatalogHorizonDate(),
+    maxCachedDate: "2099-06-27",
   });
 });
 
@@ -587,13 +633,21 @@ test("/catalog?chain=event scopes movies, cinemas, and dates to that chain", { s
     movies: [{ id: "M-event", name: "Event Movie", chain: "event" }],
     cinemas: [{ id: "C-event", name: "Event Cinema", chain: "event" }],
     dates: ["2099-06-25"],
+    horizonDate: expectedCatalogHorizonDate(),
+    maxCachedDate: "2099-06-25",
   });
 });
 
 test("/catalog on an empty DB returns empty arrays", { skip: dbSkip }, async () => {
   const body = await getCatalog();
 
-  assert.deepEqual(body, { movies: [], cinemas: [], dates: [] });
+  assert.deepEqual(body, {
+    movies: [],
+    cinemas: [],
+    dates: [],
+    horizonDate: expectedCatalogHorizonDate(),
+    maxCachedDate: null,
+  });
 });
 
 test("/catalog with no pool configured -> 503 {error}", async () => {
