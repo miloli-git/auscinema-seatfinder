@@ -14,6 +14,7 @@ import type { AdapterRegistry } from "./registry.js";
 import { upsertSessionWithSeats } from "./persist.js";
 import { sessionToUpsert, toSeatUpserts } from "./sweep.js";
 import { datesInRange, loadEnabledWatches, watchToQuery } from "./watches.js";
+import { effectiveWindow, resolveHorizonDays } from "./horizon.js";
 import type { SessionUpsert, WatchRow } from "./types.js";
 
 // --- C1 tiering --------------------------------------------------------------
@@ -80,6 +81,13 @@ function baseTtlMs(tier: RefreshTier): number {
   }
 }
 
+/** Per-chain reserved first-ingest lane size (#60). Env REFRESH_RESERVE_NEW_PER_CHAIN, default 10. */
+function resolveReserveForNew(): number {
+  const raw = process.env.REFRESH_RESERVE_NEW_PER_CHAIN;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : 10;
+}
+
 function jitterFraction(): number {
   const raw = process.env.REFRESH_TTL_JITTER;
   const n = raw === undefined ? NaN : Number(raw);
@@ -114,6 +122,8 @@ export interface KnownSession {
   fetchedAt: Date;
   tier: RefreshTier;
   live: boolean;
+  /** True for discovered-new sessions (epoch fetchedAt); existing cached rows are false. */
+  neverFetched: boolean;
 }
 
 /** Dropped count for one (chain, tier, cinemaId, date) bucket — no silent caps. */
@@ -190,9 +200,10 @@ export function isDue(k: KnownSession, nowInstant: Date): boolean {
 
 export function selectDueSessions(
   known: KnownSession[],
-  opts: { budgetPerChain: number; nowInstant: Date },
+  opts: { budgetPerChain: number; reserveForNew?: number; nowInstant: Date },
 ): SelectResult {
   const { budgetPerChain, nowInstant } = opts;
+  const reserveForNew = Math.max(0, opts.reserveForNew ?? 0);
 
   const byChain = new Map<string, KnownSession[]>();
   for (const k of known) {
@@ -209,9 +220,29 @@ export function selectDueSessions(
   const skipped: SkipCount[] = [];
   for (const due of byChain.values()) {
     const ordered = orderDue(due);
-    const keep = ordered.slice(0, Math.max(0, budgetPerChain));
-    const drop = ordered.slice(Math.max(0, budgetPerChain));
-    for (const s of keep) selected.push(s.sessionId);
+    // Reserved first-ingest lane: up to `reserveForNew` never-fetched sessions, in orderDue priority,
+    // guaranteed even when the normal budget is fully consumed. reserveForNew=0 short-circuits to the
+    // exact pre-#60 behaviour (the main pass slices `ordered` from index 0).
+    const reservedIds = new Set<string>();
+    if (reserveForNew > 0) {
+      for (const s of ordered) {
+        if (reservedIds.size >= reserveForNew) break;
+        if (s.neverFetched) reservedIds.add(s.sessionId);
+      }
+    }
+    // Main pass: fill budgetPerChain from the remaining due (excluding reserved), preserving orderDue.
+    const mainKeep: KnownSession[] = [];
+    const budget = Math.max(0, budgetPerChain);
+    for (const s of ordered) {
+      if (reservedIds.has(s.sessionId)) continue;
+      if (mainKeep.length >= budget) break;
+      mainKeep.push(s);
+    }
+    const selectedSet = new Set<string>(reservedIds);
+    for (const s of mainKeep) selectedSet.add(s.sessionId);
+    // Emit in orderDue order so reserveForNew=0 reproduces the legacy selection byte-for-byte.
+    for (const s of ordered) if (selectedSet.has(s.sessionId)) selected.push(s.sessionId);
+    const drop = ordered.filter((s) => !selectedSet.has(s.sessionId));
 
     if (drop.length > 0) {
       const agg = new Map<string, SkipCount>();
@@ -375,19 +406,28 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   // --- discovery: list current sessions, find newly-appeared ones (P30.1: no tombstones).
   const watches = await loadEnabledWatches(pool);
 
+  // #60 rolling horizon: the SINGLE source of truth for both discovery AND inScope. A watch's static
+  // dateTo no longer caps the window — `to` rolls to today+H; `from` clamps up to today (never the past).
+  const horizonDays = resolveHorizonDays();
+  const windowFor = new Map<number, { from: string; to: string } | null>();
+  for (const w of watches) windowFor.set(w.id, effectiveWindow(w, sydneyToday, horizonDays));
+
   /**
    * A known session is in active refresh scope iff it is upcoming and inside an enabled watch
-   * matching its chain, cinema, date AND movie. A null watch `movieId` is the all-movies wildcard
-   * for that chain/cinema/date (MED-2).
+   * matching its chain, cinema, date AND movie, within that watch's rolling window. A null watch
+   * `movieId` is the all-movies wildcard for that chain/cinema/date (MED-2).
    */
   const inScope = (chain: Chain, cinemaId: string, date: string, movieId: string): boolean => {
     if (date < sydneyToday) return false; // past — out of scope until P30.2 liveness/tombstones
     for (const w of watches) {
+      const eff = windowFor.get(w.id);
       if (
+        eff !== null &&
+        eff !== undefined &&
         w.chain === chain &&
         w.cinemaIds.includes(cinemaId) &&
-        date >= w.dateFrom &&
-        date <= w.dateTo &&
+        date >= eff.from &&
+        date <= eff.to &&
         (w.movieId === null || w.movieId === movieId)
       ) {
         return true;
@@ -423,7 +463,9 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   for (const w of watches) {
     const adapter = registry[w.chain];
     if (!adapter) continue;
-    for (const date of datesInRange(w.dateFrom, w.dateTo)) {
+    const eff = windowFor.get(w.id);
+    if (!eff) continue; // watch starts beyond the rolling horizon — nothing to discover this tick
+    for (const date of datesInRange(eff.from, eff.to)) {
       try {
         const sessions = await adapter.listSessions(watchToQuery(w, date));
         for (const s of sessions) {
@@ -484,6 +526,7 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
       // Out-of-scope / past / tombstoned sessions are kept non-live so they never consume refresh
       // budget and are never counted as due/refreshed (MED-2 + C6 ledger invariant).
       live: inScope(r.chain, r.cinema_id, dateStr, r.movie_id) && !effectivelyTombstoned,
+      neverFetched: false,
     });
     const watch = r.watch_id != null ? watches.find((w) => w.id === Number(r.watch_id)) : undefined;
     const startTime =
@@ -537,6 +580,7 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
       fetchedAt: new Date(0),
       tier,
       live: inScope(session.chain, session.cinemaId, date, session.movieId),
+      neverFetched: true,
     });
     targets.set(session.id, {
       upsert: sessionToUpsert(session, watch.id),
@@ -547,7 +591,9 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   }
 
   const dueCandidates = candidates.filter((c) => isDue(c, nowInstant));
-  const sel = selectDueSessions(candidates, { budgetPerChain, nowInstant });
+  // #60 reserved first-ingest lane: env-resolved in the caller (default 10), passed into the pure fn.
+  const reserveForNew = resolveReserveForNew();
+  const sel = selectDueSessions(candidates, { budgetPerChain, reserveForNew, nowInstant });
 
   // --- per-chain accounting.
   const perChain = new Map<string, ChainStat>();

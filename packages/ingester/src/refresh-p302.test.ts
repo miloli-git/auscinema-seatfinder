@@ -371,7 +371,10 @@ test("C6 discovery tombstones only in-scope absent sessions and keeps the due-le
     "sessions_due remains refreshed + errors + skipped when the tick also tombstones",
   );
   assert.deepEqual(captures.seatMapCalls, ["present-live"], "tombstoned sessions are not seatmap-refreshed");
-  assert.deepEqual(captures.queries.map((q) => `${q.cinemaIds.join(",")}|${q.date}`), ["C1|2026-10-05"]);
+  const queriedScopes = captures.queries.map((q) => `${q.cinemaIds.join(",")}|${q.date}`);
+  assert.ok(queriedScopes.some((s) => s === "C1|2026-10-05"));
+  assert.ok(queriedScopes.some((s) => s === "C1|2026-11-09"));
+  assert.equal(queriedScopes.length, 36);
 
   const tombstones = await tombstoneRows();
   assert.equal(tombstones["gone-in-scope"], nowInstant.toISOString());
@@ -427,7 +430,10 @@ test(
       row.sessions_refreshed + row.errors + row.sessions_skipped_budget,
       "sessions_due remains refreshed + errors + skipped for a partial multi-cinema listing",
     );
-    assert.deepEqual(captures.queries.map((q) => `${q.cinemaIds.join(",")}|${q.date}`), ["C1,C2|2026-10-05"]);
+    const queriedScopes = captures.queries.map((q) => `${q.cinemaIds.join(",")}|${q.date}`);
+    assert.ok(queriedScopes.some((s) => s === "C1,C2|2026-10-05"));
+    assert.ok(queriedScopes.some((s) => s === "C1,C2|2026-11-09"));
+    assert.equal(queriedScopes.length, 36);
     assert.deepEqual(
       [...captures.seatMapCalls].sort(),
       ["c1-known", "c2-known"],
