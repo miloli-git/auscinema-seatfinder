@@ -1,9 +1,9 @@
 {
   "source": "https://www.eventcinemas.com.au/Cinemas (HTML; the /api/cinemas/JsonLd feed is dead/empty)",
-  "capturedAt": "2026-06-24",
+  "capturedAt": "2026-07-02",
   "region": "AU",
   "count": 54,
-  "note": "Dated snapshot. Event's /api/cinemas/JsonLd returns an empty @graph; the live list exists only in the /Cinemas page HTML. Refresh periodically. ids are the numeric cinemaIds used by GetSessions.",
+  "note": "Dated snapshot. Event's /api/cinemas/JsonLd returns an empty @graph; the live list exists only in the /Cinemas page HTML. Refresh with scripts/capture-event-cinemas.ts. ids are the numeric cinemaIds used by GetSessions.",
   "cinemas": [
     {
       "id": "5",

@@ -27,3 +27,6 @@ docs/session-log.md
 # design review: generated + local-only
 design/mock-v1.static.html
 design/critique-*.md
+
+# #51: cron-refreshed Event cinema snapshot (host-side, mounted read-only into api/refresh/ingester)
+deploy/refdata/

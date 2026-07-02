@@ -266,6 +266,42 @@ test("listCinemas: serves the bundled dated AU reference (>=40, incl Burwood=58)
   assert.equal(burwood?.name, "Burwood");
 });
 
+test("listCinemas: EVENT_CINEMAS_PATH override wins when valid, falls back when not (#51)", async (t) => {
+  const { writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "event-cinemas-"));
+  const adapter = new EventCinemasAdapter();
+  t.after(() => {
+    delete process.env.EVENT_CINEMAS_PATH;
+  });
+
+  // Valid override (>= plausible count): served instead of the bundled snapshot.
+  const overrideCinemas = Array.from({ length: 50 }, (_, i) => ({
+    id: String(9000 + i),
+    name: `Override ${i}`,
+    url: `/Cinema/Override-${i}`,
+  }));
+  const valid = join(dir, "valid.json");
+  writeFileSync(valid, JSON.stringify({ capturedAt: "2026-07-02", cinemas: overrideCinemas }));
+  process.env.EVENT_CINEMAS_PATH = valid;
+  const fromOverride = await adapter.listCinemas();
+  assert.equal(fromOverride.length, 50);
+  assert.equal(fromOverride[0]?.name, "Override 0");
+
+  // Implausibly small override: ignored, bundled snapshot served.
+  const tiny = join(dir, "tiny.json");
+  writeFileSync(tiny, JSON.stringify({ cinemas: overrideCinemas.slice(0, 3) }));
+  process.env.EVENT_CINEMAS_PATH = tiny;
+  const fromTiny = await adapter.listCinemas();
+  assert.ok(fromTiny.find((c) => c.id === "58" && c.name === "Burwood"), "should fall back to bundled");
+
+  // Unreadable/invalid override: ignored, bundled snapshot served.
+  process.env.EVENT_CINEMAS_PATH = join(dir, "missing.json");
+  const fromMissing = await adapter.listCinemas();
+  assert.ok(fromMissing.find((c) => c.id === "58"), "should fall back to bundled");
+});
+
 test("listSessions: filters to the requested movieId (Event ignores it server-side)", async () => {
   // Event's GetSessions returns ALL movies at the cinema regardless of the movieId param,
   // so the adapter must filter client-side. Synthetic two-movie payload.
