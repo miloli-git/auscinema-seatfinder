@@ -287,9 +287,44 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
   };
 }
 
-/** Load + normalise the bundled dated AU cinema reference into core `Cinema[]`. */
+/**
+ * Minimum plausible AU cinema count. An override snapshot parsing below this is treated as
+ * corrupt/truncated and ignored in favour of the bundled reference (same guardrail as the
+ * capture script, scripts/capture-event-cinemas.ts).
+ */
+const MIN_OVERRIDE_CINEMAS = 45;
+
+/**
+ * Load + normalise the AU cinema reference into core `Cinema[]`.
+ *
+ * Source is the bundled dated snapshot, unless `EVENT_CINEMAS_PATH` names a readable, valid
+ * snapshot with a plausible cinema count - the deploy hook for scheduled refresh (#51): a cron
+ * captures to a mounted path and the adapter picks it up on next start, no rebuild. Any problem
+ * with the override (unreadable, invalid JSON, too few entries) logs a warning and falls back;
+ * a bad refresh must never take listCinemas down.
+ */
 function loadBundledCinemas(): Cinema[] {
-  const doc = JSON.parse(readFileSync(CINEMAS_REF_URL, "utf8")) as {
+  const overridePath = process.env.EVENT_CINEMAS_PATH;
+  if (overridePath) {
+    try {
+      const cinemas = parseCinemasDoc(readFileSync(overridePath, "utf8"));
+      if (cinemas.length >= MIN_OVERRIDE_CINEMAS) return cinemas;
+      console.warn(
+        `event adapter: EVENT_CINEMAS_PATH=${overridePath} parsed only ${cinemas.length} cinemas ` +
+          `(< ${MIN_OVERRIDE_CINEMAS}), falling back to bundled snapshot`,
+      );
+    } catch (err) {
+      console.warn(
+        `event adapter: EVENT_CINEMAS_PATH=${overridePath} unreadable/invalid (${err}), ` +
+          `falling back to bundled snapshot`,
+      );
+    }
+  }
+  return parseCinemasDoc(readFileSync(CINEMAS_REF_URL, "utf8"));
+}
+
+function parseCinemasDoc(json: string): Cinema[] {
+  const doc = JSON.parse(json) as {
     cinemas?: Array<{ id?: unknown; name?: unknown; url?: unknown }>;
   };
   const out: Cinema[] = [];
