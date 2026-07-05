@@ -283,10 +283,84 @@ test("listMovieNames: #75 skips malformed entries (missing vistaId or name)", as
   const adapter = adapterReturning(loadFixture("movies.json"));
   const names = await adapter.listMovieNames();
 
-  // Fixture now carries 3 entries: 1 well-formed + 1 missing vistaId + 1 missing name.
-  assert.equal(names.size, 1, "malformed entries without vistaId/name are skipped");
+  // Fixture now carries 4 entries: 1 well-formed + 1 missing vistaId + 1 missing name + 1
+  // comma-joined vistaId (which expands to 2 map entries - see the next test).
+  assert.equal(names.size, 3, "malformed entries without vistaId/name are skipped");
   assert.equal(names.get("HO00008574"), "Example Movie Title");
   assert.equal(names.get("HO00009999"), undefined, "entry missing name is skipped, not stored as undefined");
+});
+
+test("listMovieNames: comma-joined vistaId resolves BOTH ids to the same name (571-session blank-title cluster)", async () => {
+  const adapter = adapterReturning(loadFixture("movies.json"));
+  const names = await adapter.listMovieNames();
+
+  // Live-verified 2026-07-05: Hoyts' /movies entries sometimes carry a comma-joined vistaId
+  // list (e.g. "HO00010000,HO00011219" for Spider-Man: Brand New Day). A session's movieId is
+  // always one bare id from that list - both halves must resolve, not just the joined string.
+  assert.equal(names.get("HO00010500"), "Comma Joined Movie");
+  assert.equal(names.get("HO00010501"), "Comma Joined Movie");
+  assert.equal(
+    names.get("HO00010500,HO00010501"),
+    undefined,
+    "the raw joined string must never be used as a map key",
+  );
+});
+
+test("listSessions: comma-joined vistaId movies resolve a real title for sessions keyed on either half", async () => {
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/cinemas")) return loadFixture("cinemas.json");
+    if (url.includes("/movies")) return loadFixture("movies.json");
+    if (url.includes("/sessions/")) {
+      return [
+        {
+          id: 90001,
+          cinemaId: "MIDCIN",
+          movieId: "HO00010500",
+          date: "2026-08-05T18:00:00",
+          typeId: "STANDARD",
+          originalTags: [],
+          disabled: false,
+          allocatedSeating: true,
+          discount: false,
+          screenName: "Cinema 01",
+          operator: "MID",
+          link: "/orders/tickets?cinemaId=MIDCIN&sessionId=90001",
+        },
+        {
+          id: 90002,
+          cinemaId: "MIDCIN",
+          movieId: "HO00010501",
+          date: "2026-08-05T20:00:00",
+          typeId: "STANDARD",
+          originalTags: [],
+          disabled: false,
+          allocatedSeating: true,
+          discount: false,
+          screenName: "Cinema 02",
+          operator: "MID",
+          link: "/orders/tickets?cinemaId=MIDCIN&sessionId=90002",
+        },
+      ];
+    }
+    throw new Error(`no fixture for url: ${url}`);
+  };
+  const adapter = new HoytsAdapter({ fetchJson });
+
+  const first = await adapter.listSessions({
+    movieId: "HO00010500",
+    cinemaIds: ["MIDCIN"],
+    date: "2026-08-05",
+  });
+  const second = await adapter.listSessions({
+    movieId: "HO00010501",
+    cinemaIds: ["MIDCIN"],
+    date: "2026-08-05",
+  });
+
+  assert.equal(first.length, 1);
+  assert.equal(first[0]?.movieName, "Comma Joined Movie");
+  assert.equal(second.length, 1);
+  assert.equal(second[0]?.movieName, "Comma Joined Movie");
 });
 
 test("listSessions: #75 degrades to blank movieName when the movies endpoint rejects (session/seat discovery unaffected)", async () => {
