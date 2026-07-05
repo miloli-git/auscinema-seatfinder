@@ -155,7 +155,11 @@ services:
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
       REFRESH_TICK_INTERVAL_MS: "${REFRESH_TICK_INTERVAL_MS:-900000}"
-      REFRESH_BUDGET_PER_CHAIN: "${REFRESH_BUDGET_PER_CHAIN:-30}"
+      # #46 fix (item 3): raised 30 -> 150, first move per the #46 RCA (500/tick measured safe
+      # ceiling; re-measure refresh_runs.errors/per_chain.backoff over 24h before going higher, and
+      # don't exceed 200 without re-measuring). deploy/.env had no override at RCA time, so this
+      # tracked default is what actually governs the NAS.
+      REFRESH_BUDGET_PER_CHAIN: "${REFRESH_BUDGET_PER_CHAIN:-150}"
       REFRESH_DEAD_MAN_THRESHOLD_MS: "${REFRESH_DEAD_MAN_THRESHOLD_MS:-7200000}"
       REFRESH_DEAD_MAN_DEDUPE_MS: "${REFRESH_DEAD_MAN_DEDUPE_MS:-3600000}"
       REFRESH_DEAD_MAN_WEBHOOK: "${REFRESH_DEAD_MAN_WEBHOOK:-}"
