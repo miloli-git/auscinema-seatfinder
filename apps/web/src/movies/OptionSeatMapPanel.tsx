@@ -3,8 +3,10 @@ import { DEFAULT_SCORING, fetchSeatMap as apiFetchSeatMap, type ScoringParams } 
 import { SeatMapView } from "../components/SeatMapView";
 import { chainLabel, formatTime } from "../format";
 import type { ScoredSeatMap } from "../types";
+import { fetchAvailability as apiFetchAvailability, type AvailabilityQuery } from "./api";
+import { DateAvailabilityStrip } from "./DateAvailabilityStrip";
 import { displayCinemaName } from "./present";
-import type { Option } from "./types";
+import type { AvailabilityResponse, Option } from "./types";
 
 type SeatMapFetcher = (
   chain: string,
@@ -15,11 +17,14 @@ type SeatMapFetcher = (
 
 interface Props {
   option: Option;
+  movieKey: string;
   party: number;
   minScore: number;
   onClose: () => void;
   /** Injectable for tests; defaults to the live /seatmap call. */
   fetchSeatMap?: SeatMapFetcher;
+  /** Injectable for tests; defaults to the live /availability call. */
+  fetchAvailability?: (q: AvailabilityQuery) => Promise<AvailabilityResponse>;
   scoring?: ScoringParams;
   topN?: number;
 }
@@ -29,6 +34,11 @@ type State =
   | { status: "ok"; map: ScoredSeatMap }
   | { status: "error"; message: string };
 
+type AvailabilityState =
+  | { status: "loading" }
+  | { status: "ready"; data: AvailabilityResponse }
+  | { status: "error" };
+
 /**
  * Tap-through target for an option card: reuses the EXISTING seat-map hero view (SeatMapView) and
  * the existing "Book on <chain>" CTA pattern — wiring only, no rebuild. Mirrors
@@ -37,15 +47,19 @@ type State =
  */
 export function OptionSeatMapPanel({
   option,
+  movieKey,
   party,
   minScore,
   onClose,
   fetchSeatMap = apiFetchSeatMap,
+  fetchAvailability = apiFetchAvailability,
   scoring = DEFAULT_SCORING,
   topN = 5,
 }: Props) {
   const [state, setState] = useState<State>({ status: "loading" });
+  const [availability, setAvailability] = useState<AvailabilityState>({ status: "loading" });
   const reqRef = useRef(0);
+  const availReqRef = useRef(0);
 
   useEffect(() => {
     let live = true;
@@ -64,6 +78,24 @@ export function OptionSeatMapPanel({
       live = false;
     };
   }, [option.chain, option.sessionId, party, minScore, fetchSeatMap, scoring]);
+
+  useEffect(() => {
+    let live = true;
+    const token = ++availReqRef.current;
+    setAvailability({ status: "loading" });
+    // Narrowed to this option's own cinema (contract §1.1's `cinemaId` filter) so the strip reads
+    // as "the date picture for the cinema you're already looking at," not the whole movie/chain.
+    fetchAvailability({ movieKey, party, minScore, cinemaId: option.cinemaId })
+      .then((data) => {
+        if (live && availReqRef.current === token) setAvailability({ status: "ready", data });
+      })
+      .catch(() => {
+        if (live && availReqRef.current === token) setAvailability({ status: "error" });
+      });
+    return () => {
+      live = false;
+    };
+  }, [movieKey, option.cinemaId, party, minScore, fetchAvailability]);
 
   return (
     <section className="hero optionseatmap" aria-label="Seat map">
@@ -92,6 +124,9 @@ export function OptionSeatMapPanel({
       )}
       {state.status === "ok" && (
         <SeatMapView map={state.map} topN={topN} highlightSeatIds={state.map.block?.seatIds} />
+      )}
+      {availability.status === "ready" && (
+        <DateAvailabilityStrip availability={availability.data} />
       )}
     </section>
   );

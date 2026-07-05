@@ -1069,3 +1069,76 @@ input[type="checkbox"] {
   gap: var(--sp-2);
   flex: none;
 }
+
+/* #47b movie header summary (docs/47b-contract.md §6) — one line, no new color introduced. */
+.movieforward__availability {
+  color: var(--text-2);
+  font-size: var(--t-sm);
+  margin: 0 0 var(--sp-3);
+}
+
+/* #47b compact date strip — 5 states distinguished by border weight/style + a text label, never by
+ * color alone (grayscale scope, Slice 4). Horizontal scroll on narrow viewports (mobile-first): the
+ * strip never forces the page itself to scroll sideways. */
+.datestrip {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  padding: var(--sp-2) 0;
+  margin: var(--sp-3) 0;
+}
+.datestrip__cell {
+  flex: none;
+  min-width: 64px;
+  min-height: var(--tap);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2);
+  font: inherit;
+  color: var(--text-2);
+  cursor: default;
+}
+.datestrip__daynum {
+  font-size: var(--t-md);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.datestrip__label {
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+}
+/* good-block: the one state worth a confident, filled-in look. */
+.datestrip__cell[data-state="good-block"] {
+  border-width: 2px;
+  border-color: var(--text-2);
+  font-weight: 650;
+}
+.datestrip__cell[data-state="good-block"] .datestrip__daynum {
+  font-weight: 700;
+}
+/* sold-held-now: heavily booked — a dashed, "closing" border. */
+.datestrip__cell[data-state="sold-held-now"] {
+  border-style: dashed;
+}
+/* stale: data can't be trusted right now — dotted border, muted text. */
+.datestrip__cell[data-state="stale"] {
+  border-style: dotted;
+  color: var(--muted);
+  opacity: 0.85;
+}
+.datestrip__cell[data-state="stale"] .datestrip__daynum {
+  color: var(--muted);
+}
+/* no-qualifying-block: plain/default — no extra weight or pattern. */
+/* not-cached: least information available — faint dashed, low opacity. */
+.datestrip__cell[data-state="not-cached"] {
+  border-style: dashed;
+  opacity: 0.55;
+}
