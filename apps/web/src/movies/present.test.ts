@@ -60,6 +60,23 @@ describe("fitTierLabel", () => {
       fitTierLabel(option({ fitTier: "split", togetherCount: 2, effectiveParty: 2 }), 7),
     ).toBe("2 of 2 seats (not adjacent)");
   });
+
+  it("PR #80 review: pins the `effectiveParty ?? party` precedence exactly — the per-day group honesty hangs on this fallback ordering", () => {
+    // 1. effectiveParty ABSENT (solo mode / raw API option) -> the list-level party is used.
+    expect(
+      fitTierLabel(option({ fitTier: "split", togetherCount: 3, effectiveParty: undefined }), 7),
+    ).toBe("3 of 7 seats (not adjacent)");
+    // 2. effectiveParty PRESENT -> it wins, even when it disagrees with the list-level party in
+    //    BOTH directions (smaller and larger). A refactor flipping the precedence to
+    //    `party ?? effectiveParty` (or dropping the field) would reintroduce the false
+    //    together-claim on days the user never touched — these assertions make that a test failure.
+    expect(
+      fitTierLabel(option({ fitTier: "nearby", togetherCount: 2, effectiveParty: 3 }), 7),
+    ).toBe("2 together, not all 3");
+    expect(
+      fitTierLabel(option({ fitTier: "nearby", togetherCount: 2, effectiveParty: 7 }), 3),
+    ).toBe("2 together, not all 7");
+  });
 });
 
 describe("displayCinemaName", () => {

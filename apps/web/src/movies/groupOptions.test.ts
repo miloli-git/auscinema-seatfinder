@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupDatesByParty, mergeGroupOptions } from "./groupOptions";
+import { groupDatesByParty, mergeGroupOptions, stablePartitionByDate } from "./groupOptions";
 import type { Option, OptionsResponse } from "./types";
 
 function option(overrides: Partial<Option>): Option {
@@ -62,7 +62,44 @@ describe("groupDatesByParty", () => {
   });
 });
 
+describe("stablePartitionByDate (PR #80 review BLOCKER)", () => {
+  it("makes each day one contiguous run (days ascending), preserving input order within each day", () => {
+    const options = [
+      option({ sessionId: "tue-hi", date: "2026-07-21", bestBlockScore: 95 }),
+      option({ sessionId: "mon-hi", date: "2026-07-20", bestBlockScore: 90 }),
+      option({ sessionId: "tue-lo", date: "2026-07-21", bestBlockScore: 60 }),
+      option({ sessionId: "mon-lo", date: "2026-07-20", bestBlockScore: 55 }),
+    ];
+    const out = stablePartitionByDate(options);
+    expect(out.map((o) => o.sessionId)).toEqual(["mon-hi", "mon-lo", "tue-hi", "tue-lo"]);
+    expect(out).not.toBe(options); // never mutates/returns the input array
+  });
+
+  it("empty input -> empty output", () => {
+    expect(stablePartitionByDate([])).toEqual([]);
+  });
+});
+
 describe("mergeGroupOptions", () => {
+  it("PR #80 review BLOCKER: merged output is date-partitioned, not concatenated in headcount-group order", () => {
+    // The party=7 group is listed FIRST here, and its day (Wed 07-22) is LATER than the party=2
+    // group's day (Mon 07-20). Raw concatenation would emit Wed before Mon.
+    const merged = mergeGroupOptions([
+      {
+        group: { party: 7, dates: ["2026-07-22"] },
+        data: response([option({ sessionId: "wed", date: "2026-07-22" })]),
+      },
+      {
+        group: { party: 2, dates: ["2026-07-20"] },
+        data: response([
+          option({ sessionId: "mon-a", date: "2026-07-20", bestBlockScore: 90 }),
+          option({ sessionId: "mon-b", date: "2026-07-20", bestBlockScore: 60 }),
+        ]),
+      },
+    ]);
+    expect(merged.options.map((o) => o.sessionId)).toEqual(["mon-a", "mon-b", "wed"]);
+  });
+
   it("keeps, from each response, only options whose date belongs to that response's own group — the core honesty fix", () => {
     // Sunday (2026-07-19) was left at 2; Tue/Wed (07-21/07-22) were bumped to 7. The party=7 fetch
     // will ALSO return the Sunday session (the server has no notion of per-day party) — that must be

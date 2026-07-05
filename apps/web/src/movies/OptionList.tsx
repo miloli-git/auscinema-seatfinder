@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatShortDate } from "../format";
+import { stablePartitionByDate } from "./groupOptions";
 import { applyLens, LENSES, type Lens } from "./lenses";
 import { OptionCard } from "./OptionCard";
 import type { Option } from "./types";
@@ -32,8 +33,13 @@ function defaultLensFor(groupMode: boolean): Lens {
  * 47c fixes #1/#2: the option list used to be one flat, dateless rail — genuinely ambiguous which of
  * several real, distinct sessions a card referred to once more than one day was cached. Now: a day
  * filter chip row narrows to one day (ties into fix #5's date-strip action), and "All days" (the
- * default) groups cards under a day heading whenever the date changes from the previous card in the
- * CURRENT lens order — grouping augments the lens ranking, it never re-sorts by date underneath it.
+ * default) renders a day-grouped view: the lens-sorted list is STABLE-PARTITIONED by date (days
+ * ascending, lens order preserved WITHIN each day) so each day appears exactly once with one
+ * header. Lens semantics under the grouped view are therefore within-day ranking — the coherent
+ * reading of a day-grouped list. (PR #80 review BLOCKER: the first cut detected day boundaries by
+ * comparing ADJACENT entries of the raw lens order, which repeats headers whenever cross-day scores
+ * interleave — the server default order is fitTier/score-major and seats/screen are score-only, so
+ * same-day rows are NOT contiguous in general.)
  */
 export function OptionList({
   options,
@@ -75,9 +81,18 @@ export function OptionList({
     [options, dayFilter],
   );
 
-  const { options: sorted, noQualifying } = useMemo(
+  const { options: lensSorted, noQualifying } = useMemo(
     () => applyLens(dayFiltered, lens),
     [dayFiltered, lens],
+  );
+
+  // Day-grouped ("All days", >1 day) view: stable-partition the lens order by date so each day is
+  // one contiguous run (days ascending, lens order preserved within each day). With a day filter
+  // active — or only one day cached — the raw lens order already is the final order.
+  const grouped = dayFilter === null && distinctDays.length > 1;
+  const sorted = useMemo(
+    () => (grouped ? stablePartitionByDate(lensSorted) : lensSorted),
+    [grouped, lensSorted],
   );
 
   const noneQualifyAtAll = dayFiltered.length > 0 && dayFiltered.every((o) => o.bestBlockScore === null);
@@ -147,10 +162,9 @@ export function OptionList({
       {sorted.length > 0 && (
         <div className="rail rail--options">
           {sorted.map((o, i) => {
-            const showDayHeader =
-              distinctDays.length > 1 &&
-              dayFilter === null &&
-              (i === 0 || sorted[i - 1]!.date !== o.date);
+            // Safe adjacency check: `sorted` is date-partitioned when `grouped`, so each day is
+            // exactly one contiguous run — this fires exactly once per day.
+            const showDayHeader = grouped && (i === 0 || sorted[i - 1]!.date !== o.date);
             return (
               <div key={o.sessionId} className="optionlist__group">
                 {showDayHeader && (

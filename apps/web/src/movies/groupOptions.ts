@@ -38,11 +38,28 @@ export interface MergedGroupOptions {
   freshness: OptionsResponse["freshness"];
 }
 
+/** Stable partition by date: days ascending, existing order preserved within each day. */
+export function stablePartitionByDate(options: readonly Option[]): Option[] {
+  const byDate = new Map<string, Option[]>();
+  for (const o of options) {
+    const run = byDate.get(o.date);
+    if (run) run.push(o);
+    else byDate.set(o.date, [o]);
+  }
+  return [...byDate.keys()].sort().flatMap((date) => byDate.get(date)!);
+}
+
 /**
  * Merges one /options response per distinct headcount into a single, honest option list. From each
  * response, keeps only the options whose own `date` is in that response's headcount group — an
  * option that came back from the party=7 fetch but falls on a day the user left at 2 is dropped
  * (that day's own party=2 fetch supplies the honest version of that same session instead).
+ *
+ * The merged list is STABLE-PARTITIONED by date (days ascending, each response's own server order
+ * preserved within its day) before returning — raw concatenation would interleave days in
+ * headcount-group order, and the "Most together" lens trusts this array's order as-is (PR #80
+ * review BLOCKER follow-through: no consumer may assume same-day rows are contiguous unless this
+ * layer actually makes them contiguous).
  */
 export function mergeGroupOptions(results: readonly GroupFetchResult[]): MergedGroupOptions {
   const options: Option[] = [];
@@ -69,7 +86,7 @@ export function mergeGroupOptions(results: readonly GroupFetchResult[]): MergedG
 
   return {
     movieTitle,
-    options,
+    options: stablePartitionByDate(options),
     freshness: {
       oldestFetchedAt: oldestFetchedAt ?? "",
       newestFetchedAt: newestFetchedAt ?? "",

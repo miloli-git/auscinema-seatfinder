@@ -181,6 +181,72 @@ describe("MovieFirstView", () => {
     10_000,
   );
 
+  it(
+    "PR #80 review / BLOCKER-3 end-to-end: 6 Tue + 7 Wed with differing fit outcomes RENDERS each day's own honest card text (not just the right fetch params)",
+    async () => {
+      mockFetchCatalogTitles.mockResolvedValue(TITLES);
+      // The server has no notion of per-day party: every /options response returns ALL THREE
+      // sessions, with fit facts computed at the REQUESTED party. The client's fan-out+merge must
+      // keep, per day, only the response fetched at that day's own headcount.
+      const allSessionsAtParty = (party: number): Option[] => {
+        if (party >= 7) {
+          // At 7, nothing fits together anywhere — split, 4 seats, no qualifying block.
+          return [
+            option({ sessionId: "sun", date: "2026-07-19", startsAt: "2026-07-19T19:00:00.000Z", fitTier: "split", togetherCount: 4, bestBlockScore: null, bestBlockSize: null }),
+            option({ sessionId: "tue", date: "2026-07-21", startsAt: "2026-07-21T19:00:00.000Z", fitTier: "split", togetherCount: 4, bestBlockScore: null, bestBlockSize: null }),
+            option({ sessionId: "wed", date: "2026-07-22", startsAt: "2026-07-22T19:00:00.000Z", fitTier: "split", togetherCount: 4, bestBlockScore: null, bestBlockSize: null }),
+          ];
+        }
+        if (party >= 6) {
+          return [
+            option({ sessionId: "sun", date: "2026-07-19", startsAt: "2026-07-19T19:00:00.000Z", fitTier: "together", togetherCount: 6, bestBlockScore: 88 }),
+            option({ sessionId: "tue", date: "2026-07-21", startsAt: "2026-07-21T19:00:00.000Z", fitTier: "together", togetherCount: 6, bestBlockScore: 88 }),
+            option({ sessionId: "wed", date: "2026-07-22", startsAt: "2026-07-22T19:00:00.000Z", fitTier: "together", togetherCount: 6, bestBlockScore: 88 }),
+          ];
+        }
+        return [
+          option({ sessionId: "sun", date: "2026-07-19", startsAt: "2026-07-19T19:00:00.000Z", fitTier: "together", togetherCount: Math.max(party, 1), bestBlockScore: 97 }),
+          option({ sessionId: "tue", date: "2026-07-21", startsAt: "2026-07-21T19:00:00.000Z", fitTier: "together", togetherCount: Math.max(party, 1), bestBlockScore: 97 }),
+          option({ sessionId: "wed", date: "2026-07-22", startsAt: "2026-07-22T19:00:00.000Z", fitTier: "together", togetherCount: Math.max(party, 1), bestBlockScore: 97 }),
+        ];
+      };
+      mockFetchOptions.mockImplementation((q) =>
+        Promise.resolve(optionsResponse(allSessionsAtParty(q.party ?? 2), q.party ?? 2)),
+      );
+
+      const { container } = render(<MovieFirstView />);
+      fireEvent.click(await screen.findByRole("button", { name: /Dune: Part Two/ }));
+      await waitFor(() => expect(container.querySelectorAll(".optioncard").length).toBe(3));
+
+      fireEvent.click(screen.getByRole("tab", { name: "Plan group" }));
+      const tueGroup = await screen.findByRole("group", { name: /21 Jul.*headcount/i });
+      const wedGroup = await screen.findByRole("group", { name: /22 Jul.*headcount/i });
+
+      // Tue -> 6, Wed -> 7. Sunday stays at the group floor (2), untouched by the user.
+      const tueUp = within(tueGroup).getByRole("button", { name: /Increase/i });
+      const wedUp = within(wedGroup).getByRole("button", { name: /Increase/i });
+      for (let i = 0; i < 4; i++) fireEvent.click(tueUp);
+      await within(tueGroup).findByText("6");
+      for (let i = 0; i < 5; i++) fireEvent.click(wedUp);
+      await within(wedGroup).findByText("7");
+
+      // After the debounced fan-out settles, each day's card renders ITS OWN day's fit facts:
+      // this is the rendered-text assertion the original test lacked — the false version of this
+      // UI stamped "All 7 together" (or the max-party fit) on every card including Sunday's.
+      await waitFor(() => {
+        const cards = [...container.querySelectorAll(".optioncard")].map((el) => el.textContent ?? "");
+        expect(cards).toHaveLength(3);
+        const sunCard = cards.find((t) => t.includes("Sun 19 Jul"))!;
+        const tueCard = cards.find((t) => t.includes("Tue 21 Jul"))!;
+        const wedCard = cards.find((t) => t.includes("Wed 22 Jul"))!;
+        expect(sunCard).toContain("All 2 together"); // party=2 fetch's own view, NOT "All 7 together"
+        expect(tueCard).toContain("All 6 together"); // Tue's own headcount, 6
+        expect(wedCard).toContain("4 of 7 seats (not adjacent)"); // Wed at 7: honest split copy
+      }, DEBOUNCE_WAIT);
+    },
+    10_000,
+  );
+
   it("organiser toggle is reachable and functional: no per-day server ranking is implied in copy", async () => {
     mockFetchCatalogTitles.mockResolvedValue(TITLES);
     mockFetchOptions.mockResolvedValue(optionsResponse([option({})], 2));
