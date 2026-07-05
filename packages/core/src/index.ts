@@ -7,3 +7,4 @@ export * from "./seatable.js";
 export * from "./errors.js";
 export * from "./format-classifier.js";
 export * from "./fit-tier.js";
+export * from "./refresh-tiers.js";

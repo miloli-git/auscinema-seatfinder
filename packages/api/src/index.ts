@@ -21,10 +21,13 @@ import {
   classifyFormat,
   computeFitTier,
   UpstreamError,
+  resolveStaleMargin,
+  resolveTierTtlMs,
   type BlockSeat,
   type Chain,
   type ChainAdapter,
   type FitTier,
+  type RefreshTier,
   type ScoredSeat,
   type SeatPreference,
   type Session,
@@ -365,6 +368,28 @@ const DEFAULT_FRESHNESS_STALE_MS = 2 * 60 * 60_000; // 2h, override via TOGETHER
 function freshnessStaleMs(): number {
   const raw = Number(process.env.TOGETHER_FRESHNESS_STALE_MS);
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_FRESHNESS_STALE_MS;
+}
+
+// --- #86 fix: /availability's tier-aware staleness gate ----------------------
+
+const ALL_REFRESH_TIERS: readonly RefreshTier[] = ["T0", "T1", "T2"];
+
+/**
+ * Per-tier staleness threshold (ms) for `/availability` (#86 fix). Each tier's threshold is the
+ * refresh scheduler's own TTL promise for that proximity (packages/core's DEFAULT_TIER_TTL_MS,
+ * env-overridable via the SAME REFRESH_TTL_T{0,1,2}_MS vars the ingester reads — packages/ingester's
+ * `baseTtlMs` and this resolve from the identical packages/core/src/refresh-tiers.ts source, so the
+ * two packages can never silently drift again), times a margin (AVAILABILITY_STALE_MARGIN, default
+ * 1.5) for the scheduler's own selection/budget/backoff latency on top of the raw TTL. Read
+ * per-request (cheap, env-overridable, same convention as `freshnessStaleMs()`).
+ */
+function resolveStaleMsByTier(): Record<RefreshTier, number> {
+  const margin = resolveStaleMargin(process.env);
+  const out = {} as Record<RefreshTier, number>;
+  for (const tier of ALL_REFRESH_TIERS) {
+    out[tier] = resolveTierTtlMs(tier, process.env) * margin;
+  }
+  return out;
 }
 
 /**
@@ -1086,12 +1111,12 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const horizonDateStr = horizonDate(today, resolveHorizonDays());
     const rangeEnd = maxCachedDate ?? horizonDateStr;
 
-    const dates = buildAvailabilityDates(sessions, seatsBySession, {
+    const { dates, earliestStale } = buildAvailabilityDates(sessions, seatsBySession, {
       party,
       minScore,
       today,
       rangeEnd,
-      staleMs: freshnessStaleMs(),
+      staleMsByTier: resolveStaleMsByTier(),
       soldHeldThresholdPct: resolveSoldHeldThresholdPct(),
       now: now.getTime(),
     });
@@ -1110,6 +1135,10 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       maxCachedDate,
       earliest,
       earliestLeadDays,
+      // #86 fix, part (b): earliest stale-but-qualifying date (null when earliest is non-null, or
+      // when no stale date has a qualifying block). Lets the client give an honest "as of" answer
+      // instead of a false absence claim when `earliest` is null but this isn't.
+      earliestStale,
       dates,
     };
   });

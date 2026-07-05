@@ -275,6 +275,7 @@ function buildAvailabilityFixture(movieKey: string): AvailabilityResponse {
     maxCachedDate: AVAILABILITY_MAX_CACHED_DATE,
     earliest,
     earliestLeadDays: earliest?.leadDays ?? null,
+    earliestStale: null,
     dates,
   };
 }
@@ -307,6 +308,7 @@ export const NO_GOOD_SEATS_AVAILABILITY_FIXTURE: AvailabilityResponse = {
   maxCachedDate: AVAILABILITY_MAX_CACHED_DATE,
   earliest: null,
   earliestLeadDays: null,
+  earliestStale: null,
   dates: buildAvailabilityDates().map((d) => ({
     ...d,
     state: d.state === "good-block" ? "no-qualifying-block" : d.state,

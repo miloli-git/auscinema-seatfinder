@@ -2,7 +2,7 @@ import { after, before, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createPool } from "@auscinema/ingester";
-import { buildLeadTimeReport, findAdjacentBlocks, type BlockSeat } from "@auscinema/core";
+import { buildLeadTimeReport, findAdjacentBlocks, DEFAULT_TIER_TTL_MS, DEFAULT_STALE_MARGIN, tierForDayDiff, type BlockSeat, type RefreshTier } from "@auscinema/core";
 import { buildServer } from "./index.js";
 import {
   buildAvailabilityDates,
@@ -17,11 +17,22 @@ import {
 // per-day instead of per-session (contract §2).
 // =================================================================================================
 
+/** #86 fix: per-tier staleness thresholds built from the SAME shared packages/core constants the
+ *  route handler's `resolveStaleMsByTier` uses — margin * tier TTL. `marginOverride` lets a test
+ *  exercise the raw TTL boundary directly (margin 1) when it needs to. */
+function staleMsByTier(marginOverride: number = DEFAULT_STALE_MARGIN): Record<RefreshTier, number> {
+  return {
+    T0: DEFAULT_TIER_TTL_MS.T0 * marginOverride,
+    T1: DEFAULT_TIER_TTL_MS.T1 * marginOverride,
+    T2: DEFAULT_TIER_TTL_MS.T2 * marginOverride,
+  };
+}
+
 const DEFAULT_OPTS = {
   party: 3,
   minScore: 74,
   today: "2026-07-14",
-  staleMs: 2 * 60 * 60_000, // 2h, same default as freshnessStaleMs()
+  staleMsByTier: staleMsByTier(), // #86 fix: tier-aware, not one fixed 2h gate for every date
   soldHeldThresholdPct: 90,
 };
 
@@ -54,9 +65,10 @@ describe("buildAvailabilityDates — §8 contract integration fixture (pure, no 
     // 2026-07-17: total_seats NULL (pre-migration row, not yet refreshed) -> soldHeldPct null
     // regardless of block state (§4.3).
     row({ id: "s-jul17", date: "2026-07-17", totalSeats: null, availableSeats: null, fetchedAt: "2026-07-14T02:45:00.000Z" }),
-    // A session whose freshest fetched_at is stale (> 2h old) -> stale takes priority over its own
-    // qualifying block (§3 state-selection order).
-    row({ id: "s-stale", date: "2026-07-20", totalSeats: 200, availableSeats: 20, fetchedAt: "2026-07-13T20:00:00.000Z" }),
+    // A session whose freshest fetched_at is stale for its tier -> stale takes priority over its own
+    // qualifying block (§3 state-selection order). 2026-07-20 is 6 days out from today (T1, 6h TTL,
+    // #86-fix 1.5x margin = 9h threshold) -> 27h old is comfortably beyond it.
+    row({ id: "s-stale", date: "2026-07-20", totalSeats: 200, availableSeats: 20, fetchedAt: "2026-07-13T00:00:00.000Z" }),
   ];
 
   const seatsBySession = new Map<string, BlockSeat[]>([
@@ -72,9 +84,10 @@ describe("buildAvailabilityDates — §8 contract integration fixture (pure, no 
     ["s-stale", seats([{ col: 1, score: 90 }, { col: 2, score: 90 }, { col: 3, score: 90 }])],
   ]);
 
-  // now = 2026-07-14T03:00:00.000Z -> s-stale's fetchedAt (2026-07-13T20:00Z) is 7h old (> 2h stale).
+  // now = 2026-07-14T03:00:00.000Z -> s-stale's fetchedAt (2026-07-13T00:00Z) is 27h old, well beyond
+  // its T1 tier's #86-fix 9h threshold (6h TTL * 1.5 margin).
   const now = Date.parse("2026-07-14T03:00:00.000Z");
-  const dates = buildAvailabilityDates(sessions, seatsBySession, {
+  const { dates } = buildAvailabilityDates(sessions, seatsBySession, {
     ...DEFAULT_OPTS,
     rangeEnd: "2026-07-20",
     now,
@@ -159,7 +172,7 @@ describe("buildAvailabilityDates — threshold boundary exactness", () => {
       row({ id: "s1", date: "2026-07-14", totalSeats: 100, availableSeats: 100 - pct, fetchedAt: "2026-07-14T01:00:00.000Z" }),
     ];
     const seatsBySession = new Map<string, BlockSeat[]>([["s1", []]]); // no qualifying block
-    const dates = buildAvailabilityDates(sessions, seatsBySession, {
+    const { dates } = buildAvailabilityDates(sessions, seatsBySession, {
       ...DEFAULT_OPTS,
       rangeEnd: "2026-07-14",
       now: Date.parse("2026-07-14T02:00:00.000Z"),
@@ -184,7 +197,7 @@ describe("buildAvailabilityDates — 47c fix #12: soldHeldPct clamps to [0, 100]
       row({ id: "s-over", date: "2026-07-14", totalSeats: 50, availableSeats: 80, fetchedAt: "2026-07-14T01:00:00.000Z" }),
     ];
     const seatsBySession = new Map<string, BlockSeat[]>([["s-over", []]]);
-    const dates = buildAvailabilityDates(sessions, seatsBySession, {
+    const { dates } = buildAvailabilityDates(sessions, seatsBySession, {
       ...DEFAULT_OPTS,
       rangeEnd: "2026-07-14",
       now: Date.parse("2026-07-14T02:00:00.000Z"),
@@ -195,13 +208,95 @@ describe("buildAvailabilityDates — 47c fix #12: soldHeldPct clamps to [0, 100]
 
 describe("buildAvailabilityDates — no sessions at all", () => {
   test("every date in range is not-cached; dates[] still has no gaps", () => {
-    const dates = buildAvailabilityDates([], new Map(), {
+    const { dates, earliestStale } = buildAvailabilityDates([], new Map(), {
       ...DEFAULT_OPTS,
       rangeEnd: "2026-07-16",
       now: Date.parse("2026-07-14T00:00:00.000Z"),
     });
     assert.deepEqual(dates.map((d) => d.date), ["2026-07-14", "2026-07-15", "2026-07-16"]);
     assert.ok(dates.every((d) => d.state === "not-cached"));
+    assert.equal(earliestStale, null);
+  });
+});
+
+// #86 fix: tier-aware staleness gate — a date's staleness threshold is `tierForDayDiff(leadDays)`'s
+// margin-applied TTL, not one fixed gate for every date. These tests exercise each tier boundary
+// directly (raw TTL, margin=1) plus the live-evidence 19.5h-at-14-days-out regression case (margin
+// applied, the default config a real request uses).
+describe("buildAvailabilityDates — #86 fix: tier-aware staleness gate", () => {
+  const TODAY = "2026-07-14";
+
+  /** One qualifying session on `date` (diff days out from TODAY), `ageMs` old at `now`. */
+  function fixtureAt(diffDays: number, ageMs: number, marginOverride?: number): AvailabilityDate {
+    const date = new Date(Date.parse(`${TODAY}T00:00:00Z`) + diffDays * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const now = Date.parse(`${TODAY}T00:00:00Z`) + 12 * 60 * 60_000; // noon on TODAY, arbitrary anchor
+    const fetchedAt = new Date(now - ageMs).toISOString();
+    const sessions: AvailabilitySessionRow[] = [
+      row({ id: "s1", date, totalSeats: 100, availableSeats: 50, fetchedAt }),
+    ];
+    const seatsBySession = new Map<string, BlockSeat[]>([
+      ["s1", seats([{ col: 1, score: 90 }, { col: 2, score: 90 }, { col: 3, score: 90 }])],
+    ]);
+    const { dates } = buildAvailabilityDates(sessions, seatsBySession, {
+      ...DEFAULT_OPTS,
+      staleMsByTier: staleMsByTier(marginOverride),
+      rangeEnd: date,
+      now,
+    });
+    return dates[dates.length - 1]!;
+  }
+
+  test("T0 boundary (diff=1, 1h TTL, margin 1): just under threshold -> good-block, just over -> stale", () => {
+    assert.equal(tierForDayDiff(1), "T0");
+    assert.equal(fixtureAt(1, 59 * 60_000, 1).state, "good-block"); // 59min < 60min TTL
+    assert.equal(fixtureAt(1, 61 * 60_000, 1).state, "stale"); // 61min > 60min TTL
+  });
+
+  test("T1 boundary (diff=7, 6h TTL, margin 1): just under threshold -> good-block, just over -> stale", () => {
+    assert.equal(tierForDayDiff(7), "T1");
+    assert.equal(fixtureAt(7, (6 * 60 - 1) * 60_000, 1).state, "good-block");
+    assert.equal(fixtureAt(7, (6 * 60 + 1) * 60_000, 1).state, "stale");
+  });
+
+  test("T2 boundary (diff=8, 24h TTL, margin 1): just under threshold -> good-block, just over -> stale", () => {
+    assert.equal(tierForDayDiff(8), "T2");
+    assert.equal(fixtureAt(8, (24 * 60 - 1) * 60_000, 1).state, "good-block");
+    assert.equal(fixtureAt(8, (24 * 60 + 1) * 60_000, 1).state, "stale");
+  });
+
+  test("live evidence regression: T2 date refreshed ~19.5h ago (well inside the 24h T2 TTL, #86-fix default 1.5x margin = 36h) classifies good-block, not stale", () => {
+    const d = fixtureAt(14, 19.5 * 60 * 60_000); // default margin (DEFAULT_STALE_MARGIN)
+    assert.equal(d.state, "good-block");
+    assert.equal(d.bestBlockScore, 90);
+  });
+
+  test("earliest with mixed fresh/stale dates: a stale-but-qualifying T0 date does not shadow a later fresh T2 good-block date", () => {
+    const now = Date.parse("2026-07-15T00:00:00.000Z"); // "tomorrow" at midnight
+    const sessions: AvailabilitySessionRow[] = [
+      // Tomorrow (T0, diff=1): qualifying block, but 2h old -> beyond T0's 1.5h margin threshold -> stale.
+      row({ id: "s-t0-stale", date: "2026-07-15", totalSeats: 100, availableSeats: 50, fetchedAt: "2026-07-14T22:00:00.000Z" }),
+      // 14 days out (T2): qualifying block, fresh (10min old) -> good-block.
+      row({ id: "s-t2-fresh", date: "2026-07-28", totalSeats: 100, availableSeats: 50, fetchedAt: "2026-07-14T23:50:00.000Z" }),
+    ];
+    const seatsBySession = new Map<string, BlockSeat[]>([
+      ["s-t0-stale", seats([{ col: 1, score: 90 }, { col: 2, score: 90 }, { col: 3, score: 90 }])],
+      ["s-t2-fresh", seats([{ col: 1, score: 85 }, { col: 2, score: 85 }, { col: 3, score: 85 }])],
+    ]);
+    const { dates, earliestStale } = buildAvailabilityDates(sessions, seatsBySession, {
+      ...DEFAULT_OPTS,
+      staleMsByTier: staleMsByTier(),
+      rangeEnd: "2026-07-28",
+      now,
+    });
+    const byDate = new Map(dates.map((d) => [d.date, d]));
+    assert.equal(byDate.get("2026-07-15")!.state, "stale");
+    assert.equal(byDate.get("2026-07-28")!.state, "good-block");
+    const earliest = dates.find((d) => d.state === "good-block") ?? null;
+    assert.equal(earliest?.date, "2026-07-28");
+    // earliestStale still reports the earlier stale-but-qualifying date independently.
+    assert.equal(earliestStale?.date, "2026-07-15");
   });
 });
 
@@ -247,9 +342,9 @@ describe("fixture parity: buildAvailabilityDates agrees with buildLeadTimeReport
     }));
     const directReport = buildLeadTimeReport(availabilities, opts);
 
-    const dates = buildAvailabilityDates(sessionRows, seatsBySession, {
+    const { dates } = buildAvailabilityDates(sessionRows, seatsBySession, {
       ...opts,
-      staleMs: 2 * 60 * 60_000,
+      staleMsByTier: staleMsByTier(),
       soldHeldThresholdPct: 90,
       rangeEnd: "2026-07-05",
       now: Date.parse("2026-07-01T01:00:00.000Z"),
@@ -289,6 +384,7 @@ interface AvailabilityResponse {
   maxCachedDate: string | null;
   earliest: AvailabilityDate | null;
   earliestLeadDays: number | null;
+  earliestStale: AvailabilityDate | null;
   dates: AvailabilityDate[];
 }
 
@@ -494,7 +590,9 @@ test(
     const tPlus7 = addDays(today, 7);
 
     const fresh = new Date(Date.now() - 10 * 60_000).toISOString();
-    const stale = new Date(Date.now() - 3 * 60 * 60_000).toISOString();
+    // tPlus7 is 7 days out -> T1 tier (#86 fix: 6h TTL * 1.5 margin = 9h threshold) -> 15h is
+    // comfortably beyond it, so this row stays genuinely stale under the new tier-aware gate.
+    const stale = new Date(Date.now() - 15 * 60 * 60_000).toISOString();
 
     // today: 120 total, 8 available -> 93% sold/held, no qualifying party-3 block -> sold-held-now.
     await insertSession({
@@ -590,6 +688,11 @@ test(
     // earliest/earliestLeadDays match the first good-block row (chronological, not best-score).
     assert.equal(res.earliest?.date, tPlus2);
     assert.equal(res.earliestLeadDays, 2);
+
+    // #86 fix: earliestStale is computed independently of `earliest` — tPlus7 is stale-but-qualifying,
+    // so it's surfaced here even though an earlier good-block date already exists.
+    assert.equal(res.earliestStale?.date, tPlus7);
+    assert.equal(res.earliestStale?.bestBlockScore, 90);
   },
 );
 
@@ -612,6 +715,7 @@ test("empty cache for a movieKey -> every date not-cached out to horizonDate, ma
   assert.equal(res.maxCachedDate, null);
   assert.equal(res.earliest, null);
   assert.equal(res.earliestLeadDays, null);
+  assert.equal(res.earliestStale, null);
   assert.ok(res.dates.every((d) => d.state === "not-cached"));
   assert.equal(res.dates[res.dates.length - 1]!.date, res.horizonDate);
 });

@@ -11,7 +11,9 @@
 import {
   buildLeadTimeReport,
   findAdjacentBlocks,
+  tierForDayDiff,
   type BlockSeat,
+  type RefreshTier,
 } from "@auscinema/core";
 import type { Pool } from "./db.js";
 
@@ -59,12 +61,36 @@ export interface BuildAvailabilityOptions {
   today: string;
   /** Inclusive upper bound of the emitted `dates[]` range — "YYYY-MM-DD" (maxCachedDate ?? horizonDate). */
   rangeEnd: string;
-  /** freshnessStaleMs() — same 2h-default helper /together and /options use. */
-  staleMs: number;
+  /**
+   * #86 fix — tier-aware staleness gate. A date's staleness threshold (ms) is keyed by the SAME
+   * `RefreshTier` the ingester's refresh scheduler (packages/ingester/src/refresh.ts) uses for that
+   * date's proximity, resolved from the SHARED packages/core/src/refresh-tiers.ts constants
+   * (env-overridable, margin-applied). This replaces the old single fixed `staleMs` (2h for every
+   * date regardless of tier) — that fixed gate is exactly what caused #86: a far-out (T2) date, whose
+   * scheduler promise is a 24h TTL, was reported `stale` at just ~19.5h old, permanently nulling
+   * `earliest` for any movie whose only cached dates were T2. See `resolveStaleMsByTier` in
+   * packages/api/src/index.ts for how this map is built.
+   */
+  staleMsByTier: Record<RefreshTier, number>;
   /** AVAILABILITY_SOLD_HELD_THRESHOLD_PCT, default 90 (see resolveSoldHeldThresholdPct). */
   soldHeldThresholdPct: number;
   /** Date.now()-equivalent instant (ms), injected for deterministic staleness tests. */
   now: number;
+}
+
+/** Result of {@link buildAvailabilityDates} — the per-date rows plus the #86-fix honest fallback. */
+export interface AvailabilityDatesResult {
+  dates: AvailabilityDate[];
+  /**
+   * #86 fix, part (b): the earliest (chronological) date that WOULD be `good-block` if it weren't
+   * stale — i.e. it has a qualifying `party`-size block, but its freshest session is older than its
+   * tier's staleness threshold. `null` when no such date exists (either every stale date lacks a
+   * qualifying block, or there are no stale dates at all). Unlike `dates[]`'s own `stale` rows (which
+   * never leak `bestBlockScore`, per §3's per-cell honesty contract), this field DELIBERATELY carries
+   * `bestBlockScore` — it exists specifically so the API/header can surface an honest "as of" answer
+   * instead of asserting `earliest: null` (false absence) when qualifying-but-stale data exists.
+   */
+  earliestStale: AvailabilityDate | null;
 }
 
 // --- env config -----------------------------------------------------------------------------
@@ -114,8 +140,8 @@ export function buildAvailabilityDates(
   sessions: readonly AvailabilitySessionRow[],
   seatsBySession: ReadonlyMap<string, readonly BlockSeat[]>,
   opts: BuildAvailabilityOptions,
-): AvailabilityDate[] {
-  const { party, minScore, today, rangeEnd, staleMs, soldHeldThresholdPct, now } = opts;
+): AvailabilityDatesResult {
+  const { party, minScore, today, rangeEnd, staleMsByTier, soldHeldThresholdPct, now } = opts;
 
   // Step 3: one SessionAvailability per session, exactly as /together builds its blocks — reusing
   // findAdjacentBlocks, not reimplementing it. totalSeats/availableSeats default to 0 when NULL
@@ -147,6 +173,7 @@ export function buildAvailabilityDates(
   }
 
   const dates: AvailabilityDate[] = [];
+  let earliestStale: AvailabilityDate | null = null;
   for (const date of dateRange(today, rangeEnd)) {
     const entries = byDate.get(date);
     const leadDays = leadDaysFrom(today, date);
@@ -195,6 +222,13 @@ export function buildAvailabilityDates(
         ? Math.max(0, Math.min(100, Math.round((100 * takenSum) / totalSum)))
         : null;
 
+    // #86 fix: staleness is TIER-AWARE — this date's proximity maps to the SAME RefreshTier the
+    // ingester's refresh scheduler uses for it (packages/core's tierForDayDiff, shared boundaries), so
+    // the threshold is that tier's own (margin-applied) TTL, not one fixed gate for every date
+    // regardless of how far out it is.
+    const tier = tierForDayDiff(leadDays);
+    const staleMs = staleMsByTier[tier];
+
     // §3 state-selection order: not-cached (handled above) -> stale -> sold-held-now -> good-block
     // -> no-qualifying-block.
     const isStale = asOf !== null && now - Date.parse(asOf) >= staleMs;
@@ -214,14 +248,23 @@ export function buildAvailabilityDates(
       state,
       leadDays,
       // bestBlockScore is only ever surfaced for a confidently-reported good-block date (§1.2) —
-      // a stale date with an internally-qualifying session must not leak a bestBlockScore.
+      // a stale date with an internally-qualifying session must not leak a bestBlockScore in the
+      // per-cell array (the honest fallback for a stale-but-qualifying date is `earliestStale` below,
+      // computed separately and never written back into this cell).
       bestBlockScore: state === "good-block" ? bestBlockScore : null,
       soldHeldPct,
       asOf,
     });
+
+    // #86 fix, part (b): track the earliest (chronological — we're iterating dateRange ascending)
+    // stale-but-qualifying date, so the caller can surface an honest "as of" answer instead of a false
+    // absence claim when `earliest` (first good-block) is null.
+    if (earliestStale === null && state === "stale" && hasQualifying) {
+      earliestStale = { date, state, leadDays, bestBlockScore, soldHeldPct, asOf };
+    }
   }
 
-  return dates;
+  return { dates, earliestStale };
 }
 
 // --- DB read (the ONLY I/O in this module) -----------------------------------------------------
