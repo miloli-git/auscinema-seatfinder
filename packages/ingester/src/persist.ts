@@ -110,6 +110,33 @@ export async function upsertSessionWithSeats(
   }
 }
 
+export interface NameHeal {
+  id: string;
+  movieName: string | null;
+  cinemaName: string | null;
+}
+
+/**
+ * #67/#72 review follow-up: a lightweight, independent name-heal write. The seat-refresh upsert
+ * (`upsertSessionWithSeats`) only reaches sessions in the tick's `sel.selected` set (due + within
+ * per-chain budget + a successful `getSeatMap`), so healing used to ride seat-refresh cadence — a
+ * not-due row, a budget-skipped row, or a seatmap failure/429 all blocked the name heal even though
+ * discovery had already returned the real name. This batched UPDATE runs once per tick for EVERY
+ * discovered known row with a computed heal, regardless of due/budget/seatmap outcome. The existing
+ * upsert path is unchanged; this is purely additive.
+ */
+export async function healSessionNames(pool: Pool, heals: readonly NameHeal[]): Promise<void> {
+  if (heals.length === 0) return;
+  await pool.query(
+    `UPDATE sessions AS s
+        SET movie_name  = h.movie_name,
+            cinema_name = h.cinema_name
+       FROM UNNEST($1::text[], $2::text[], $3::text[]) AS h(id, movie_name, cinema_name)
+      WHERE s.id = h.id`,
+    [heals.map((h) => h.id), heals.map((h) => h.movieName), heals.map((h) => h.cinemaName)],
+  );
+}
+
 /** Open an ingest_runs row, returning its id. */
 export async function startIngestRun(pool: Pool): Promise<number> {
   const { rows } = await pool.query<{ id: string | number }>(

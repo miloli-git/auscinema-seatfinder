@@ -8,8 +8,12 @@ subscription key for the read endpoints). Normalises into core shapes.
   - `chain = "hoyts"`.
   - `listCinemas()` — `GET cinemaapi-au-live/api/cinemas`. Cinema id is an alpha code (e.g.
     `MIDCIN`), not numeric.
+  - `listMovieNames()` — `GET cinemaapi-au-live/api/movies`, returns a `vistaId -> name` map (#72).
+    The sessions feed carries only the Vista `movieId` and no title; joined in the same way #67
+    joins `cinemaName` from `listCinemas()`.
   - `listSessions({ movieId, cinemaIds, date })` — `GET .../sessions/{cinemaId}?partnerId=ALL`,
-    per-cinema with ALL movies + dates, filtered client-side.
+    per-cinema with ALL movies + dates, filtered client-side. `movieName`/`cinemaName` are resolved
+    from the memoized movies/cinemas lists and never blank for a movie/cinema still on those lists.
   - `getSeatMap(sessionId, { preview? })` — `GET ticketing-au-live/.../ticket/seats/{cinemaId}/{sessionId}/`.
     The seat route needs the cinema too, so `Session.id` is encoded `"{cinemaId}:{sessionId}"` and
     split back here.

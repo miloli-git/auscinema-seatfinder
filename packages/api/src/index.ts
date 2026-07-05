@@ -841,12 +841,24 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const titlesWhere = [`disappeared_at IS NULL`, `date >= $${params.length + 1}`];
     if (chain !== undefined) titlesWhere.push(`chain = $1`);
     const titlesParams = [...params, sydneyToday];
+    // #75 review follow-up: same cross-row fallback /options already applies to cinemaName/movieTitle
+    // (§5, #67) — a blank/NULL title within the liveness-filtered `live` set self-heals from the most
+    // recently fetched non-blank movie_name cached ANYWHERE for the same (chain, movie_id), including
+    // rows outside the current watch coverage / seatAllocation=false / tombstoned / past-date. This
+    // covers the picker-visible symptom (Screen 0's movie list showing a blank title) even for a row
+    // that can never itself be name-healed by refresh.ts (out of scope, so never rediscovered).
     const titlesRes = await db.query<{ movieKey: string; chain: string; title: string | null; sessionCount: number }>(
       `WITH live AS (
          SELECT chain, movie_id, movie_name FROM sessions WHERE ${titlesWhere.join(" AND ")}
        ),
        names AS (
-         SELECT DISTINCT ON (chain, movie_id) chain, movie_id, movie_name AS title
+         SELECT DISTINCT ON (chain, movie_id) chain, movie_id,
+                COALESCE(NULLIF(movie_name, ''), (
+                  SELECT s2.movie_name FROM sessions s2
+                   WHERE s2.chain = live.chain AND s2.movie_id = live.movie_id
+                     AND s2.movie_name IS NOT NULL AND s2.movie_name <> ''
+                   ORDER BY s2.fetched_at DESC LIMIT 1
+                )) AS title
            FROM live
           ORDER BY chain, movie_id, movie_name NULLS LAST
        ),
