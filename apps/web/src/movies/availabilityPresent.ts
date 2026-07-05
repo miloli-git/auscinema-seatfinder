@@ -16,6 +16,14 @@ function clampPct(pct: number): number {
   return Math.max(0, Math.min(100, pct));
 }
 
+/** Group-mode headcount-varies-by-day info for {@link composeHeaderSummary} — see
+ *  availabilityGroup.ts's fan-out/merge. `earliestParty` is the headcount that actually produced
+ *  `res.earliest` (may differ from `res.party`, the fallback/baseline party). */
+export interface HeaderSummaryGroupInfo {
+  variesByDay: boolean;
+  earliestParty: number | null;
+}
+
 /**
  * Header summary string, exact form from the locked spec (contract §6):
  * "Earliest 2 good seats: Tue 16 Jul (14 days out) · 81% sold/held as of 2h ago"
@@ -24,14 +32,30 @@ function clampPct(pct: number): number {
  * dropped entirely — never "null% sold/held", never a fabricated 0. When `earliest` itself is null
  * (no good-block date anywhere in the cached horizon), falls back to the Slice 3 honest-state copy
  * rather than a blank header. `now` is injectable for deterministic tests.
+ *
+ * When `group.variesByDay` is set (group mode, differing per-day headcounts — the response is a
+ * MergedAvailability from availabilityGroup.ts, not a single-party /availability response), the
+ * single scalar `res.party` no longer describes every day honestly, so the copy drops the "N good
+ * seats" claim in favour of naming the actual headcount that produced the earliest date:
+ * "Earliest good seats for your group: Tue 8 Jul (6 people, 3 days out) · ...".
  */
-export function composeHeaderSummary(res: AvailabilityResponse, now: number = Date.now()): string {
+export function composeHeaderSummary(
+  res: AvailabilityResponse,
+  now: number = Date.now(),
+  group?: HeaderSummaryGroupInfo,
+): string {
   const { earliest } = res;
+  const variesByDay = group?.variesByDay ?? false;
   if (!earliest) {
-    return `No good ${res.party}-seat block found in the next ${res.dates.length} days`;
+    return variesByDay
+      ? `No good seats found for your group in the next ${res.dates.length} days`
+      : `No good ${res.party}-seat block found in the next ${res.dates.length} days`;
   }
   const leadDays = res.earliestLeadDays ?? earliest.leadDays;
-  let summary = `Earliest ${res.party} good seats: ${formatShortDate(earliest.date)} (${leadDays} days out)`;
+  const summaryLead = variesByDay
+    ? `Earliest good seats for your group: ${formatShortDate(earliest.date)} (${group?.earliestParty ?? res.party} people, ${leadDays} days out)`
+    : `Earliest ${res.party} good seats: ${formatShortDate(earliest.date)} (${leadDays} days out)`;
+  let summary = summaryLead;
   if (earliest.soldHeldPct !== null && earliest.asOf) {
     summary += ` · ${clampPct(earliest.soldHeldPct)}% sold/held as of ${relativeTimeAgo(earliest.asOf, now)}`;
   }

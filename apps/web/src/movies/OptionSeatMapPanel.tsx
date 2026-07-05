@@ -4,9 +4,15 @@ import { SeatMapView } from "../components/SeatMapView";
 import { chainLabel, formatShortDate, formatTime } from "../format";
 import type { ScoredSeatMap } from "../types";
 import { fetchAvailability as apiFetchAvailability, type AvailabilityQuery } from "./api";
+import { fetchGroupAvailability } from "./availabilityGroup";
 import { DateAvailabilityStrip } from "./DateAvailabilityStrip";
 import { displayCinemaName } from "./present";
 import type { AvailabilityResponse, Option } from "./types";
+
+// Stable reference so solo-mode renders never retrigger the /availability effect merely because
+// the caller's real dayCounts Map reference changed in the background — same rationale as
+// AvailabilitySummary's own EMPTY_DAY_COUNTS.
+const EMPTY_DAY_COUNTS: ReadonlyMap<string, number> = new Map();
 
 type SeatMapFetcher = (
   chain: string,
@@ -18,7 +24,14 @@ type SeatMapFetcher = (
 interface Props {
   option: Option;
   movieKey: string;
+  /** Party used for the /seatmap fetch (unaffected by this fix) and as the /availability fallback
+   *  party when there's nothing to fan out over — see `groupMode`/`dayCounts` below. */
   party: number;
+  /** True in Plan-group mode — when set along with a `dayCounts` with >1 distinct headcount, the
+   *  strip's /availability fetch fans out per headcount instead of using the single `party` above
+   *  for every day (47c-followup: same false-claim class PR #80 fixed for option cards). */
+  groupMode?: boolean;
+  dayCounts?: ReadonlyMap<string, number>;
   minScore: number;
   onClose: () => void;
   /** 47c fix #5: forwarded to the DateAvailabilityStrip so a cell click applies that date as the
@@ -52,6 +65,8 @@ export function OptionSeatMapPanel({
   option,
   movieKey,
   party,
+  groupMode = false,
+  dayCounts = EMPTY_DAY_COUNTS,
   minScore,
   onClose,
   onSelectDate,
@@ -89,8 +104,16 @@ export function OptionSeatMapPanel({
     setAvailability({ status: "loading" });
     // Narrowed to this option's own cinema (contract §1.1's `cinemaId` filter) so the strip reads
     // as "the date picture for the cinema you're already looking at," not the whole movie/chain.
-    fetchAvailability({ movieKey, party, minScore, cinemaId: option.cinemaId })
-      .then((data) => {
+    // 47c-followup: group mode with varying per-day headcounts fans out per distinct headcount and
+    // merges honestly (see availabilityGroup.ts) instead of stamping every day with `party`, the
+    // global max — same fix class as AvailabilitySummary's header line.
+    fetchGroupAvailability(
+      { movieKey, minScore, cinemaId: option.cinemaId },
+      groupMode ? dayCounts : EMPTY_DAY_COUNTS,
+      party,
+      fetchAvailability,
+    )
+      .then(({ data }) => {
         if (live && availReqRef.current === token) setAvailability({ status: "ready", data });
       })
       .catch(() => {
@@ -99,7 +122,7 @@ export function OptionSeatMapPanel({
     return () => {
       live = false;
     };
-  }, [movieKey, option.cinemaId, party, minScore, fetchAvailability]);
+  }, [movieKey, option.cinemaId, party, groupMode, dayCounts, minScore, fetchAvailability]);
 
   return (
     <section className="hero optionseatmap" aria-label="Seat map">

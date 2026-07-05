@@ -91,6 +91,46 @@ describe("composeHeaderSummary", () => {
     expect(summary).toBe("No good 3-seat block found in the next 2 days");
     assertNoForecastLanguage(summary);
   });
+
+  describe("group.variesByDay (47c-followup: per-day headcount honesty)", () => {
+    it("names the day's OWN headcount instead of the response's single `party` scalar (which is the fallback/global-max, not this day's count)", () => {
+      // `res.party` is 7 (the fallback baseline party) but the earliest good-block day was actually
+      // produced by the party=6 group fetch — the copy must say 6, never the misleading 7.
+      const res = response({
+        party: 7,
+        earliest: date({ date: "2026-07-08", leadDays: 3, soldHeldPct: null, asOf: null }),
+        earliestLeadDays: 3,
+      });
+      const summary = composeHeaderSummary(res, now, { variesByDay: true, earliestParty: 6 });
+      expect(summary).toBe("Earliest good seats for your group: Wed 8 Jul (6 people, 3 days out)");
+      expect(summary).not.toContain("Earliest 7");
+      assertNoForecastLanguage(summary);
+    });
+
+    it("still appends the sold/held clause when present, after the varying-count copy", () => {
+      const res = response({
+        earliest: date({ date: "2026-07-08", leadDays: 3, soldHeldPct: 55, asOf: "2026-07-08T00:00:00.000Z" }),
+        earliestLeadDays: 3,
+      });
+      const summary = composeHeaderSummary(res, now, { variesByDay: true, earliestParty: 6 });
+      expect(summary).toContain("(6 people, 3 days out) · 55% sold/held as of");
+    });
+
+    it("no good-block day anywhere -> honest no-seats copy without a stale party-N claim", () => {
+      const res = response({ earliest: null, earliestLeadDays: null, dates: [date({ state: "no-qualifying-block" })] });
+      const summary = composeHeaderSummary(res, now, { variesByDay: true, earliestParty: null });
+      expect(summary).toBe("No good seats found for your group in the next 1 days");
+      expect(summary).not.toMatch(/No good \d+-seat/);
+    });
+
+    it("uniform counts (variesByDay: false, or omitted) keeps the original single-party copy unchanged", () => {
+      const res = response({ party: 6 });
+      const withFlagFalse = composeHeaderSummary(res, now, { variesByDay: false, earliestParty: 6 });
+      const withoutGroupArg = composeHeaderSummary(res, now);
+      expect(withFlagFalse).toBe(withoutGroupArg);
+      expect(withFlagFalse).toMatch(/^Earliest 6 good seats:/);
+    });
+  });
 });
 
 describe("notCachedSubState", () => {
