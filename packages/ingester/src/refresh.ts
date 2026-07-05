@@ -19,7 +19,7 @@ import {
 } from "./persist.js";
 import { countSeatableTotal, sessionToUpsert, toSeatUpserts } from "./sweep.js";
 import { datesInRange, loadEnabledWatches, watchToQuery } from "./watches.js";
-import { effectiveWindow, resolveHorizonDays } from "./horizon.js";
+import { effectiveWindow, horizonDate, resolveHorizonDays } from "./horizon.js";
 import type { SessionUpsert, WatchRow } from "./types.js";
 
 // --- C1 tiering --------------------------------------------------------------
@@ -91,6 +91,23 @@ function resolveReserveForNew(): number {
   const raw = process.env.REFRESH_RESERVE_NEW_PER_CHAIN;
   const n = raw === undefined ? NaN : Number(raw);
   return Number.isInteger(n) && n >= 0 ? n : 10;
+}
+
+/**
+ * #46 fix (3a): never-fetched sessions within this many days of the rolling horizon's far edge
+ * (today + horizonDays) are excluded from the guaranteed reserveForNew lane. Without this, a brand
+ * new date enters discovery every tick at exactly `today+horizonDays` and always wins the reserved
+ * lane (fresh within minutes), while already-known, already-cached mid-window T2 dates never clear
+ * their backlog against the shared budget — the RCA's "Aug10-always-fresh-while-Jul16-starves"
+ * defect. Excluded sessions still get picked up: they compete via the normal budget, which is now
+ * proximity-weighted (see `orderDue`) and so naturally sorts them behind nearer T2 dates rather than
+ * jumping ahead of them. Env REFRESH_RESERVE_NEW_EDGE_EXCLUDE_DAYS, default 2; 0 disables the
+ * exclusion (legacy behaviour: every never-fetched session, including the horizon edge, is eligible).
+ */
+function resolveReserveNewEdgeExcludeDays(): number {
+  const raw = process.env.REFRESH_RESERVE_NEW_EDGE_EXCLUDE_DAYS;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : 2;
 }
 
 /**
@@ -178,9 +195,18 @@ const TIER_ORDER: RefreshTier[] = ["T0", "T1", "T2"];
  * Bucket priority is the most-stale bucket first (oldest member's fetchedAt), and within a bucket
  * the STALEST (oldest fetchedAt) come first — a refresh-ahead scheduler must refresh the stalest
  * first, so the over-budget tail that gets dropped is the freshest slice.
+ *
+ * #46 fix (2): T0/T1 bucket ordering is untouched (staleness-only, as above). Within T2, bucket
+ * priority is instead day-distance-from-today ASCENDING (nearer dates first), tie-broken by
+ * staleness — T2 spans "8 days+" with no further tiering, so a session 10 days out and one 35 days
+ * out previously competed on staleness alone, and a `neverFetched` (epoch fetchedAt) session at the
+ * horizon's far edge always looked "stalest" and jumped every already-cached nearer date. Proximity
+ * as the PRIMARY key means near-term T2 dates drain their backlog before far-horizon ones, which is
+ * exactly the RCA's "Aug10-always-fresh-while-Jul16-starves" defect.
  */
-function orderDue(due: KnownSession[]): KnownSession[] {
+function orderDue(due: KnownSession[], nowInstant: Date): KnownSession[] {
   const ordered: KnownSession[] = [];
+  const today = sydneyDate(nowInstant);
   for (const tier of TIER_ORDER) {
     const inTier = due.filter((d) => d.tier === tier);
     if (inTier.length === 0) continue;
@@ -199,10 +225,17 @@ function orderDue(due: KnownSession[]): KnownSession[] {
     const bucketList = [...buckets.values()];
     // Within a bucket: stalest (oldest fetchedAt) first.
     for (const b of bucketList) b.sort((x, y) => x.fetchedAt.getTime() - y.fetchedAt.getTime());
-    // Bucket order: most-stale bucket (smallest min fetchedAt) first.
     const oldestOf = (b: KnownSession[]): number =>
       b.reduce((min, s) => Math.min(min, s.fetchedAt.getTime()), Number.POSITIVE_INFINITY);
-    bucketList.sort((a, b) => oldestOf(a) - oldestOf(b));
+
+    if (tier === "T2") {
+      // Bucket order: nearest date first, staleness only as a tie-break between same-date buckets.
+      const distanceOf = (b: KnownSession[]): number => dayDiff(today, b[0]!.date);
+      bucketList.sort((a, b) => distanceOf(a) - distanceOf(b) || oldestOf(a) - oldestOf(b));
+    } else {
+      // T0/T1: unchanged — most-stale bucket (smallest min fetchedAt) first.
+      bucketList.sort((a, b) => oldestOf(a) - oldestOf(b));
+    }
 
     // Round-robin: one from each bucket per round, in bucket-priority order.
     const maxLen = bucketList.reduce((m, b) => Math.max(m, b.length), 0);
@@ -230,10 +263,30 @@ export function isDue(k: KnownSession, nowInstant: Date): boolean {
 
 export function selectDueSessions(
   known: KnownSession[],
-  opts: { budgetPerChain: number; reserveForNew?: number; nowInstant: Date },
+  opts: {
+    budgetPerChain: number;
+    reserveForNew?: number;
+    nowInstant: Date;
+    /** #46 fix (3a): "YYYY-MM-DD" far edge of the rolling horizon (today + horizonDays). Required
+     *  (together with `reserveNewEdgeExcludeDays`) to exclude horizon-edge never-fetched sessions
+     *  from the reserved lane. Omitted = no exclusion (legacy behaviour). */
+    horizonEdgeDate?: string;
+    /** #46 fix (3a): sessions within this many days of `horizonEdgeDate` are excluded from the
+     *  reserveForNew lane. 0 or omitted = no exclusion (legacy behaviour). */
+    reserveNewEdgeExcludeDays?: number;
+  },
 ): SelectResult {
-  const { budgetPerChain, nowInstant } = opts;
+  const { budgetPerChain, nowInstant, horizonEdgeDate } = opts;
   const reserveForNew = Math.max(0, opts.reserveForNew ?? 0);
+  const reserveNewEdgeExcludeDays = Math.max(0, opts.reserveNewEdgeExcludeDays ?? 0);
+  // A session is "near the horizon edge" iff its date is within `reserveNewEdgeExcludeDays` of the
+  // far edge (i.e. horizonEdgeDate - excludeDays <= s.date <= horizonEdgeDate). Disabled (always
+  // false) when the caller doesn't supply the horizon edge or sets excludeDays to 0.
+  const isNearHorizonEdge = (date: string): boolean => {
+    if (!horizonEdgeDate || reserveNewEdgeExcludeDays <= 0) return false;
+    const distanceFromEdge = dayDiff(date, horizonEdgeDate);
+    return distanceFromEdge >= 0 && distanceFromEdge <= reserveNewEdgeExcludeDays;
+  };
 
   const byChain = new Map<string, KnownSession[]>();
   for (const k of known) {
@@ -249,15 +302,18 @@ export function selectDueSessions(
   const selected: string[] = [];
   const skipped: SkipCount[] = [];
   for (const due of byChain.values()) {
-    const ordered = orderDue(due);
+    const ordered = orderDue(due, nowInstant);
     // Reserved first-ingest lane: up to `reserveForNew` never-fetched sessions, in orderDue priority,
     // guaranteed even when the normal budget is fully consumed. reserveForNew=0 short-circuits to the
     // exact pre-#60 behaviour (the main pass slices `ordered` from index 0).
+    // #46 fix (3a): a never-fetched session within `reserveNewEdgeExcludeDays` of the horizon's far
+    // edge is skipped for the reserved lane — it still competes via the (now proximity-weighted)
+    // main pass below instead of structurally jumping every already-cached nearer T2 date.
     const reservedIds = new Set<string>();
     if (reserveForNew > 0) {
       for (const s of ordered) {
         if (reservedIds.size >= reserveForNew) break;
-        if (s.neverFetched) reservedIds.add(s.sessionId);
+        if (s.neverFetched && !isNearHorizonEdge(s.date)) reservedIds.add(s.sessionId);
       }
     }
     // Main pass: fill budgetPerChain from the remaining due (excluding reserved), preserving orderDue.
@@ -719,7 +775,15 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   const dueCandidates = candidates.filter((c) => isDue(c, nowInstant));
   // #60 reserved first-ingest lane: env-resolved in the caller (default 10), passed into the pure fn.
   const reserveForNew = resolveReserveForNew();
-  const sel = selectDueSessions(candidates, { budgetPerChain, reserveForNew, nowInstant });
+  // #46 fix (3a): the rolling horizon's far edge, so the reserved lane can exclude never-fetched
+  // sessions right at that edge (env-resolved exclusion window, default 2 days).
+  const sel = selectDueSessions(candidates, {
+    budgetPerChain,
+    reserveForNew,
+    nowInstant,
+    horizonEdgeDate: horizonDate(sydneyToday, horizonDays),
+    reserveNewEdgeExcludeDays: resolveReserveNewEdgeExcludeDays(),
+  });
 
   // --- per-chain accounting.
   const perChain = new Map<string, ChainStat>();

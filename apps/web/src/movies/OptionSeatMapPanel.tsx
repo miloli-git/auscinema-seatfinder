@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_SCORING, fetchSeatMap as apiFetchSeatMap, type ScoringParams } from "../api";
+import { findAdjacentBlocks, type BlockSeat } from "../blocks";
 import { SeatMapView } from "../components/SeatMapView";
 import { chainLabel, formatShortDate, formatTime } from "../format";
 import type { ScoredSeatMap } from "../types";
@@ -14,17 +15,14 @@ import type { AvailabilityResponse, Option } from "./types";
 // AvailabilitySummary's own EMPTY_DAY_COUNTS.
 const EMPTY_DAY_COUNTS: ReadonlyMap<string, number> = new Map();
 
-type SeatMapFetcher = (
-  chain: string,
-  sessionId: string,
-  scoring: ScoringParams,
-  options?: { party?: number; minScore?: number },
-) => Promise<ScoredSeatMap>;
+// #46 fix (item 4): no `options` (party/minScore) param — the seat map is fetched once per session
+// and never re-fetched for a party/minScore change, so there is nothing left to pass through here.
+type SeatMapFetcher = (chain: string, sessionId: string, scoring: ScoringParams) => Promise<ScoredSeatMap>;
 
 interface Props {
   option: Option;
   movieKey: string;
-  /** Party used for the /seatmap fetch (unaffected by this fix) and as the /availability fallback
+  /** Used to derive the client-side "together" block (#46 fix) and as the /availability fallback
    *  party when there's nothing to fan out over — see `groupMode`/`dayCounts` below. */
   party: number;
   /** True in Plan-group mode — when set along with a `dayCounts` with >1 distinct headcount, the
@@ -80,11 +78,18 @@ export function OptionSeatMapPanel({
   const reqRef = useRef(0);
   const availReqRef = useRef(0);
 
+  // #46 fix (item 4): fetch the seat map ONCE per selected session (chain + sessionId). `party` and
+  // `minScore` used to be live dependencies here too — any debounced slider tweak re-fired this
+  // effect, and the server's `/seatmap` unconditionally re-hits the upstream chain on every request
+  // (the RCA's live-call-per-interaction 429 source). Per-seat `score` doesn't depend on party or
+  // minScore (only the scoring preference does), so the "together" block for the CURRENT party/
+  // minScore is now derived client-side below (`clientBlock`/`clientBlocks`) from the same fetched
+  // `scored` seats — no new upstream call needed when the slider or party moves.
   useEffect(() => {
     let live = true;
     const token = ++reqRef.current;
     setState({ status: "loading" });
-    fetchSeatMap(option.chain, option.sessionId, scoring, { party, minScore })
+    fetchSeatMap(option.chain, option.sessionId, scoring)
       .then((map) => {
         if (live && reqRef.current === token) setState({ status: "ok", map });
       })
@@ -96,7 +101,22 @@ export function OptionSeatMapPanel({
     return () => {
       live = false;
     };
-  }, [option.chain, option.sessionId, party, minScore, fetchSeatMap, scoring]);
+  }, [option.chain, option.sessionId, fetchSeatMap, scoring]);
+
+  // #46 fix (item 4): re-score/re-derive the best adjacency block locally whenever party/minScore
+  // change, instead of re-fetching. Pure and synchronous — no loading flash, no upstream call.
+  const clientBlocks = useMemo(() => {
+    if (state.status !== "ok") return [];
+    const blockSeats: BlockSeat[] = state.map.scored.map((s) => ({
+      id: s.seat.id,
+      rowLabel: s.seat.rowLabel ?? "",
+      row: s.seat.row,
+      col: s.seat.col,
+      score: s.score,
+    }));
+    return findAdjacentBlocks(blockSeats, { minScore, size: Math.max(1, party) });
+  }, [state, minScore, party]);
+  const clientBlock = clientBlocks[0] ?? null;
 
   useEffect(() => {
     let live = true;
@@ -153,7 +173,7 @@ export function OptionSeatMapPanel({
         <p className="hero__msg hint hint--warn">Seat map failed: {state.message}</p>
       )}
       {state.status === "ok" && (
-        <SeatMapView map={state.map} topN={topN} highlightSeatIds={state.map.block?.seatIds} />
+        <SeatMapView map={state.map} topN={topN} highlightSeatIds={clientBlock?.seatIds} />
       )}
       {availability.status === "ready" && (
         <DateAvailabilityStrip availability={availability.data} onSelectDate={onSelectDate} />
