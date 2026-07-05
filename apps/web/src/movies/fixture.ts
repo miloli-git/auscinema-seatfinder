@@ -1,18 +1,19 @@
 // Mock/dev-mode data source, used until the API builder's live /options and /catalog `titles`
-// land (docs/47a-contract.md §6 — "Integration checklist — shared fixture"). The OPTIONS_FIXTURE
-// below is copied VERBATIM from the contract's example response (party=3 case). Both builders test
-// against this exact fixture per the contract, so do not edit its values — only the shape may
-// evolve if the contract itself changes.
-
+// land (docs/47a-contract.md §6 — "Integration checklist — shared fixture"). The three
+// per-chain fixtures below are copied VERBATIM from the contract's three "worked examples"
+// (Request 1/2/3, party=3 case). Both builders test against these exact fixtures per the
+// contract, so do not edit their values — only the shape may evolve if the contract itself
+// changes. Each call to the real API returns exactly ONE chain's options (§3, §6) — never mix
+// chains into a single OptionsResponse here.
 import type { CatalogTitle, OptionsResponse } from "./types";
 
-/** Verbatim from docs/47a-contract.md §6 "Example response". */
-export const OPTIONS_FIXTURE: OptionsResponse = {
+/** Verbatim from docs/47a-contract.md §6 "Request 1: Event". */
+export const EVENT_OPTIONS_FIXTURE: OptionsResponse = {
   movieKey: "event:555",
   movieTitle: "Dune: Part Two",
   party: 3,
   minScore: 74,
-  count: 3,
+  count: 1,
   options: [
     {
       chain: "event",
@@ -32,6 +33,23 @@ export const OPTIONS_FIXTURE: OptionsResponse = {
       freshness: { asOf: "2026-07-21T02:10:00.000Z", state: "fresh" },
       bookingUrl: "https://www.eventcinemas.com.au/Ticketing/checkout/evt-9001",
     },
+  ],
+  freshness: {
+    oldestFetchedAt: "2026-07-21T02:10:00.000Z",
+    newestFetchedAt: "2026-07-21T02:10:00.000Z",
+    lastSuccessfulIngestAt: "2026-07-21T02:10:00.000Z",
+    coverage: { event: "cached" },
+  },
+};
+
+/** Verbatim from docs/47a-contract.md §6 "Request 2: Village". */
+export const VILLAGE_OPTIONS_FIXTURE: OptionsResponse = {
+  movieKey: "village:555",
+  movieTitle: "Dune: Part Two",
+  party: 3,
+  minScore: 74,
+  count: 1,
+  options: [
     {
       chain: "village",
       cinemaId: "40",
@@ -50,6 +68,23 @@ export const OPTIONS_FIXTURE: OptionsResponse = {
       freshness: { asOf: "2026-07-20T23:55:00.000Z", state: "stale" },
       bookingUrl: "https://www.villagecinemas.com.au/checkout/vil-4410",
     },
+  ],
+  freshness: {
+    oldestFetchedAt: "2026-07-20T23:55:00.000Z",
+    newestFetchedAt: "2026-07-20T23:55:00.000Z",
+    lastSuccessfulIngestAt: "2026-07-21T02:10:00.000Z",
+    coverage: { village: "cached" },
+  },
+};
+
+/** Verbatim from docs/47a-contract.md §6 "Request 3: Hoyts". */
+export const HOYTS_OPTIONS_FIXTURE: OptionsResponse = {
+  movieKey: "hoyts:555",
+  movieTitle: "Dune: Part Two",
+  party: 3,
+  minScore: 74,
+  count: 1,
+  options: [
     {
       chain: "hoyts",
       cinemaId: "88",
@@ -70,12 +105,22 @@ export const OPTIONS_FIXTURE: OptionsResponse = {
     },
   ],
   freshness: {
-    oldestFetchedAt: "2026-07-20T23:55:00.000Z",
-    newestFetchedAt: "2026-07-21T02:10:00.000Z",
+    oldestFetchedAt: "2026-07-21T01:00:00.000Z",
+    newestFetchedAt: "2026-07-21T01:00:00.000Z",
     lastSuccessfulIngestAt: "2026-07-21T02:10:00.000Z",
-    coverage: { event: "cached" },
+    coverage: { hoyts: "cached" },
   },
 };
+
+/** Per-chain options fixtures, keyed by chain (contract §6's three worked examples). */
+export const OPTIONS_FIXTURES_BY_CHAIN: Record<string, OptionsResponse> = {
+  event: EVENT_OPTIONS_FIXTURE,
+  village: VILLAGE_OPTIONS_FIXTURE,
+  hoyts: HOYTS_OPTIONS_FIXTURE,
+};
+
+/** Default fixture used when a movieKey's chain has no dedicated fixture above. */
+export const OPTIONS_FIXTURE: OptionsResponse = EVENT_OPTIONS_FIXTURE;
 
 /**
  * Catalog titles fixture — constructed for dev/mock use (the contract does not give a verbatim

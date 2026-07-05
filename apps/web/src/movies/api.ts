@@ -6,7 +6,12 @@
 
 import { API_BASE, fetchCatalog } from "../api";
 import type { CatalogTitle, OptionsResponse } from "./types";
-import { CATALOG_TITLES_FIXTURE, NO_GOOD_SEATS_OPTIONS_FIXTURE, OPTIONS_FIXTURE } from "./fixture";
+import {
+  CATALOG_TITLES_FIXTURE,
+  NO_GOOD_SEATS_OPTIONS_FIXTURE,
+  OPTIONS_FIXTURE,
+  OPTIONS_FIXTURES_BY_CHAIN,
+} from "./fixture";
 
 async function getJson<T>(path: string, qs: URLSearchParams): Promise<T> {
   const query = qs.toString();
@@ -40,10 +45,14 @@ const isDev = (): boolean => {
 };
 
 /** Picks the matching dev-mode fixture by movieKey, so Screen 0's "No Great Seats Tonight" mock
- *  title actually renders the honest no-good-seats state rather than the Dune fixture. */
+ *  title actually renders the honest no-good-seats state rather than the Dune fixture. Every real
+ *  /options call returns exactly one chain's options (contract §3/§6) — so the fixture must be
+ *  selected (and never mixed) per the requested movieKey's chain, not a shared multi-chain blob. */
 function fixtureFor(movieKey: string): OptionsResponse {
   if (movieKey === NO_GOOD_SEATS_OPTIONS_FIXTURE.movieKey) return NO_GOOD_SEATS_OPTIONS_FIXTURE;
-  return { ...OPTIONS_FIXTURE, movieKey: movieKey || OPTIONS_FIXTURE.movieKey };
+  const chain = movieKey.split(":")[0];
+  const fixture = OPTIONS_FIXTURES_BY_CHAIN[chain] ?? OPTIONS_FIXTURE;
+  return { ...fixture, movieKey: movieKey || fixture.movieKey };
 }
 
 /** GET /options?movieKey&party&minScore. Falls back to the fixture in dev mode on any failure. */

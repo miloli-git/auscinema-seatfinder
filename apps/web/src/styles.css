@@ -1006,7 +1006,7 @@ input[type="checkbox"] {
 .stepper__control {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
@@ -1015,14 +1015,15 @@ input[type="checkbox"] {
 .stepper__btn {
   font: inherit;
   font-weight: 700;
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
+  width: var(--tap);
+  height: var(--tap);
+  min-height: var(--tap);
   border-radius: var(--r-pill);
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--text);
   cursor: pointer;
+  flex: none;
 }
 .stepper__btn:hover:not(:disabled) {
   border-color: var(--line-2);
