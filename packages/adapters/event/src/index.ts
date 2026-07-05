@@ -284,6 +284,7 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
     screenName: str(data?.ScreenName),
     areas,
     seats,
+    geometryConfidence: "exact",
   };
 }
 

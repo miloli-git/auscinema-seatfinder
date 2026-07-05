@@ -24,6 +24,8 @@ test("getSeatMap: decodes daybed groups, areas, index geometry and spacers", asy
   assert.equal(map.chain, "hoyts");
   assert.equal(map.sessionId, "MIDCIN:58337");
   assert.ok(map.seats.length > 0, "expected seats");
+  // #52: Hoyts has no published seat coordinates - geometry is always approximate.
+  assert.equal(map.geometryConfidence, "approximate");
 
   // Areas: Daybed -> daybed, Recliner -> recliner.
   const byName = new Map(map.areas.map((a) => [a.name, a]));

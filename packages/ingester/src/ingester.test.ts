@@ -65,6 +65,7 @@ function mapWith(seats: Seat[], overrides: Partial<SeatMap> = {}): SeatMap {
     screenName: "3",
     areas: [{ id: "1", name: "Stalls", code: "std", kind: "standard" }],
     seats,
+    geometryConfidence: "exact",
     ...overrides,
   };
 }

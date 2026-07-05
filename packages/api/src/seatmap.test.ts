@@ -61,6 +61,7 @@ function seatMap(sessionId: string, chain: Chain, seats: Seat[]): SeatMap {
     sessionId,
     areas: [{ id: "standard", name: "Standard", kind: "standard" }],
     seats,
+    geometryConfidence: "exact",
   };
 }
 
@@ -103,7 +104,10 @@ async function getSeatMap(query: string): Promise<SeatMapResponse> {
 }
 
 function assertNoLiveBlockKeys(body: SeatMapResponse): void {
-  assert.deepEqual(Object.keys(body).sort(), ["areas", "chain", "scored", "seats", "sessionId"]);
+  assert.deepEqual(
+    Object.keys(body).sort(),
+    ["areas", "chain", "geometryConfidence", "scored", "seats", "sessionId"],
+  );
   assert.equal("block" in body, false);
   assert.equal("blocks" in body, false);
   assert.equal("party" in body, false);
@@ -115,7 +119,24 @@ test("GET /seatmap without party keeps the existing response shape exactly", asy
 
   assertNoLiveBlockKeys(body);
   assert.equal(body.sessionId, "happy");
+  assert.equal(body.geometryConfidence, "exact");
   assert.ok(body.scored.length > 0, "expected scored seats to remain present");
+});
+
+test("GET /seatmap passes a Hoyts adapter's approximate geometryConfidence through (#52)", async () => {
+  const hoyts = fakeAdapter({
+    chain: "hoyts",
+    getSeatMap: async (sessionId) => ({
+      ...designedSeatMap(sessionId, "hoyts"),
+      geometryConfidence: "approximate",
+    }),
+  });
+  const app = buildServer({ adapters: { hoyts }, rateLimit: false, logger: false });
+  const res = await app.inject({ method: "GET", url: "/seatmap?chain=hoyts&sessionId=happy" });
+  assert.equal(res.statusCode, 200);
+  const body = res.json() as SeatMapResponse;
+  assert.equal(body.chain, "hoyts");
+  assert.equal(body.geometryConfidence, "approximate");
 });
 
 test("GET /seatmap with party returns the best live adjacent block and all live blocks", async () => {

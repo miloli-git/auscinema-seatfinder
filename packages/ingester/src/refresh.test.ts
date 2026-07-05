@@ -160,6 +160,7 @@ function mapFor(chain: Chain, sessionId: string): SeatMap {
     screenName: "3",
     areas: [{ id: "1", name: "Stalls", code: "std", kind: "standard" }],
     seats: [seat(`${sessionId}-A1`, "A1", 1, 1), seat(`${sessionId}-A2`, "A2", 1, 2)],
+    geometryConfidence: "exact",
   };
 }
 

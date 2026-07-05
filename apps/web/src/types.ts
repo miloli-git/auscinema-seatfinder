@@ -82,6 +82,7 @@ export interface SeatMap {
   screenName?: string;
   areas: SeatArea[];
   seats: Seat[];
+  geometryConfidence: "exact" | "approximate";
 }
 
 export interface ScoredSeat {

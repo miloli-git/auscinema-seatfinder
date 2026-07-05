@@ -90,6 +90,8 @@ test("getSeatMap: decodes seats, areas and preserves spacers", async () => {
   assert.equal(map.chain, "event");
   assert.equal(map.sessionId, "15433720");
   assert.ok(map.seats.length > 0, "expected seats");
+  // #52: Event publishes real row/col coordinates.
+  assert.equal(map.geometryConfidence, "exact");
 
   // Areas mapped: Double Daybed -> daybed, Full Recliner -> recliner, Standard -> standard.
   const byName = new Map(map.areas.map((a) => [a.name, a]));

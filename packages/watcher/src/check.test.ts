@@ -89,6 +89,7 @@ function mapWith(seats: Seat[]): SeatMap {
     sessionId: "S1",
     areas: [{ id: "1", name: "Stalls", kind: "standard" }],
     seats,
+    geometryConfidence: "exact",
   };
 }
 

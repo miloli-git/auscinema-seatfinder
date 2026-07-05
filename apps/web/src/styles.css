@@ -489,6 +489,22 @@ input[type="checkbox"] {
   font-weight: 650;
   letter-spacing: 0.01em;
 }
+/* Low-confidence seat geometry chip (#52) - Hoyts has no published seat coordinates. */
+.confidence-chip {
+  display: inline-block;
+  background: rgba(245, 185, 65, 0.16);
+  border: 1px solid rgba(245, 185, 65, 0.55);
+  color: var(--accent);
+  border-radius: var(--r-pill);
+  padding: 1px var(--sp-2);
+  font-size: var(--t-xs);
+  font-weight: 650;
+  margin: 0 0 var(--sp-2);
+}
+/* .hero has no padding of its own (children self-inset), so align the chip with .hero__head/.screen. */
+.hero > .confidence-chip {
+  margin: 0 var(--sp-5) var(--sp-2);
+}
 .sess__sub {
   color: var(--muted);
   font-size: var(--t-xs);
