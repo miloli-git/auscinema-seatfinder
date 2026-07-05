@@ -152,6 +152,30 @@ test("#46 reserve lane: without horizonEdgeDate/reserveNewEdgeExcludeDays opts, 
   assert.equal(result.selected.length, 2, "reserved + main-budget selections are both present");
 });
 
+test("#46 reserve lane exact boundary: distance == excludeDays is excluded; distance == excludeDays+1 is reserve-eligible again (pins the <= boundary)", () => {
+  const horizonEdgeDate = "2026-11-09"; // today + 35
+  const mkNew = (sessionId: string, date: string): KnownSession =>
+    known({ sessionId, tier: "T2", date, fetchedAt: new Date(0), neverFetched: true });
+
+  const atBoundary = mkNew("new-at-boundary", "2026-11-07"); // edge - 2 => distance == excludeDays
+  const justInside = mkNew("new-just-inside", "2026-11-06"); // edge - 3 => distance == excludeDays+1
+
+  // budget 0 so ONLY the reserved lane can select anything — reserve eligibility is the whole test.
+  const result = selectDueSessions([atBoundary, justInside], {
+    budgetPerChain: 0,
+    reserveForNew: 2,
+    nowInstant: NOW,
+    horizonEdgeDate,
+    reserveNewEdgeExcludeDays: 2,
+  });
+
+  assert.deepEqual(
+    selectedIds(result),
+    ["new-just-inside"],
+    "distance excludeDays+1 gets the reserved lane; distance == excludeDays does not (<= boundary)",
+  );
+});
+
 test("#46 reserve lane: reserveNewEdgeExcludeDays=0 explicitly disables the exclusion", () => {
   const newAtEdge = known({
     sessionId: "new-edge",
