@@ -5,12 +5,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { fetchAvailability as apiFetchAvailability, type AvailabilityQuery } from "./api";
+import { fetchGroupAvailability } from "./availabilityGroup";
 import { composeHeaderSummary } from "./availabilityPresent";
 import type { AvailabilityResponse } from "./types";
 
 interface Props {
   movieKey: string;
-  party: number;
+  /** True in Plan-group mode. */
+  groupMode: boolean;
+  /** Per-day headcounts (group mode) — pass an empty map for solo mode, or before any day counts
+   *  have been seeded, to get the same single-call behaviour as before this fix. */
+  dayCounts: ReadonlyMap<string, number>;
+  /** Party used when there's nothing to fan out over: solo mode, or group mode with a single
+   *  distinct headcount / no seeded counts yet (debouncedEffectiveParty upstream). */
+  fallbackParty: number;
   minScore: number;
   /** Injectable for tests; defaults to the live /availability call. */
   fetchAvailability?: (q: AvailabilityQuery) => Promise<AvailabilityResponse>;
@@ -18,12 +26,14 @@ interface Props {
 
 type State =
   | { status: "loading" }
-  | { status: "ready"; data: AvailabilityResponse }
+  | { status: "ready"; data: AvailabilityResponse; variesByDay: boolean; earliestParty: number | null }
   | { status: "error" };
 
 export function AvailabilitySummary({
   movieKey,
-  party,
+  groupMode,
+  dayCounts,
+  fallbackParty,
   minScore,
   fetchAvailability = apiFetchAvailability,
 }: Props) {
@@ -34,9 +44,12 @@ export function AvailabilitySummary({
     let live = true;
     const token = ++reqRef.current;
     setState({ status: "loading" });
-    fetchAvailability({ movieKey, party, minScore })
-      .then((data) => {
-        if (live && reqRef.current === token) setState({ status: "ready", data });
+    // 47c-followup: group mode with varying per-day headcounts fans out one /availability call per
+    // distinct headcount and merges honestly — see availabilityGroup.ts. Solo mode / uniform counts
+    // keep the original single-call shape unchanged.
+    fetchGroupAvailability({ movieKey, minScore }, groupMode ? dayCounts : EMPTY_DAY_COUNTS, fallbackParty, fetchAvailability)
+      .then(({ data, variesByDay, earliestParty }) => {
+        if (live && reqRef.current === token) setState({ status: "ready", data, variesByDay, earliestParty });
       })
       .catch(() => {
         // Supplementary summary line — a failed fetch here should never block the option list
@@ -46,7 +59,7 @@ export function AvailabilitySummary({
     return () => {
       live = false;
     };
-  }, [movieKey, party, minScore, fetchAvailability]);
+  }, [movieKey, groupMode, dayCounts, fallbackParty, minScore, fetchAvailability]);
 
   if (state.status === "loading") {
     return (
@@ -57,5 +70,17 @@ export function AvailabilitySummary({
   }
   if (state.status === "error") return null;
 
-  return <p className="movieforward__availability">{composeHeaderSummary(state.data)}</p>;
+  return (
+    <p className="movieforward__availability">
+      {composeHeaderSummary(state.data, undefined, {
+        variesByDay: state.variesByDay,
+        earliestParty: state.earliestParty,
+      })}
+    </p>
+  );
 }
+
+// Stable reference so solo-mode renders (which don't have day counts to fan out over) never
+// retrigger the fetch effect merely because MovieFirstView's real dayCounts Map reference changed
+// in the background (it seeds dayCounts even in solo mode — see MovieFirstView's own comment).
+const EMPTY_DAY_COUNTS: ReadonlyMap<string, number> = new Map();

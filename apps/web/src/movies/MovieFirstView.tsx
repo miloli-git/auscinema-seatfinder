@@ -17,6 +17,11 @@ import type { CatalogTitle, Option, OptionsResponse } from "./types";
 const DEFAULT_SOLO_PARTY = 1;
 const DEFAULT_GROUP_DAY_COUNT = 2;
 const DEFAULT_MIN_SCORE = 74;
+// Stable empty-Map reference for solo mode's AvailabilitySummary/OptionSeatMapPanel `dayCounts`
+// prop — passing the real (background-seeded) dayCounts there even in solo mode would retrigger
+// their /availability fetch effects on churn that has no bearing on the solo query actually sent;
+// same rationale as groupDayCountsSignature below for the /options fetch effect.
+const EMPTY_DAY_COUNTS: ReadonlyMap<string, number> = new Map();
 // 47c fix #6: fetch-triggering effects key off the DEBOUNCED copy of minScore/soloParty/dayCounts,
 // not the raw per-keystroke/per-drag-pixel value — see useDebouncedValue's own doc comment.
 const DEBOUNCE_MS = 350;
@@ -264,7 +269,13 @@ export function MovieFirstView() {
         <h2 className="movieforward__title">{movieTitle || movieKey}</h2>
       </div>
 
-      <AvailabilitySummary movieKey={movieKey} party={debouncedEffectiveParty} minScore={debouncedMinScore} />
+      <AvailabilitySummary
+        movieKey={movieKey}
+        groupMode={groupMode}
+        dayCounts={groupMode ? debouncedDayCounts : EMPTY_DAY_COUNTS}
+        fallbackParty={debouncedEffectiveParty}
+        minScore={debouncedMinScore}
+      />
 
       <ContextBar
         groupMode={groupMode}
@@ -305,6 +316,8 @@ export function MovieFirstView() {
           option={selectedOption}
           movieKey={movieKey}
           party={debouncedEffectiveParty}
+          groupMode={groupMode}
+          dayCounts={groupMode ? debouncedDayCounts : EMPTY_DAY_COUNTS}
           minScore={debouncedMinScore}
           onClose={() => setSelectedOption(null)}
           onSelectDate={selectDateFromStrip}

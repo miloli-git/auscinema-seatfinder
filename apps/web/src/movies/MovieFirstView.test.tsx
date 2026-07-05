@@ -309,6 +309,116 @@ describe("MovieFirstView", () => {
     );
   });
 
+  it(
+    "47c-followup (issue #81): group-mode header fans out /availability per distinct headcount and merges honestly — the day left at the group floor is no longer stamped with the OTHER day's headcount's verdict",
+    async () => {
+      mockFetchCatalogTitles.mockResolvedValue(TITLES);
+      // Two known days at the group floor (2) to start.
+      mockFetchOptions.mockResolvedValueOnce(
+        optionsResponse(
+          [
+            option({ sessionId: "d1", date: "2026-07-21" }),
+            option({ sessionId: "d2", date: "2026-07-22" }),
+          ],
+          2,
+        ),
+      );
+      mockFetchOptions.mockResolvedValue(optionsResponse([], 2));
+
+      // Per-party /availability fixtures: at party=7 (the pre-fix global-max), BOTH days read
+      // good-block — 07-21 was never bumped past 2, so this is the false claim. At party=2 (07-21's
+      // OWN headcount), 07-21 is honestly no-qualifying-block.
+      mockFetchAvailability.mockImplementation((q) => {
+        if (q.party === 2) {
+          return Promise.resolve({
+            ...AVAILABILITY_RESPONSE,
+            party: 2,
+            earliest: null,
+            earliestLeadDays: null,
+            dates: [{ date: "2026-07-21", state: "no-qualifying-block", leadDays: 0, bestBlockScore: null, soldHeldPct: null, asOf: null }],
+          });
+        }
+        // party === 7 (baseline + the 07-22 group)
+        return Promise.resolve({
+          ...AVAILABILITY_RESPONSE,
+          party: 7,
+          earliest: { date: "2026-07-21", state: "good-block", leadDays: 0, bestBlockScore: 95, soldHeldPct: null, asOf: null },
+          earliestLeadDays: 0,
+          dates: [
+            { date: "2026-07-21", state: "good-block", leadDays: 0, bestBlockScore: 95, soldHeldPct: null, asOf: null },
+            { date: "2026-07-22", state: "good-block", leadDays: 1, bestBlockScore: 90, soldHeldPct: null, asOf: null },
+          ],
+        });
+      });
+
+      render(<MovieFirstView />);
+      fireEvent.click(await screen.findByRole("button", { name: /Dune: Part Two/ }));
+      await waitFor(() => expect(mockFetchOptions).toHaveBeenCalledTimes(1));
+
+      fireEvent.click(screen.getByRole("tab", { name: "Plan group" }));
+      const day2Group = await screen.findByRole("group", { name: /22 Jul.*headcount/i });
+      const day2Increase = within(day2Group).getByRole("button", { name: /Increase/i });
+      // Bump 07-22 from 2 to 7 — 07-21 stays at the group floor, 2.
+      for (let i = 0; i < 5; i++) fireEvent.click(day2Increase);
+      await within(day2Group).findByText("7");
+
+      // Fan-out: one baseline call at the fallback (max) party, plus one call per distinct
+      // headcount (2 and 7).
+      await waitFor(
+        () => expect(mockFetchAvailability).toHaveBeenCalledWith({ movieKey: "event:555", party: 2, minScore: 74 }),
+        DEBOUNCE_WAIT,
+      );
+      await waitFor(() => expect(mockFetchAvailability).toHaveBeenCalledWith({ movieKey: "event:555", party: 7, minScore: 74 }));
+
+      // The merged header must show 07-22 (Wed, 7 people) as earliest, NOT 07-21 (Tue) — 07-21's
+      // own (party=2) fetch says no-qualifying-block, so the party=7 baseline's false claim about it
+      // must be overridden, and the copy must name 07-22's own headcount (7), not res.party.
+      const header = await screen.findByText(
+        /Earliest good seats for your group: Wed 22 Jul \(7 people, 1 day out\)/,
+      );
+      expect(header).toBeInTheDocument();
+      // The 07-21 (Tue) day stepper label is legitimately still on screen (day picker chip) — what
+      // must NOT appear is the pre-fix false claim naming Tue as the earliest-good-seats day.
+      expect(header.textContent).not.toMatch(/Tue 21 Jul/);
+    },
+    10_000,
+  );
+
+  it(
+    "47c-followup: rapid per-day headcount clicks coalesce into a single settled /availability fan-out, not one per click",
+    async () => {
+      mockFetchCatalogTitles.mockResolvedValue(TITLES);
+      mockFetchOptions.mockResolvedValueOnce(optionsResponse([option({ sessionId: "d1", date: "2026-07-21" })], 2));
+      mockFetchOptions.mockResolvedValue(optionsResponse([], 2));
+
+      render(<MovieFirstView />);
+      fireEvent.click(await screen.findByRole("button", { name: /Dune: Part Two/ }));
+      await waitFor(() => expect(mockFetchOptions).toHaveBeenCalledTimes(1));
+
+      fireEvent.click(screen.getByRole("tab", { name: "Plan group" }));
+      // Let the group-mode switch itself settle (single headcount, party=2) before the burst, so
+      // the burst's own coalescing is isolated from the mode-switch's own single fetch.
+      await waitFor(() => expect(mockFetchAvailability).toHaveBeenCalledWith({ movieKey: "event:555", party: 2, minScore: 74 }));
+      const callsAfterModeSwitch = mockFetchAvailability.mock.calls.length;
+
+      const day1Group = await screen.findByRole("group", { name: /21 Jul.*headcount/i });
+      const increase = within(day1Group).getByRole("button", { name: /Increase/i });
+      // Rapid burst of clicks — debounce should coalesce this into one settled value (7), firing
+      // exactly one further /availability fetch, not five.
+      for (let i = 0; i < 5; i++) fireEvent.click(increase);
+      await within(day1Group).findByText("7");
+
+      await waitFor(
+        () => expect(mockFetchAvailability).toHaveBeenCalledWith({ movieKey: "event:555", party: 7, minScore: 74 }),
+        DEBOUNCE_WAIT,
+      );
+      // Exactly one additional fetch beyond the mode-switch's own settle (single headcount ->
+      // single-call path, not a fan-out per click).
+      expect(mockFetchAvailability.mock.calls.length).toBe(callsAfterModeSwitch + 1);
+    },
+    10_000,
+  );
+
   it("47c fix #5: clicking a date-strip cell applies that date as the option list's day filter", async () => {
     mockFetchCatalogTitles.mockResolvedValue(TITLES);
     mockFetchOptions.mockResolvedValue(
