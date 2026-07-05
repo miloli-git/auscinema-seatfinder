@@ -56,13 +56,13 @@ export async function loadWatchesFile(path: string): Promise<WatchSeed[]> {
   try {
     text = await readFile(path, "utf8");
   } catch (err) {
-    throw new Error(`watches seed: cannot read ${path}: ${(err as Error).message}`);
+    throw new Error(`watches seed: cannot read ${path}: ${(err as Error).message}`, { cause: err });
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (err) {
-    throw new Error(`watches seed: ${path} is not valid JSON: ${(err as Error).message}`);
+    throw new Error(`watches seed: ${path} is not valid JSON: ${(err as Error).message}`, { cause: err });
   }
   if (!Array.isArray(parsed)) fail("root must be an array of watches");
   return parsed.map(validateSeed);

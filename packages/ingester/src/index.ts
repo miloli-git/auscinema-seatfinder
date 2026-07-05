@@ -7,4 +7,5 @@ export * from "./persist.js";
 export * from "./sweep.js";
 export * from "./refresh.js";
 export * from "./deadman.js";
+export * from "./refresh-loop.js";
 export * from "./seed.js";

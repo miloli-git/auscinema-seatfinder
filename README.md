@@ -12,7 +12,9 @@ to the official cinema page — this project never touches payment.
 > request rate, uses no authentication, and stores no personal data. It is not affiliated with or
 > endorsed by any cinema chain.
 
-Live: **https://seatfinder.miloli.org**
+Live app: **https://seatfinder.miloli.org**  
+Portfolio case study: **https://miloli-git.github.io/auscinema-seatfinder/case-study.html**  
+Design journey: [`design/journey/`](design/journey/)
 
 ## Two modes
 
@@ -21,12 +23,11 @@ Live: **https://seatfinder.miloli.org**
    sessions by their best available seat. Click through to a live, score-shaded seat map, then book
    on the chain's page.
 
-2. **Seats Together — cached cross-cinema discovery (in progress, epic #31).** For a movie, find
-   sessions with **N adjacent seats in the optimal zone**, swept across cinemas and a date range.
-   A live sweep would be hundreds of seat-map fetches per query, so a scheduled **ingester**
-   precomputes scored seats into Postgres and the API serves `/together` / `/catalog` from cache,
-   re-verifying the live seat map only the moment a result is opened. ST-1 (core adjacency) and
-   ST-2 (DB + ingester) are shipped; the API + web surface are in progress. See
+2. **Seats Together — cached cross-cinema discovery (shipped).** For a movie, find sessions with
+   **N adjacent seats in the optimal zone**, swept across cinemas and dates. A live sweep would be
+   hundreds of seat-map fetches per query, so Postgres stores a bounded-staleness discovery index
+   and the API serves `/together` / `/catalog` from cache. Opening a result still fetches the live
+   seat map and recomputes the adjacent block before booking handoff. See
    [`design/seats-together-design.md`](design/seats-together-design.md) and
    [`docs/seats-together-handover.md`](docs/seats-together-handover.md).
 
@@ -50,13 +51,31 @@ npm workspaces, Node 20+, ESM + TypeScript throughout. See
 Every adapter implements one interface (`listCinemas`, `listSessions`, `getSeatMap`). Scoring, the
 API and both workers depend only on that interface, never on a chain's raw payloads.
 
+## AI-assisted build process
+
+This project was built in public with AI coding agents, but the control surface is the engineering
+process rather than the agents themselves:
+
+- **Contracts first.** Larger changes start from frozen scope or test contracts in `docs/`, then the
+  implementation is checked against those contracts.
+- **Agent review loops.** Codex is used for adversarial review of risky changes; findings and fixes
+  are kept in the repo where useful, instead of staying as chat-only notes.
+- **Live gates.** Unit tests use offline fixtures, while `npm run smoke` hits the real chain
+  backends. Browser-level checks cover the web flow, including the cached Seats Together matrix and
+  live seat-map confirmation.
+
+That is the intended portfolio signal: a messy external integration turned into a working,
+verified product with explicit tradeoffs and public process documentation.
+
 ## Quick start
 
 ```bash
 npm install          # npm workspaces, Node 20+
 npm run build        # build --workspaces --if-present (tsc -b per package)
+npm run lint         # ESLint across the monorepo, warnings fail
 npm test             # test --workspaces --if-present (node --test, offline fixtures)
 npm run typecheck    # tsc -b across the repo
+npm run test:e2e -w @auscinema/web  # route-mocked browser acceptance tests
 npm run smoke        # optional: live end-to-end check across all four chains (not CI)
 ```
 

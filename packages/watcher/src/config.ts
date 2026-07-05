@@ -133,13 +133,13 @@ export async function loadConfig(path: string): Promise<WatcherConfig> {
   try {
     text = await readFile(path, "utf8");
   } catch (err) {
-    throw new Error(`watcher config: cannot read ${path}: ${(err as Error).message}`);
+    throw new Error(`watcher config: cannot read ${path}: ${(err as Error).message}`, { cause: err });
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (err) {
-    throw new Error(`watcher config: ${path} is not valid JSON: ${(err as Error).message}`);
+    throw new Error(`watcher config: ${path} is not valid JSON: ${(err as Error).message}`, { cause: err });
   }
   return validateConfig(parsed);
 }

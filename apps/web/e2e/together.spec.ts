@@ -45,11 +45,11 @@ async function scan(page: Page): Promise<void> {
   await expect(page.locator("table.matrix")).toBeVisible();
 }
 
-const A27 = 'td[data-cinema="A"][data-date="2026-06-27"]';
-const A28 = 'td[data-cinema="A"][data-date="2026-06-28"]';
-const A29 = 'td[data-cinema="A"][data-date="2026-06-29"]';
-const B27 = 'td[data-cinema="B"][data-date="2026-06-27"]';
-const B28 = 'td[data-cinema="B"][data-date="2026-06-28"]';
+const A27 = 'td[data-cinema="A"][data-date="2099-06-27"]';
+const A28 = 'td[data-cinema="A"][data-date="2099-06-28"]';
+const A29 = 'td[data-cinema="A"][data-date="2099-06-29"]';
+const B27 = 'td[data-cinema="B"][data-date="2099-06-27"]';
+const B28 = 'td[data-cinema="B"][data-date="2099-06-28"]';
 
 /** Set the controlled range input and fire React's onChange (input event). */
 async function setMinScore(page: Page, value: number): Promise<void> {
@@ -72,7 +72,7 @@ test.describe("ST-4 L4 — Seats Together E2E acceptance", () => {
 
     // Contiguous 3-day axis: 27, 28, 29 Jun (28 has no cinema-A session but is in range).
     await expect(page.locator("th.matrix-date[data-date]")).toHaveCount(3);
-    await expect(page.locator('th.matrix-date[data-date="2026-06-28"]')).toBeVisible();
+    await expect(page.locator('th.matrix-date[data-date="2099-06-28"]')).toBeVisible();
 
     // Sticky first column present (mobile horizontal scroll).
     await expect(page.locator("th.matrix-sticky-col").first()).toBeAttached();
@@ -142,7 +142,7 @@ test.describe("ST-4 L4 — Seats Together E2E acceptance", () => {
 
     // Grid recomputed: surviving dates are only 27 + 28 (29 had no IMAX evening).
     await expect(page.locator("th.matrix-date[data-date]")).toHaveCount(2);
-    await expect(page.locator('th.matrix-date[data-date="2026-06-29"]')).toHaveCount(0);
+    await expect(page.locator('th.matrix-date[data-date="2099-06-29"]')).toHaveCount(0);
     // The two evening-IMAX score cells remain.
     await expect(page.locator(`${A27} .matrix-cell--score`)).toHaveText("96");
     await expect(page.locator(`${B28} .matrix-cell--score`)).toHaveText("88");

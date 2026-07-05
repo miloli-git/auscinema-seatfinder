@@ -69,7 +69,7 @@ export function findAdjacentBlocks(seats: readonly BlockSeat[], opts: BlockOptio
     // Build maximal runs of in-zone seats with strictly contiguous columns.
     let run: BlockSeat[] = [];
     const flush = () => {
-      if (run.length >= size) blocks.push(bestWindow(run, size, opts.minScore));
+      if (run.length >= size) blocks.push(bestWindow(run, size));
       run = [];
     };
     for (const seat of rowSeats) {
@@ -93,7 +93,7 @@ export function findAdjacentBlocks(seats: readonly BlockSeat[], opts: BlockOptio
 }
 
 /** Pick the highest-average window of length `size` within a single contiguous in-zone run. */
-function bestWindow(run: readonly BlockSeat[], size: number, minScore: number): SeatBlock {
+function bestWindow(run: readonly BlockSeat[], size: number): SeatBlock {
   let best = 0;
   let bestSum = -1;
   for (let i = 0; i + size <= run.length; i++) {

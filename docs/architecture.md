@@ -15,7 +15,7 @@ packages/
     reading/           @auscinema/adapter-reading    Vista via AWS API-Gateway facade; bootstrap bearer token
     village/           @auscinema/adapter-village    Vista via Next.js handlers + Algolia session index
   api/                 @auscinema/api          Fastify: cache, rate-limit, /seatmap (live) + /together /catalog (cached)
-  ingester/            @auscinema/ingester     scheduled sweep worker -> Postgres (Seats Together)
+  ingester/            @auscinema/ingester     cache seed, one-shot ingest, and refresh workers -> Postgres
   watcher/             @auscinema/watcher      optional alert poller -> webhook
 apps/
   web/                 @auscinema/web          Vite + React SPA
@@ -68,16 +68,16 @@ The API holds an in-memory session cache and a per-IP rate limit so the browser 
 chains directly (sidesteps CORS and bot walls). Scoring is pure (`packages/core/src/scoring.ts`):
 gate on availability + allowed area kinds, then a weighted depth + centrality penalty → 0–100.
 
-## Mode 2 — Seats Together (cached cross-cinema discovery, in progress)
+## Mode 2 — Seats Together (cached cross-cinema discovery, shipped)
 
-A live sweep is too expensive, so a scheduled worker precomputes into Postgres and the API serves
+A live sweep is too expensive, so the stack maintains a Postgres discovery index and the API serves
 queries from cache, re-verifying live only on open.
 
 ```
 deploy/watches.json ──seed──▶ Postgres.watches
                                   │
         ┌─────────────────────────┴──────────────────────────┐
-        │  ingester (scheduled worker, reuses the 4 adapters) │
+        │  ingester / refresh workers, reusing the 4 adapters │
         │  per enabled watch, per date in range:              │
         │    listSessions ▶ for each session: getSeatMap ▶ score (scoreAvailableSeats)
         │    DELETE+INSERT the session + its scored AVAILABLE seats (one tx)
@@ -107,10 +107,12 @@ Live-reality notes (from `docs/seats-together-handover.md`):
   adjacency break.
 - **Hoyts adjacency is approximate.** Hoyts exposes no metric coordinates; `col` is array-order
   index, so contiguity is index-order, not measured — labelled in results.
-- **Ingester scheduling is not yet live.** ST-1 (core `findAdjacentBlocks`) and ST-2 (schema +
-  ingester) are shipped to `main`; the `db` service is up on the NAS (internal-only). The API's
-  `DATABASE_URL` wiring and `/together` / `/catalog` land with ST-3; the ingester loop is run
-  one-shot for now (`docker compose run --rm`), scheduled in ST-5.
+- **The shipped web mode reads from cache and confirms live on open.** `/together` and `/catalog`
+  are DB-backed; the drill-in path calls `/seatmap` with party/minScore so the booking moment uses
+  the current live seat map, not just the cached block.
+- **Cache freshness is separated from query serving.** The legacy `ingester` compose service remains
+  a profile-gated seed/checkpoint tool, while the long-running `refresh` worker advances the
+  bounded-staleness discovery index under an advisory lock and dead-man freshness alert.
 
 The full Postgres schema, watch model, and phasing are in
 [`../design/seats-together-design.md`](../design/seats-together-design.md) — not restated here.
@@ -127,7 +129,9 @@ The full Postgres schema, watch model, and phasing are in
 ## Build & test
 
 `tsc -b` project references stitch the workspaces together (`tsconfig.base.json` + per-package
-`tsconfig.json`). `npm test` runs each package's `node --test` suite against offline fixtures;
-`npm run smoke` runs `scripts/smoke.ts` against live backends (not CI). See the root
-[`README.md`](../README.md) for commands and [`../deploy/README.md`](../deploy/README.md) for the
-compose stack.
+`tsconfig.json`). `npm run lint` runs ESLint across the monorepo with warnings treated as failures.
+`npm test` runs package suites against offline fixtures; DB-backed tests skip unless `DATABASE_URL`
+points at a disposable Postgres. `npm run test:e2e -w @auscinema/web` runs the route-mocked browser
+acceptance flow, and `npm run smoke` runs `scripts/smoke.ts` against live backends. See the root
+[`README.md`](../README.md) for commands and
+[`../deploy/README.md`](../deploy/README.md) for the compose stack.

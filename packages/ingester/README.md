@@ -1,9 +1,9 @@
 # @auscinema/ingester
 
-Scheduled sweep worker for the **Seats Together** feature. Reads the `watches` table, reuses the
-four chain adapters to list sessions and fetch + score seat maps, and upserts sessions plus their
-scored available seats into Postgres so the API can serve cross-cinema adjacency queries from cache.
-See [`../../design/seats-together-design.md`](../../design/seats-together-design.md).
+Cache workers for the **Seats Together** feature. They read the `watches` table, reuse the four
+chain adapters to list sessions and fetch + score seat maps, and upsert sessions plus their scored
+available seats into Postgres so the API can serve cross-cinema adjacency queries from cache. See
+[`../../design/seats-together-design.md`](../../design/seats-together-design.md).
 
 ## CLI (`auscinema-ingest`)
 
@@ -43,8 +43,9 @@ Re-exports `types`, `db`, `registry`, `watches`, `persist`, `sweep`, `seed`:
   `minScore` stay tunable at query time. `watch.min_score` is a query knob, not a storage filter.
 - v1: `session_seats` has no watch dimension — if two watches cover the same session with different
   scoring, last-writer-wins by watch id. Fine while watches don't overlap (single chain per watch).
-- The compose `ingester` service is profile-gated and **not yet scheduled** on the live stack;
-  sweeps have been run one-shot (`docker compose run --rm`). Scheduling lands in ST-5.
+- The compose `ingester` service is still profile-gated for seed/checkpoint runs. The live stack's
+  scheduled freshness path is the long-running `refresh` service in `deploy/docker-compose.yml`,
+  which advances cached sessions under an advisory lock and dead-man freshness alert.
 
 ## Used by
 The API's `/together` / `/catalog` endpoints read the tables this worker populates. Schema:
