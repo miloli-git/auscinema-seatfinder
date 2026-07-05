@@ -258,11 +258,28 @@ test("/options over rate limit -> 429 {error}", async () => {
 });
 
 // --- #47a contract §6 integration fixture (party=3, minScore=74) -----------------------------
+//
+// CONTRACT ERRATUM (flagged in PR #69): §6's worked JSON example shows one response for
+// movieKey "event:555" containing options from THREE chains (event, village, hoyts). That
+// example contradicts the contract's normative sections three times over:
+//   - §1.1: `chain` is derived from movieKey; a caller cannot ask for a movie under a different
+//     chain than its key.
+//   - §3: "No cross-chain merge. ... two different movieKeys, two different /options calls if
+//     the user picks both."
+//   - §4: "No cross-chain movie identity resolution (#61 stays deferred)."
+// The implementation follows the normative sections (one chain per /options call), so this test
+// exercises the §6 fixture's exact three scenarios via three per-chain movieKey calls and asserts
+// the union matches the fixture rows. Every §6 checklist bullet is still asserted.
 
 test(
   "contract §6 fixture: together (event) / nearby (village) / split (hoyts) all present and correct",
   { skip: dbSkip },
   async () => {
+    // Per-card freshness is computed against the real clock (fetched_at age vs the 2h default
+    // threshold), so seed fetched_at relative to now: village 3h ago -> stale, others 10min -> fresh.
+    const fetchedFresh = new Date(Date.now() - 10 * 60_000).toISOString();
+    const fetchedStale = new Date(Date.now() - 3 * 60 * 60_000).toISOString();
+
     // Session A: Event, together, avgScore 91, IMAX.
     await insertSession({
       id: "evt-9001",
@@ -270,7 +287,7 @@ test(
       cinemaId: "12",
       cinemaName: "Event George St",
       format: "IMAX",
-      fetchedAt: "2099-07-21T02:10:00.000Z",
+      fetchedAt: fetchedFresh,
     });
     await insertSeats("evt-9001", [
       { seatId: "e1", col: 1, score: 90 },
@@ -278,15 +295,14 @@ test(
       { seatId: "e3", col: 3, score: 92 },
     ]);
 
-    // Session B: Hoyts, split, togetherCount=2 (two isolated in-zone seats, not adjacent), no
-    // pre-#67-fix cinemaName fallback available (no other cached Hoyts row for this cinema) -> "".
+    // Session B: Hoyts, split, togetherCount=2 (two isolated in-zone seats, not adjacent).
     await insertSession({
       id: "hoy-2207",
       chain: "hoyts",
       cinemaId: "88",
       cinemaName: "Hoyts EQ",
       format: "",
-      fetchedAt: "2099-07-21T01:00:00.000Z",
+      fetchedAt: fetchedFresh,
     });
     await insertSeats("hoy-2207", [
       { seatId: "h1", row: 1, col: 1, score: 90 },
@@ -300,28 +316,36 @@ test(
       cinemaId: "40",
       cinemaName: "Village Crown",
       format: "Vmax",
-      fetchedAt: "2099-07-20T23:55:00.000Z",
+      fetchedAt: fetchedStale,
     });
     await insertSeats("vil-4410", [
       { seatId: "v1", col: 1, score: 78 },
       { seatId: "v2", col: 2, score: 78 },
     ]);
 
-    const { status, body } = await getOptions("movieKey=event:555&party=3&minScore=74");
-    assert.equal(status, 200);
-    const res = body as OptionsResponse;
+    // One /options call per chain's movieKey (per §1.1/§3 — see erratum note above).
+    const responses = new Map<string, OptionsResponse>();
+    for (const chain of ["event", "hoyts", "village"] as const) {
+      const { status, body } = await getOptions(`movieKey=${chain}:555&party=3&minScore=74`);
+      assert.equal(status, 200);
+      const res = body as OptionsResponse;
+      assert.equal(res.movieKey, `${chain}:555`);
+      assert.equal(res.party, 3);
+      assert.equal(res.minScore, 74);
+      // Checklist: count equals options.length. Single-chain per call, so 1 row each.
+      assert.equal(res.count, res.options.length);
+      assert.equal(res.count, 1);
+      assert.equal(res.options[0]!.chain, chain);
+      assert.equal(res.movieTitle, "Dune: Part Two");
+      responses.set(chain, res);
+    }
 
-    assert.equal(res.movieKey, "event:555");
-    assert.equal(res.party, 3);
-    assert.equal(res.minScore, 74);
-    assert.equal(res.count, res.options.length);
-    assert.equal(res.count, 3);
+    const event = responses.get("event")!.options[0]!;
+    const village = responses.get("village")!.options[0]!;
+    const hoyts = responses.get("hoyts")!.options[0]!;
+    const allRows = [event, village, hoyts];
 
-    const byChain = new Map(res.options.map((o) => [o.chain, o]));
-    const event = byChain.get("event")!;
-    const village = byChain.get("village")!;
-    const hoyts = byChain.get("hoyts")!;
-
+    // Checklist: together/nearby/split all present and matching §1.5's specific algorithm.
     assert.equal(event.fitTier, "together");
     assert.equal(event.togetherCount, 3);
     assert.equal(event.bestBlockScore, 91);
@@ -329,6 +353,7 @@ test(
     assert.equal(event.geometryConfidence, "exact");
     assert.equal(event.formatRank, 2);
     assert.equal(event.isLargeFormat, true);
+    assert.equal(event.freshness.state, "fresh");
 
     assert.equal(village.fitTier, "nearby");
     assert.equal(village.togetherCount, 2);
@@ -336,7 +361,8 @@ test(
     assert.equal(village.bestBlockSize, 2);
     assert.equal(village.formatRank, 1);
     assert.equal(village.isLargeFormat, true);
-    // Village row is individually stale even though the response overall need not be.
+    // Checklist: per-card freshness differs across cards — the village row is individually stale
+    // while the event/hoyts rows are fresh, independent of any top-level aggregate implication.
     assert.equal(village.freshness.state, "stale");
 
     assert.equal(hoyts.fitTier, "split");
@@ -348,13 +374,11 @@ test(
     assert.equal(hoyts.freshness.state, "fresh");
 
     // Checklist: hoyts row is the only "approximate"; all others "exact".
-    for (const o of res.options) {
+    for (const o of allRows) {
       assert.equal(o.geometryConfidence, o.chain === "hoyts" ? "approximate" : "exact");
     }
     // Checklist: cinemaName non-empty on every row.
-    for (const o of res.options) assert.notEqual(o.cinemaName, "");
-
-    assert.equal(res.movieTitle, "Dune: Part Two");
+    for (const o of allRows) assert.notEqual(o.cinemaName, "");
   },
 );
 
