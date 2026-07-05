@@ -1,34 +1,90 @@
-/* AusCinema Seat Finder - styles v1 (seat-map-as-hero rebuild).
- * Tokens mirror design/tokens.css. Dark-only by intent. No Inter (system stack + real type scale). */
+/* AusCinema Seat Finder - styles v2 (Direction G: Glossier x Sydney Opera House hybrid, #47c).
+ * Base/frame = Glossier: white page, near-everything ink, one blush accent panel, radius mostly
+ * quiet. Impact/type = SOH: heavy geometric display face for headlines/scores, one saturated berry
+ * accent, amber hover accent. The seat-map auditorium keeps its own dark cinematic "pit" — the
+ * product thesis (heat-mapped seats) reads best against black, everything else is light-dominant.
+ * Visual-only reskin (#47c): every selector below existed in v1; values changed, no renames. */
 
 :root {
-  --bg: #0a0c10;
-  --bg-2: #0f1219;
-  --panel: #141823;
-  --panel-2: #1b2030;
-  --line: #28303f;
-  --line-2: #353f52;
-  --text: #eef2f8;
-  --text-2: #aeb7c6;
-  --muted: #818b9c;
-  --accent: #f5b941;
+  /* Frame (Glossier) */
+  --paper: #ffffff;
+  --cloud: #f7f7f7;
+  --blush: #f6e3e6;
+  --blush-2: #eccdd3;
+  --line: #e8e8e8;
+  --line-2: #d6d0d1;
+
+  /* Text (Glossier ink scale) */
+  --ink: #000000;
+  --ink-2: #333333;
+  --ink-3: #666666;
+  --text: #000000;
+  --text-2: #333333;
+  --muted: #666666;
+
+  /* Surfaces — light-dominant; "panel" now means "card", not "dark raised" */
+  --bg: #ffffff;
+  --bg-2: #fbf7f8;
+  --panel: #ffffff;
+  --panel-2: #f7f7f7;
+
+  /* Brand + accents (SOH impact accent pair) */
+  --berry: #a8133a;
+  --berry-deep: #7f0e2c;
+  --accent: #ffaa18; /* amber — hover borders, secondary highlight, premium tags */
   --accent-ink: #160f00;
-  --info: #5aa9ff;
-  --q-elite: #2fd27a;
-  --q-great: #8fd14a;
-  --q-good: #f5b941;
-  --q-ok: #f08a4b;
-  --q-weak: #4a566b;
-  --q-sold: #1c2330;
-  --error: #ff6b6b;
-  --error-bg: rgba(255, 107, 107, 0.12);
+  --info: #a8133a; /* kept for existing consumers; now = berry (focus, selection, brand) */
+
+  /* Cinematic auditorium inset — the ONE deliberately dark region (seat-map hero only) */
+  --pit: #14171a;
+  --pit-2: #1d2126;
+  --pit-text: #eef2f8;
+  --pit-muted: #9aa1a8;
+  --pit-line: rgba(255, 255, 255, 0.14);
+
+  /* Seat-quality ramp — cinematic glow (SOH-cinematic green), used ONLY on the literal seat tiles
+   * against the dark pit. Driven by the live scorer's data-q attribute (SeatMapView), never
+   * re-derived client-side. */
+  --q-elite: #e6ff4d;
+  --q-great: #c2e24f;
+  --q-good: #8fb24a;
+  --q-ok: #5d6b3c;
+  --q-weak: #2f3a36;
+  --q-sold: #262b2f;
+
+  /* Same 5-step signal, restyled as a Glossier "cosmetics swatch" ramp (cream -> blush -> coral ->
+   * rose -> berry) for compact score chips that live on the LIGHT page (rail scorepill, Together
+   * matrix) rather than inside the dark pit — the green cinematic ramp reads as mud on white. */
+  --sw-weak-bg: var(--cloud);
+  --sw-weak-fg: var(--ink-3);
+  --sw-ok-bg: #f6e3e6;
+  --sw-ok-fg: var(--ink-2);
+  --sw-good-bg: #f2a0a0;
+  --sw-good-fg: #3a0d10;
+  --sw-great-bg: #c23f3f; /* darkened from the Glossier "warm rose" extraction value for AA white-text contrast */
+  --sw-great-fg: #ffffff;
+  --sw-elite-bg: var(--berry);
+  --sw-elite-fg: #ffffff;
+
+  /* Status */
+  --error: #c0392b;
+  --error-bg: rgba(192, 57, 43, 0.08);
+
+  /* Type — humanist (Glossier) body/UI, heavy geometric (SOH) for display/headlines/numerals */
   --t-xs: 12px;
   --t-sm: 14px;
   --t-base: 16px;
   --t-md: 20px;
   --t-lg: 25px;
   --t-xl: 32px;
-  --font: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --t-2xl: 40px;
+  --sans: "Gill Sans", "Gill Sans MT", Calibri, ui-sans-serif, system-ui, "Segoe UI", Arial, sans-serif;
+  --geo: "Century Gothic", Futura, "Helvetica Neue", Arial, sans-serif;
+  --font: var(--sans);
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  /* Space, radius, motion — slightly squarer than v1 (Glossier radius-0 / SOH 4px), pills kept only
+   * where the mock uses a true pill (mode toggle, search crumb, tag chips). */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -36,11 +92,11 @@
   --sp-5: 24px;
   --sp-6: 32px;
   --sp-7: 48px;
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
   --r-pill: 999px;
-  --shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  --shadow: 0 10px 28px rgba(20, 12, 14, 0.08);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --tap: 44px;
 }
@@ -56,13 +112,13 @@ body,
   margin: 0;
 }
 body {
-  background: radial-gradient(1100px 520px at 88% -12%, #161b27 0%, var(--bg) 58%);
+  background: var(--paper);
   color: var(--text);
-  font: var(--t-base) / 1.55 var(--font);
+  font: var(--t-base) / 1.5 var(--sans);
   -webkit-font-smoothing: antialiased;
 }
 :focus-visible {
-  outline: 2px solid var(--info);
+  outline: 2px solid var(--berry);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -80,6 +136,8 @@ body {
   gap: var(--sp-4);
   flex-wrap: wrap;
   margin-bottom: var(--sp-5);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--line);
 }
 .brand {
   display: flex;
@@ -88,19 +146,20 @@ body {
   margin-right: auto;
 }
 .brand__mark {
-  font-size: 30px;
-  color: var(--accent);
+  font-size: 26px;
+  color: var(--berry);
   line-height: 1;
-  filter: drop-shadow(0 0 10px rgba(245, 185, 65, 0.35));
 }
 .brand__name {
+  font-family: var(--sans);
   font-size: var(--t-md);
-  font-weight: 750;
-  letter-spacing: -0.02em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .brand__name b {
-  color: var(--accent);
-  font-weight: 750;
+  color: var(--ink);
+  font-weight: 700;
 }
 
 /* Search crumb bar (collapsed form) */
@@ -109,7 +168,7 @@ body {
   align-items: center;
   gap: var(--sp-2);
   flex-wrap: wrap;
-  background: var(--panel);
+  background: var(--cloud);
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-4);
@@ -117,13 +176,13 @@ body {
 }
 .crumb {
   font-size: var(--t-sm);
-  color: var(--text-2);
+  color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .crumb b {
-  color: var(--text);
+  color: var(--ink);
   font-weight: 650;
 }
 .dot {
@@ -144,29 +203,34 @@ body {
   gap: var(--sp-2);
   text-decoration: none;
   white-space: nowrap;
-  transition: filter 0.14s var(--ease), background 0.14s var(--ease), border-color 0.14s var(--ease);
+  transition: filter 0.14s var(--ease), background 0.14s var(--ease), border-color 0.14s var(--ease),
+    color 0.14s var(--ease);
 }
 .btn--primary {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--ink);
+  color: #ffffff;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-sm);
+  font-family: var(--geo);
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 .btn--primary:not(:disabled):hover {
-  filter: brightness(1.07);
+  border-color: var(--accent);
 }
 .btn--primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 .btn--ghost {
-  background: var(--panel-2);
+  background: var(--cloud);
   border-color: var(--line);
-  color: var(--text-2);
+  color: var(--ink-2);
   font-size: var(--t-sm);
 }
 .btn--ghost:hover {
   border-color: var(--line-2);
-  color: var(--text);
+  color: var(--ink);
 }
 .btn--block {
   width: 100%;
@@ -174,7 +238,7 @@ body {
 
 /* Refine drawer (the form) */
 .refine {
-  background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow);
@@ -203,6 +267,8 @@ body {
 }
 .form__title {
   margin: 0;
+  font-family: var(--geo);
+  font-weight: 700;
   font-size: var(--t-md);
 }
 .form__sub {
@@ -219,14 +285,14 @@ body {
   font-size: var(--t-sm);
 }
 .field > span {
-  color: var(--text-2);
+  color: var(--ink-2);
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--sp-2);
 }
 .field em {
-  color: var(--accent);
+  color: var(--berry);
   font-style: normal;
   font-weight: 650;
 }
@@ -248,7 +314,7 @@ body {
   min-height: var(--tap);
 }
 .field--check span {
-  color: var(--text);
+  color: var(--ink);
 }
 
 input[type="text"],
@@ -256,9 +322,9 @@ input[type="number"],
 input[type="date"],
 input[type="time"],
 select {
-  background: var(--panel-2);
+  background: var(--cloud);
   border: 1px solid var(--line);
-  color: var(--text);
+  color: var(--ink);
   border-radius: var(--r-sm);
   padding: 11px 12px;
   font: inherit;
@@ -267,11 +333,11 @@ select {
   min-height: var(--tap);
 }
 input[type="range"] {
-  accent-color: var(--accent);
+  accent-color: var(--berry);
   width: 100%;
 }
 input[type="checkbox"] {
-  accent-color: var(--accent);
+  accent-color: var(--berry);
   width: 18px;
   height: 18px;
 }
@@ -286,6 +352,8 @@ input[type="checkbox"] {
   color: var(--muted);
   padding: 0 var(--sp-2);
   font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .chips {
   display: flex;
@@ -293,25 +361,26 @@ input[type="checkbox"] {
   gap: var(--sp-2);
 }
 .chip {
-  background: var(--panel-2);
+  background: var(--cloud);
   border: 1px solid var(--line);
-  color: var(--text-2);
+  color: var(--ink-2);
   border-radius: var(--r-pill);
   padding: var(--sp-2) var(--sp-3);
   font: inherit;
   font-size: var(--t-xs);
+  letter-spacing: 0.02em;
   cursor: pointer;
   min-height: 36px;
   transition: all 0.12s var(--ease);
 }
 .chip:hover {
   border-color: var(--line-2);
-  color: var(--text);
+  color: var(--ink);
 }
 .chip--on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
+  background: var(--berry);
+  border-color: var(--berry);
+  color: #ffffff;
   font-weight: 650;
 }
 .cinemas {
@@ -333,7 +402,7 @@ input[type="checkbox"] {
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--t-sm);
-  color: var(--text);
+  color: var(--ink);
   padding: var(--sp-2) var(--sp-1);
   cursor: pointer;
   min-height: 40px;
@@ -349,7 +418,7 @@ input[type="checkbox"] {
   margin: var(--sp-1) 0 0;
 }
 .hint--warn {
-  color: #f0a868;
+  color: #a3480c;
 }
 
 /* Stage: ranked rail + hero */
@@ -373,11 +442,15 @@ input[type="checkbox"] {
 }
 .rail__head h2 {
   margin: 0;
+  font-family: var(--geo);
+  font-weight: 700;
   font-size: var(--t-md);
 }
 .rail__head .sub {
   color: var(--muted);
   font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .rail {
   display: flex;
@@ -399,7 +472,7 @@ input[type="checkbox"] {
   width: 100%;
   text-align: left;
   cursor: pointer;
-  background: var(--panel);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   padding: var(--sp-3);
@@ -411,8 +484,8 @@ input[type="checkbox"] {
   border-color: var(--line-2);
 }
 .sess[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--panel-2);
+  border-color: var(--berry);
+  background: var(--blush);
 }
 @media (max-width: 900px) {
   .sess {
@@ -424,19 +497,21 @@ input[type="checkbox"] {
   flex: none;
   width: 52px;
   height: 52px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--panel-2);
+  background: var(--cloud);
   border: 1px solid var(--line);
   font-variant-numeric: tabular-nums;
 }
 .scorepill b {
+  font-family: var(--geo);
   font-size: var(--t-lg);
   font-weight: 800;
   line-height: 1;
+  color: var(--ink);
 }
 .scorepill span {
   font-size: 10px;
@@ -446,23 +521,31 @@ input[type="checkbox"] {
   margin-top: 2px;
 }
 .scorepill[data-band="elite"] {
-  background: rgba(47, 210, 122, 0.14);
-  border-color: rgba(47, 210, 122, 0.5);
+  background: var(--sw-elite-bg);
+  border-color: var(--berry-deep);
 }
-.scorepill[data-band="elite"] b {
-  color: var(--q-elite);
+.scorepill[data-band="elite"] b,
+.scorepill[data-band="elite"] span {
+  color: var(--sw-elite-fg);
 }
 .scorepill[data-band="great"] {
-  background: rgba(143, 209, 74, 0.13);
-  border-color: rgba(143, 209, 74, 0.45);
+  background: var(--sw-great-bg);
+  border-color: #c94848;
 }
-.scorepill[data-band="great"] b {
-  color: var(--q-great);
+.scorepill[data-band="great"] b,
+.scorepill[data-band="great"] span {
+  color: var(--sw-great-fg);
 }
-.scorepill[data-band="good"] b {
-  color: var(--q-good);
+.scorepill[data-band="good"] {
+  background: var(--sw-good-bg);
+  border-color: #d97e7e;
+}
+.scorepill[data-band="good"] b,
+.scorepill[data-band="good"] span {
+  color: var(--sw-good-fg);
 }
 .sess__time {
+  font-family: var(--geo);
   font-size: var(--t-md);
   font-weight: 700;
   line-height: 1.1;
@@ -475,26 +558,27 @@ input[type="checkbox"] {
   flex-wrap: wrap;
 }
 .tag {
-  background: var(--panel-2);
+  background: var(--cloud);
   border: 1px solid var(--line);
+  color: var(--ink-2);
   border-radius: 6px;
   padding: 1px var(--sp-2);
   font-size: var(--t-xs);
 }
-/* Large-format / premium format chip (#50) - accent-tinted to stand out from neutral meta. */
+/* Large-format / premium format chip (#50) - amber-tinted to stand out from neutral meta. */
 .tag--format[data-premium="true"] {
-  background: rgba(245, 185, 65, 0.16);
-  border-color: rgba(245, 185, 65, 0.55);
-  color: var(--accent);
+  background: rgba(255, 170, 24, 0.18);
+  border-color: rgba(184, 118, 0, 0.55);
+  color: #8a5200;
   font-weight: 650;
   letter-spacing: 0.01em;
 }
 /* Low-confidence seat geometry chip (#52) - Hoyts has no published seat coordinates. */
 .confidence-chip {
   display: inline-block;
-  background: rgba(245, 185, 65, 0.16);
-  border: 1px solid rgba(245, 185, 65, 0.55);
-  color: var(--accent);
+  background: var(--blush);
+  border: 1px solid var(--blush-2);
+  color: var(--berry-deep);
   border-radius: var(--r-pill);
   padding: 1px var(--sp-2);
   font-size: var(--t-xs);
@@ -511,9 +595,12 @@ input[type="checkbox"] {
   margin-top: 3px;
 }
 
-/* Hero seat map */
+/* ── Hero seat map ─────────────────────────────────────────────────────── */
+/* .hero is the LIGHT frame (Glossier white card); .hero__head is the blush accent header band; the
+ * screen + seat grid + foot/legend are the ONE deliberately dark cinematic "pit" (SOH cinematic
+ * inset) so the heatmap glow reads at full contrast. */
 .hero {
-  background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow);
@@ -525,18 +612,24 @@ input[type="checkbox"] {
   justify-content: space-between;
   gap: var(--sp-4);
   padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  background: var(--blush);
 }
 .hero__title {
   margin: 0;
+  font-family: var(--geo);
+  font-weight: 700;
   font-size: var(--t-lg);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
+  color: var(--ink);
 }
 .hero__title small {
   display: block;
-  color: var(--muted);
+  font-family: var(--sans);
+  color: var(--ink-2);
   font-size: var(--t-sm);
   font-weight: 400;
   margin-top: 2px;
+  text-transform: none;
 }
 .hero__book {
   flex: none;
@@ -546,28 +639,44 @@ input[type="checkbox"] {
     display: none;
   }
 }
+
+/* the cinematic pit: screen + map + legend share one continuous dark surface */
+.screen,
+.mapscroll,
+.hero__foot {
+  background: var(--pit);
+}
 .screen {
-  margin: 0 var(--sp-5);
+  margin: 0;
+  padding: var(--sp-4) var(--sp-5) var(--sp-3);
   text-align: center;
-  letter-spacing: 0.55em;
+  color: var(--pit-muted);
   font-size: var(--t-xs);
-  color: var(--info);
-  padding: var(--sp-2);
-  background: linear-gradient(180deg, rgba(90, 169, 255, 0.22), transparent);
-  border-top: 2px solid rgba(90, 169, 255, 0.55);
-  border-radius: 50% 50% 6px 6px / 70% 70% 6px 6px;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+}
+.screen::before {
+  content: "";
+  display: block;
+  max-width: 640px;
+  height: 8px;
+  margin: 0 auto var(--sp-2);
+  border-radius: 50% / 100% 100% 0 0;
+  background: linear-gradient(180deg, #f4f4f4, #cfcfcf);
+  box-shadow: 0 0 34px 6px rgba(255, 255, 255, 0.3);
 }
 .mapscroll {
   overflow-x: auto;
-  padding: var(--sp-4) var(--sp-5) 0;
+  padding: 0 var(--sp-5);
   -webkit-overflow-scrolling: touch;
 }
 .grid {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   width: max-content;
   margin: 0 auto;
+  padding: var(--sp-2) 0 var(--sp-5);
 }
 .row {
   display: flex;
@@ -577,7 +686,7 @@ input[type="checkbox"] {
 .row__lab {
   width: 18px;
   text-align: center;
-  color: var(--muted);
+  color: var(--pit-muted);
   font-size: var(--t-xs);
   flex: none;
 }
@@ -588,17 +697,34 @@ input[type="checkbox"] {
 .seat {
   width: 22px;
   height: 22px;
-  border-radius: 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   flex: none;
+}
+/* Class-driven seat geometry (Direction G mock): recliner/premium/goldclass are wider, daybed is a
+ * double-width lounge — driven by the seat's own live area kind (SeatMapView's data-class), never a
+ * re-derived score. */
+.seat[data-class="recliner"] {
+  width: 31px;
+  height: 23px;
+  border-radius: 5px;
+}
+.seat[data-class="daybed"] {
+  width: 50px;
+  height: 25px;
+  border-radius: 7px;
 }
 .seat[data-q="elite"] {
   background: var(--q-elite);
+  box-shadow: 0 0 16px 3px rgba(230, 255, 77, 0.75);
 }
 .seat[data-q="great"] {
   background: var(--q-great);
+  box-shadow: 0 0 11px 2px rgba(194, 226, 79, 0.65);
 }
 .seat[data-q="good"] {
   background: var(--q-good);
+  box-shadow: 0 0 7px 1px rgba(143, 178, 74, 0.5);
 }
 .seat[data-q="ok"] {
   background: var(--q-ok);
@@ -608,21 +734,26 @@ input[type="checkbox"] {
 }
 .seat[data-q="sold"] {
   background: var(--q-sold);
+  opacity: 0.65;
 }
 .seat[data-q="gap"] {
   background: transparent;
+  border-color: transparent;
 }
 .seat[data-best] {
-  outline: 2px solid #fff;
+  outline: 2px solid #ffffff;
   outline-offset: 1px;
-  box-shadow: 0 0 0 1px var(--bg-2);
+  box-shadow: 0 0 20px 5px rgba(230, 255, 77, 0.85);
+  z-index: 2;
+  position: relative;
 }
 .seat[data-paired] {
-  box-shadow: inset 0 0 0 1px rgba(245, 185, 65, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 170, 24, 0.75);
 }
 
 .hero__msg {
   padding: var(--sp-5) var(--sp-5) var(--sp-6);
+  background: var(--paper);
 }
 .hero__foot {
   display: flex;
@@ -636,13 +767,15 @@ input[type="checkbox"] {
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--t-xs);
-  color: var(--text-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pit-muted);
 }
 .ramp__bar {
   display: flex;
-  border-radius: var(--r-pill);
+  border-radius: var(--r-sm);
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 1px solid var(--pit-line);
 }
 .ramp__bar i {
   width: 24px;
@@ -654,7 +787,7 @@ input[type="checkbox"] {
   gap: var(--sp-4);
   flex-wrap: wrap;
   font-size: var(--t-xs);
-  color: var(--text-2);
+  color: var(--pit-text);
 }
 .legend span {
   display: inline-flex;
@@ -671,7 +804,7 @@ input[type="checkbox"] {
   background: var(--q-sold);
 }
 .sw--best {
-  outline: 2px solid #fff;
+  outline: 2px solid #ffffff;
   outline-offset: -1px;
   background: transparent;
 }
@@ -680,6 +813,11 @@ input[type="checkbox"] {
   gap: var(--sp-2);
   flex-wrap: wrap;
   margin-left: auto;
+}
+.classes .tag {
+  background: transparent;
+  border-color: var(--pit-line);
+  color: #cfd4d9;
 }
 
 /* States */
@@ -691,22 +829,22 @@ input[type="checkbox"] {
 }
 .banner--error {
   background: var(--error-bg);
-  border-color: rgba(255, 107, 107, 0.4);
-  color: #ffb4ad;
+  border-color: rgba(192, 57, 43, 0.35);
+  color: #8a2d22;
 }
 .empty {
-  background: var(--panel);
-  border: 1px dashed var(--line);
+  background: var(--cloud);
+  border: 1px dashed var(--line-2);
   border-radius: var(--r-lg);
   padding: var(--sp-7) var(--sp-5);
   color: var(--muted);
   text-align: center;
 }
 .empty strong {
-  color: var(--text);
+  color: var(--ink);
 }
 .empty code {
-  color: var(--accent);
+  color: var(--berry);
 }
 
 /* Sticky mobile book (thumb zone) */
@@ -719,17 +857,17 @@ input[type="checkbox"] {
   gap: var(--sp-3);
   align-items: center;
   padding: var(--sp-3) var(--sp-4);
-  background: rgba(10, 12, 16, 0.92);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
   border-top: 1px solid var(--line);
   z-index: 20;
 }
 .stickybook .lbl {
   font-size: var(--t-sm);
-  color: var(--text-2);
+  color: var(--ink-2);
 }
 .stickybook .lbl b {
-  color: var(--text);
+  color: var(--ink);
 }
 .stickybook .btn {
   margin-left: auto;
@@ -755,14 +893,15 @@ input[type="checkbox"] {
 .modetoggle {
   display: inline-flex;
   gap: var(--sp-1);
-  background: var(--panel);
+  background: var(--cloud);
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   padding: var(--sp-1);
 }
 .btn--on {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--berry);
+  color: #ffffff;
+  border-color: var(--berry);
 }
 
 .together {
@@ -791,6 +930,7 @@ input[type="checkbox"] {
   border-spacing: 0;
   width: max-content;
   min-width: 100%;
+  background: var(--paper);
 }
 .matrix th,
 .matrix td {
@@ -800,14 +940,14 @@ input[type="checkbox"] {
   white-space: nowrap;
 }
 .matrix-date {
-  color: var(--text-2);
+  color: var(--ink-2);
   font-size: var(--t-sm);
 }
 .matrix-sticky-col {
   position: sticky;
   left: 0;
   z-index: 2;
-  background: var(--panel-2);
+  background: var(--cloud);
   text-align: left;
 }
 .matrix-corner {
@@ -823,16 +963,32 @@ input[type="checkbox"] {
   border: 0;
   font: inherit;
   font-weight: 700;
-  color: var(--accent-ink);
 }
 .matrix-cell--score {
   cursor: pointer;
 }
-.matrix-cell--score[data-q="elite"] { background: var(--q-elite); }
-.matrix-cell--score[data-q="great"] { background: var(--q-great); }
-.matrix-cell--score[data-q="good"]  { background: var(--q-good); }
-.matrix-cell--score[data-q="ok"]    { background: var(--q-ok); }
-.matrix-cell--score[data-q="weak"]  { background: var(--q-weak); color: var(--text); }
+/* Same 5-step signal as the seat-map ramp, restyled as the Glossier swatch ramp for legibility on
+ * white (see --sw-* tokens above). */
+.matrix-cell--score[data-q="elite"] {
+  background: var(--sw-elite-bg);
+  color: var(--sw-elite-fg);
+}
+.matrix-cell--score[data-q="great"] {
+  background: var(--sw-great-bg);
+  color: var(--sw-great-fg);
+}
+.matrix-cell--score[data-q="good"] {
+  background: var(--sw-good-bg);
+  color: var(--sw-good-fg);
+}
+.matrix-cell--score[data-q="ok"] {
+  background: var(--sw-ok-bg);
+  color: var(--sw-ok-fg);
+}
+.matrix-cell--score[data-q="weak"] {
+  background: var(--sw-weak-bg);
+  color: var(--sw-weak-fg);
+}
 .matrix-cell--sold {
   color: var(--muted);
   font-weight: 500;
@@ -845,7 +1001,7 @@ input[type="checkbox"] {
 .drillin {
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  background: var(--panel);
+  background: var(--paper);
   padding: var(--sp-4);
   display: grid;
   gap: var(--sp-3);
@@ -868,20 +1024,20 @@ input[type="checkbox"] {
   align-items: center;
   width: 100%;
   text-align: left;
-  background: var(--panel-2);
+  background: var(--cloud);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   padding: var(--sp-2) var(--sp-3);
-  color: var(--text);
+  color: var(--ink);
   cursor: pointer;
   font: inherit;
 }
 .drillin__row[aria-pressed="true"] {
-  border-color: var(--accent);
+  border-color: var(--berry);
 }
 .drillin__avg {
   font-weight: 700;
-  color: var(--accent);
+  color: var(--berry);
 }
 .drillin__asof {
   margin-left: auto;
@@ -890,7 +1046,7 @@ input[type="checkbox"] {
 }
 
 .seat--hi {
-  outline: 2px solid var(--info);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -903,9 +1059,10 @@ input[type="checkbox"] {
   max-width: 480px;
 }
 .movielist__search > span {
+  font-family: var(--geo);
   font-size: var(--t-lg);
-  font-weight: 650;
-  color: var(--text);
+  font-weight: 700;
+  color: var(--ink);
 }
 .movielist__grid {
   list-style: none;
@@ -921,7 +1078,7 @@ input[type="checkbox"] {
   gap: var(--sp-1);
   width: 100%;
   text-align: left;
-  background: var(--panel);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   padding: var(--sp-3) var(--sp-4);
@@ -930,14 +1087,16 @@ input[type="checkbox"] {
   cursor: pointer;
   color: inherit;
   font: inherit;
-  transition: border-color 0.14s var(--ease);
+  transition: border-color 0.14s var(--ease), background 0.14s var(--ease);
 }
 .movielist__item:hover {
-  border-color: var(--line-2);
+  border-color: var(--berry);
+  background: var(--blush);
 }
 .movielist__title {
+  font-family: var(--geo);
   font-size: var(--t-base);
-  font-weight: 650;
+  font-weight: 700;
 }
 .movielist__sub {
   color: var(--muted);
@@ -961,13 +1120,16 @@ input[type="checkbox"] {
 }
 .movieforward__title {
   margin: 0;
+  font-family: var(--geo);
+  font-weight: 700;
   font-size: var(--t-lg);
+  color: var(--ink);
 }
 
 .contextbar {
   display: grid;
   gap: var(--sp-3);
-  background: var(--panel);
+  background: var(--cloud);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   padding: var(--sp-4);
@@ -985,7 +1147,7 @@ input[type="checkbox"] {
 }
 .contextbar__grouphint {
   margin: 0;
-  color: var(--text-2);
+  color: var(--ink-2);
   font-size: var(--t-sm);
 }
 .contextbar__days {
@@ -1001,13 +1163,13 @@ input[type="checkbox"] {
   font-size: var(--t-sm);
 }
 .stepper__label {
-  color: var(--text-2);
+  color: var(--ink-2);
 }
 .stepper__control {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
-  background: var(--panel-2);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   padding: var(--sp-1);
@@ -1020,13 +1182,13 @@ input[type="checkbox"] {
   min-height: var(--tap);
   border-radius: var(--r-pill);
   border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--text);
+  background: var(--cloud);
+  color: var(--ink);
   cursor: pointer;
   flex: none;
 }
 .stepper__btn:hover:not(:disabled) {
-  border-color: var(--line-2);
+  border-color: var(--berry);
 }
 .stepper__btn:disabled {
   opacity: 0.4;
@@ -1040,9 +1202,9 @@ input[type="checkbox"] {
 }
 
 .banner--honest {
-  background: var(--panel-2);
+  background: var(--cloud);
   border-color: var(--line-2);
-  color: var(--text-2);
+  color: var(--ink-2);
 }
 
 .rail--options {
@@ -1064,7 +1226,7 @@ input[type="checkbox"] {
 }
 /* 47c fixes #1/#2 — the date now shown on every card, and the day-grouped list. */
 .sess__date {
-  color: var(--text-2);
+  color: var(--ink-2);
   font-weight: 650;
 }
 .optionlist__group {
@@ -1073,10 +1235,12 @@ input[type="checkbox"] {
 }
 .optionlist__daybreak {
   margin: var(--sp-3) 0 0;
+  font-family: var(--geo);
   font-size: var(--t-sm);
-  font-weight: 650;
-  color: var(--text-2);
+  font-weight: 700;
+  color: var(--ink-2);
   letter-spacing: 0.01em;
+  text-transform: uppercase;
 }
 .optionlist__group:first-child .optionlist__daybreak {
   margin-top: 0;
@@ -1096,7 +1260,7 @@ input[type="checkbox"] {
 
 /* #47b movie header summary (docs/47b-contract.md §6) — one line, no new color introduced. */
 .movieforward__availability {
-  color: var(--text-2);
+  color: var(--ink-2);
   font-size: var(--t-sm);
   margin: 0 0 var(--sp-3);
 }
@@ -1120,18 +1284,19 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  background: var(--panel-2);
+  background: var(--cloud);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   padding: var(--sp-2);
   font: inherit;
-  color: var(--text-2);
+  color: var(--ink-2);
   cursor: pointer;
 }
 .datestrip__daynum {
+  font-family: var(--geo);
   font-size: var(--t-md);
   font-variant-numeric: tabular-nums;
-  color: var(--text);
+  color: var(--ink);
 }
 .datestrip__label {
   font-size: 11px;
@@ -1141,7 +1306,7 @@ input[type="checkbox"] {
 /* good-block: the one state worth a confident, filled-in look. */
 .datestrip__cell[data-state="good-block"] {
   border-width: 2px;
-  border-color: var(--text-2);
+  border-color: var(--berry);
   font-weight: 650;
 }
 .datestrip__cell[data-state="good-block"] .datestrip__daynum {
