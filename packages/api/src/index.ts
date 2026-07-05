@@ -850,9 +850,19 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
         ORDER BY name NULLS LAST, id`,
       params,
     );
+    // #84 review follow-up: same blank-outranks-live bug class as `movies` above — '' sorts before
+    // any real cinema_name, so one blank-named row hid the real name for the whole (chain,
+    // cinema_id). Same self-heal COALESCE; the correlated subquery is served by the existing #67
+    // partial index (idx_sessions_chain_cinema_fetched — same shape, cinema_name variant).
     const cinemas = await db.query<{ id: string; name: string | null; chain: string }>(
       `SELECT id, name, chain FROM (
-         SELECT DISTINCT ON (chain, cinema_id) cinema_id AS id, cinema_name AS name, chain
+         SELECT DISTINCT ON (chain, cinema_id) cinema_id AS id, chain,
+                COALESCE(NULLIF(cinema_name, ''), (
+                  SELECT s2.cinema_name FROM sessions s2
+                   WHERE s2.chain = sessions.chain AND s2.cinema_id = sessions.cinema_id
+                     AND s2.cinema_name IS NOT NULL AND s2.cinema_name <> ''
+                   ORDER BY s2.fetched_at DESC LIMIT 1
+                )) AS name
            FROM sessions ${where}
           ORDER BY chain, cinema_id, cinema_name NULLS LAST
        ) c

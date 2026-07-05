@@ -587,3 +587,27 @@ test(
     assert.equal(odyssey!.name, "The Odyssey");
   },
 );
+
+test(
+  "/catalog `cinemas` #84 review follow-up: a single blank-named dead row never outranks " +
+    "correctly-named rows for the same (chain, cinema_id) — same bug class as `movies`",
+  { skip: dbSkip },
+  async () => {
+    for (let i = 0; i < 5; i++) {
+      await insertSession({ id: `cine-live-${i}`, cinemaId: "MIDCIN", cinemaName: "Hoyts Midtown" });
+    }
+    await insertSession({
+      id: "cine-dead",
+      cinemaId: "MIDCIN",
+      cinemaName: "",
+      disappearedAt: "2020-01-01T00:00:00.000Z",
+    });
+
+    const catalog = await getCatalog();
+    const midcin = catalog.cinemas.find(
+      (c) => (c as { id: string }).id === "MIDCIN",
+    ) as { id: string; name: string | null; chain: string } | undefined;
+    assert.ok(midcin, "expected a MIDCIN entry in catalog.cinemas");
+    assert.equal(midcin!.name, "Hoyts Midtown");
+  },
+);

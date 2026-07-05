@@ -3,6 +3,8 @@ import { Matrix } from "./Matrix";
 import { TogetherDrillIn } from "./TogetherDrillIn";
 import { MinScoreControl } from "./MinScoreControl";
 import { getTogether, fetchCatalog, API_BASE, type CatalogMovie } from "../api";
+import { chainLabel } from "../format";
+import { displayMovieTitle } from "../movies/present";
 import { buildMatrix, type TogetherResult } from "../together/matrix";
 import { normalizeTogetherSession } from "../together/normalize";
 import { matchesFormat, matchesTime, type TimePreset } from "../together/filters";
@@ -42,24 +44,25 @@ type CatalogState =
   | { status: "error"; chain: Chain; error: string };
 
 /**
- * Map catalog movies to <select> option models. Label = trimmed name, or an honest "Untitled"
- * placeholder when the cache has no name; when two visible labels collide, both are disambiguated
- * with their id.
+ * Map catalog movies to <select> option models. Label = trimmed name, or the shared
+ * `displayMovieTitle` honest placeholder ("Untitled (Chain)") when the cache has no name; when two
+ * visible labels collide, both are disambiguated with their id.
  *
  * #84 fix: this used to fall back to the bare internal `m.id` (e.g. "HO00010001") whenever `name`
  * was blank — a raw upstream id standing in for a movie title, same class of bug as the movie-first
  * heading (`MovieFirstView.tsx`) rendered before that fix. A picker row genuinely needs SOME way to
  * distinguish nameless entries, so the id isn't dropped entirely — it's demoted to a disambiguator
- * (`Untitled (id)`), same role it already plays for real title collisions below, instead of standing
- * in as if it were the title itself.
+ * (`Untitled (Chain) (id)`), same role it already plays for real title collisions below, instead of
+ * standing in as if it were the title itself. `chain` = the chain this catalog was fetched for
+ * (every movie in one select shares it).
  */
-function buildMovieOptions(movies: CatalogMovie[]): { id: string; label: string }[] {
-  const displayName = (m: CatalogMovie): string => m.name?.trim() || "Untitled";
-  // Bare label = trimmed name, or "Untitled". Names that collide (including multiple untitled rows)
-  // get their (unique) id appended. A `used` set then guarantees globally-unique visible labels even
-  // for titles that resemble a generated disambiguation (e.g. a real "Foo (1)" title alongside other
-  // "Foo" rows): the clashing one gets a numeric suffix. ids are unique, so this always terminates
-  // with distinct labels.
+function buildMovieOptions(movies: CatalogMovie[], chain: Chain): { id: string; label: string }[] {
+  const displayName = (m: CatalogMovie): string => displayMovieTitle(m.name ?? "", chain);
+  // Bare label = trimmed name, or the untitled placeholder. Names that collide (including multiple
+  // untitled rows) get their (unique) id appended. A `used` set then guarantees globally-unique
+  // visible labels even for titles that resemble a generated disambiguation (e.g. a real "Foo (1)"
+  // title alongside other "Foo" rows): the clashing one gets a numeric suffix. ids are unique, so
+  // this always terminates with distinct labels.
   const nameCounts = new Map<string, number>();
   for (const m of movies) {
     const name = displayName(m);
@@ -185,8 +188,11 @@ export function TogetherView() {
   const catalogError = catalog.status === "error" && catalog.chain === chain;
 
   const movieOptions = useMemo(
-    () => (catalogReady ? buildMovieOptions((catalog as Extract<CatalogState, { status: "ready" }>).movies) : []),
-    [catalogReady, catalog],
+    () =>
+      catalogReady
+        ? buildMovieOptions((catalog as Extract<CatalogState, { status: "ready" }>).movies, chain)
+        : [],
+    [catalogReady, catalog, chain],
   );
 
   const onMinScoreChange = (n: number) => {
@@ -318,7 +324,12 @@ export function TogetherView() {
         <Matrix
           model={model}
           onCellClick={(cinemaId, date) => {
-            const name = model.cinemas.find((c) => c.id === cinemaId)?.name ?? cinemaId;
+            // #84 review follow-up: `?? cinemaId` only caught a MISSING name — a blank/whitespace
+            // one fell through and rendered the raw internal cinema id (or nothing) as the drill-in
+            // heading. Same honest-fallback convention as movies/present.ts's displayCinemaName:
+            // degrade to the chain label, never the raw id, never blank.
+            const raw = model.cinemas.find((c) => c.id === cinemaId)?.name ?? "";
+            const name = raw.trim() || chainLabel(scanned?.chain ?? chain);
             setDrill({ cinemaId, cinemaName: name, date });
           }}
         />
