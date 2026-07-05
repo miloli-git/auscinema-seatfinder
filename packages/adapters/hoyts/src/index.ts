@@ -28,6 +28,9 @@ export type FetchJson = (url: string) => Promise<unknown>;
  * Routes:
  *   - GET cinemaapi/cinemas
  *       -> [ { id:"MIDCIN", slug, name, state, link, features:[...], address:{...}, ... } ]
+ *   - GET cinemaapi/movies
+ *       -> [ { id, vistaId:"HO00008574"(=session movieId), slug, name, ... } ]
+ *     #72: joined into sessions by `vistaId` to resolve the title the sessions feed omits.
  *   - GET cinemaapi/sessions/{cinemaId}?partnerId=ALL
  *       -> [ { id, cinemaId, movieId:"HO00008574"(=vistaId), date(local), utcDate, typeId,
  *              originalTags:[...], allocatedSeating, screenName, link } ]
@@ -64,15 +67,29 @@ export class HoytsAdapter implements ChainAdapter {
   // listSessions calls within a tick also collapse to a single upstream fetch.
   private readonly cinemaListTtlMs: number;
   private cinemaListCache?: { expiresAt: number; promise: Promise<Cinema[]> };
+  // #72: the per-cinema sessions feed carries no movie title (only the Vista `movieId`) — same gap
+  // class as #67's cinemaName. Resolve titles from the chain's own movies list (`GET
+  // cinemaapi-au-live/api/movies`, live-verified: entries carry `vistaId` matching Session.movieId
+  // and `name`), memoized the same way as cachedCinemas() so repeated/concurrent listSessions calls
+  // within the TTL window collapse to one upstream fetch.
+  private readonly movieListTtlMs: number;
+  private movieListCache?: { expiresAt: number; promise: Promise<Map<string, string>> };
 
-  constructor(opts?: { fetchJson?: FetchJson; cinemaListTtlMs?: number }) {
+  constructor(opts?: { fetchJson?: FetchJson; cinemaListTtlMs?: number; movieListTtlMs?: number }) {
     this.fetchJson = opts?.fetchJson ?? defaultFetchJson;
     this.cinemaListTtlMs = opts?.cinemaListTtlMs ?? 60 * 60_000; // 1h default
+    this.movieListTtlMs = opts?.movieListTtlMs ?? 60 * 60_000; // 1h default
   }
 
   async listCinemas(): Promise<Cinema[]> {
     const raw = await this.fetchJson(`${this.webBase}/cinemas`);
     return parseCinemas(raw, this.siteBase);
+  }
+
+  /** `vistaId -> name` map from the chain's movies list, for #72 title resolution. */
+  async listMovieNames(): Promise<Map<string, string>> {
+    const raw = await this.fetchJson(`${this.webBase}/movies`);
+    return parseMovieNames(raw);
   }
 
   /** Cached wrapper around listCinemas() for internal cinemaName resolution (see field comment). */
@@ -90,18 +107,35 @@ export class HoytsAdapter implements ChainAdapter {
     return promise;
   }
 
+  /** Cached wrapper around listMovieNames() for internal movieName resolution (#72, see field comment). */
+  private cachedMovieNames(): Promise<Map<string, string>> {
+    const now = Date.now();
+    if (this.movieListCache && now < this.movieListCache.expiresAt) {
+      return this.movieListCache.promise;
+    }
+    const promise = this.listMovieNames();
+    this.movieListCache = { expiresAt: now + this.movieListTtlMs, promise };
+    // Don't cache a rejection - clear it so the next call retries against fresh state.
+    promise.catch(() => {
+      if (this.movieListCache?.promise === promise) this.movieListCache = undefined;
+    });
+    return promise;
+  }
+
   async listSessions(query: SessionQuery): Promise<Session[]> {
     // #67: the per-cinema sessions feed carries only `cinemaId`, no name — mirror Event/Village and
     // resolve the real name from the chain's own cinema-list call (the same call listCinemas()
     // makes), reused across calls within the TTL window (see cachedCinemas()).
-    const cinemas = await this.cachedCinemas();
+    const [cinemas, movieNameById] = await Promise.all([this.cachedCinemas(), this.cachedMovieNames()]);
     const cinemaNameById = new Map(cinemas.map((c) => [c.id, c.name]));
 
     const out: Session[] = [];
     for (const cinemaId of query.cinemaIds) {
       const url = `${this.webBase}/sessions/${encodeURIComponent(cinemaId)}?partnerId=ALL`;
       const raw = await this.fetchJson(url);
-      out.push(...parseSessions(raw, query, this.siteBase, cinemaNameById.get(cinemaId) ?? ""));
+      out.push(
+        ...parseSessions(raw, query, this.siteBase, cinemaNameById.get(cinemaId) ?? "", movieNameById),
+      );
     }
     return out;
   }
@@ -201,6 +235,7 @@ function parseSessions(
   query: SessionQuery,
   siteBase: string,
   cinemaName: string,
+  movieNameById: Map<string, string>,
 ): Session[] {
   const out: Session[] = [];
   for (const s of arr(raw)) {
@@ -218,7 +253,9 @@ function parseSessions(
       // Composite so getSeatMap can recover the cinemaId the seat route needs.
       id: cinemaId ? `${cinemaId}:${id}` : id,
       movieId,
-      movieName: "", // sessions feed carries no title; resolve via /movies/* if needed
+      // #72: sessions feed carries no title — resolved from the movies list by `vistaId` (falls
+      // back to "" when a movieId isn't in the current movies list, e.g. a stale/delisted title).
+      movieName: movieNameById.get(movieId) ?? "",
       cinemaId,
       // #67: resolved from listCinemas() by the caller (mirrors Event's `cm.Name` / Village's
       // `cinema.name`, which both come embedded in-payload — Hoyts' sessions feed has no name, so we
@@ -357,6 +394,18 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
     // Hoyts publishes no row/col coordinates; positions are inferred from array order (#52).
     geometryConfidence: "approximate",
   };
+}
+
+/** #72: `vistaId -> name` map from the movies list (`GET cinemaapi-au-live/api/movies`). */
+function parseMovieNames(raw: unknown): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const node of arr(raw)) {
+    if (!isObj(node)) continue;
+    const vistaId = str(node.vistaId);
+    const name = str(node.name);
+    if (vistaId && name) out.set(vistaId, name);
+  }
+  return out;
 }
 
 function parseCinemas(raw: unknown, siteBase: string): Cinema[] {

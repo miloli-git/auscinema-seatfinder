@@ -486,6 +486,21 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   const inListedScope = (chain: Chain, cinemaId: string, date: string, movieId: string): boolean =>
     conclusiveScopes.has(scopeKey(chain, cinemaId, date, movieId));
 
+  /** Null/empty (post-trim) counts as blank — the #67/#72 stale-cache symptom. */
+  const isBlank = (v: string | null | undefined): boolean => v == null || v.trim() === "";
+
+  /**
+   * #67/#72 self-heal: a known session id's upsert used to be built ENTIRELY from its existing DB
+   * row, and `discovered` entries for already-known ids were discarded outright (the `existing.has`
+   * skip below) — so a blank/stale cached name could never be overwritten by a fresh chain listing,
+   * even though the adapter-side fixes (#69 cinemaName, #72 Hoyts movieName) return the real value on
+   * every listSessions() call. Policy (conservative v1): fresh wins ONLY when the current DB value is
+   * blank; a non-blank DB value is left alone even if the fresh listing disagrees, since a rename vs.
+   * a bad-data race can't be told apart here. Seat/total_seats flow is untouched by this helper.
+   */
+  const healedName = (dbValue: string | null, freshValue: string | undefined): string | null =>
+    isBlank(dbValue) && !isBlank(freshValue) ? (freshValue as string) : dbValue;
+
   // --- build candidate set: known cached sessions + newly-discovered ones.
   const targets = new Map<string, FetchTarget>();
   const candidates: KnownSession[] = [];
@@ -535,14 +550,19 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
         : r.start_time instanceof Date
           ? r.start_time.toISOString()
           : String(r.start_time);
+    // #67/#72 self-heal: use this tick's fresh discovery data (if this id was returned) to fill in a
+    // blank cached name. See `healedName` above for the fresh-wins-only-when-blank policy.
+    const freshSession = discovered.get(r.id)?.session;
+    const movieName = healedName(r.movie_name, freshSession?.movieName);
+    const cinemaName = healedName(r.cinema_name, freshSession?.cinemaName);
     const upsert: SessionUpsert = {
       id: r.id,
       watchId: Number(r.watch_id ?? 0),
       chain: r.chain,
       movieId: r.movie_id,
-      ...(r.movie_name != null ? { movieName: r.movie_name } : {}),
+      ...(movieName != null ? { movieName } : {}),
       cinemaId: r.cinema_id,
-      ...(r.cinema_name != null ? { cinemaName: r.cinema_name } : {}),
+      ...(cinemaName != null ? { cinemaName } : {}),
       date: dateStr,
       ...(startTime !== undefined ? { startTime } : {}),
       ...(r.format != null ? { format: r.format } : {}),

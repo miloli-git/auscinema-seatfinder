@@ -162,6 +162,7 @@ test("listSessions: wrong movieId yields no sessions", async () => {
 test("listSessions: #67 resolves real cinemaName from listCinemas(), never blank", async () => {
   const fetchJson: FetchJson = async (url) => {
     if (url.includes("/cinemas")) return loadFixture("cinemas.json");
+    if (url.includes("/movies")) return loadFixture("movies.json");
     if (url.includes("/sessions/")) return loadFixture("sessions.midcin.json");
     throw new Error(`no fixture for url: ${url}`);
   };
@@ -176,6 +177,40 @@ test("listSessions: #67 resolves real cinemaName from listCinemas(), never blank
   for (const s of sessions) assert.equal(s.cinemaName, "ACE HOYTS Midland Gate");
 });
 
+test("listSessions: #72 resolves real movieName from the movies list, never blank", async () => {
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/cinemas")) return loadFixture("cinemas.json");
+    if (url.includes("/movies")) return loadFixture("movies.json");
+    if (url.includes("/sessions/")) return loadFixture("sessions.midcin.json");
+    throw new Error(`no fixture for url: ${url}`);
+  };
+  const adapter = new HoytsAdapter({ fetchJson });
+  const sessions = await adapter.listSessions({
+    movieId: "HO00008574",
+    cinemaIds: ["MIDCIN"],
+    date: "2026-06-24",
+  });
+
+  assert.ok(sessions.length > 0);
+  for (const s of sessions) assert.equal(s.movieName, "Example Movie Title");
+});
+
+test("listSessions: #72 falls back to '' for a movieId absent from the movies list", async () => {
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/cinemas")) return loadFixture("cinemas.json");
+    if (url.includes("/movies")) return loadFixture("movies.json");
+    if (url.includes("/sessions/")) return loadFixture("sessions.midcin.json");
+    throw new Error(`no fixture for url: ${url}`);
+  };
+  const adapter = new HoytsAdapter({ fetchJson });
+  const sessions = await adapter.listSessions({
+    movieId: "HO99999999",
+    cinemaIds: ["MIDCIN"],
+    date: "2026-06-24",
+  });
+  assert.equal(sessions.length, 0); // no session with this movieId, but confirms no throw on lookup miss
+});
+
 test("listSessions: #47 memoizes the cinema-list fetch across repeated calls within the TTL", async () => {
   let cinemaFetchCount = 0;
   const fetchJson: FetchJson = async (url) => {
@@ -183,6 +218,7 @@ test("listSessions: #47 memoizes the cinema-list fetch across repeated calls wit
       cinemaFetchCount += 1;
       return loadFixture("cinemas.json");
     }
+    if (url.includes("/movies")) return loadFixture("movies.json");
     if (url.includes("/sessions/")) return loadFixture("sessions.midcin.json");
     throw new Error(`no fixture for url: ${url}`);
   };
@@ -209,6 +245,7 @@ test("listSessions: #47 memoization expires after the TTL and re-fetches the cin
       cinemaFetchCount += 1;
       return loadFixture("cinemas.json");
     }
+    if (url.includes("/movies")) return loadFixture("movies.json");
     if (url.includes("/sessions/")) return loadFixture("sessions.midcin.json");
     throw new Error(`no fixture for url: ${url}`);
   };
@@ -220,6 +257,26 @@ test("listSessions: #47 memoization expires after the TTL and re-fetches the cin
   await adapter.listSessions(query);
 
   assert.equal(cinemaFetchCount, 2, "expired cache re-fetches the cinema list");
+});
+
+test("listMovieNames: #72 movieListTtlMs memoizes the movies-list fetch across repeated calls", async () => {
+  let movieFetchCount = 0;
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/cinemas")) return loadFixture("cinemas.json");
+    if (url.includes("/movies")) {
+      movieFetchCount += 1;
+      return loadFixture("movies.json");
+    }
+    if (url.includes("/sessions/")) return loadFixture("sessions.midcin.json");
+    throw new Error(`no fixture for url: ${url}`);
+  };
+  const adapter = new HoytsAdapter({ fetchJson });
+  const query = { movieId: "HO00008574", cinemaIds: ["MIDCIN"], date: "2026-06-24" };
+
+  await adapter.listSessions(query);
+  await adapter.listSessions(query);
+
+  assert.equal(movieFetchCount, 1, "repeated listSessions calls reuse the memoized movies list");
 });
 
 test("listCinemas: normalises id, name, region and url", async () => {

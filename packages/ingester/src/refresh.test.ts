@@ -763,3 +763,81 @@ test("discovery-error-only tick: invariant holds, errors stay zero, discovery_er
   assert.equal(event.errors, 0, "discovery errors are not folded into per-chain seat-refresh errors");
   assert.equal(event.backoff, true, "a discovery outage still backs the chain off");
 });
+
+// --- #67/#72 self-heal: blank/stale cached names heal from fresh discovery data --------------
+
+test("#67/#72 self-heal: a KNOWN session id with blank cached names is healed from fresh discovery data", { skip: dbSkip }, async () => {
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["C1"], dateFrom: "2026-10-05", dateTo: "2026-10-05" });
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  await insertCachedSession({
+    id: "S-blank",
+    watchId,
+    fetchedAt: beforeInstant(nowInstant, hours(3)), // old enough to be due for T0
+  });
+  // Simulate the #67/#72 symptom: the cached row already carries blank names.
+  await requirePool().query("UPDATE sessions SET movie_name = '', cinema_name = NULL WHERE id = $1", ["S-blank"]);
+
+  // This tick's discovery listing returns the SAME (already-known) session id, with real names —
+  // exactly what a healthy Hoyts/Reading/etc. listing looks like post-#69/#72 adapter fixes.
+  const fresh = session("S-blank", "event", "C1", "2026-10-05T19:00:00.000Z", {
+    movieName: "Real Movie Title",
+    cinemaName: "Real Cinema Name",
+  });
+  const registry: AdapterRegistry = {
+    event: stubAdapter("event", [fresh], { "S-blank": mapFor("event", "S-blank") }),
+  };
+
+  await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+  const { rows } = await requirePool().query<{
+    movie_name: string | null;
+    cinema_name: string | null;
+    total_seats: number | null;
+  }>("SELECT movie_name, cinema_name, total_seats FROM sessions WHERE id = $1", ["S-blank"]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.movie_name, "Real Movie Title", "blank movie_name heals from fresh discovery data");
+  assert.equal(rows[0]!.cinema_name, "Real Cinema Name", "blank cinema_name heals from fresh discovery data");
+
+  // Seat/total_seats flow is unaffected by the name-healing change: the seat map still writes
+  // through normally (mapFor's 2 available seats -> total_seats 2, session_seats populated).
+  assert.equal(rows[0]!.total_seats, 2);
+  const seats = await requirePool().query<{ seat_id: string }>(
+    "SELECT seat_id FROM session_seats WHERE session_id = $1 ORDER BY seat_id",
+    ["S-blank"],
+  );
+  assert.deepEqual(
+    seats.rows.map((r) => r.seat_id),
+    ["S-blank-A1", "S-blank-A2"],
+  );
+});
+
+test("#67/#72 self-heal policy: non-blank cached names are NOT overwritten by a differing fresh listing", { skip: dbSkip }, async () => {
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["C1"], dateFrom: "2026-10-05", dateTo: "2026-10-05" });
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  // insertCachedSession seeds non-blank names: movie_name = "Test Movie", cinema_name = "Cinema C1".
+  await insertCachedSession({
+    id: "S-nonblank",
+    watchId,
+    fetchedAt: beforeInstant(nowInstant, hours(3)),
+  });
+
+  // Fresh listing disagrees (e.g. a same-id re-release relabel upstream) — conservative v1 policy
+  // is fresh-wins-ONLY-when-DB-blank, so the existing non-blank DB value must survive untouched.
+  const fresh = session("S-nonblank", "event", "C1", "2026-10-05T19:00:00.000Z", {
+    movieName: "Different Movie",
+    cinemaName: "Different Cinema",
+  });
+  const registry: AdapterRegistry = {
+    event: stubAdapter("event", [fresh], { "S-nonblank": mapFor("event", "S-nonblank") }),
+  };
+
+  await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+  const { rows } = await requirePool().query<{ movie_name: string | null; cinema_name: string | null }>(
+    "SELECT movie_name, cinema_name FROM sessions WHERE id = $1",
+    ["S-nonblank"],
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.movie_name, "Test Movie", "non-blank DB movie_name is preserved, not overwritten");
+  assert.equal(rows[0]!.cinema_name, "Cinema C1", "non-blank DB cinema_name is preserved, not overwritten");
+});
