@@ -19,7 +19,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && npm run typecheck -w @auscinema/web",
     "lint": "eslint . --max-warnings=0",
     "smoke": "npm run build && tsx scripts/smoke.ts"
   },
