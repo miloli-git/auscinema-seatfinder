@@ -31,6 +31,10 @@ export type FetchJson = (url: string) => Promise<unknown>;
  *   - GET cinemaapi/movies
  *       -> [ { id, vistaId:"HO00008574"(=session movieId), slug, name, ... } ]
  *     #72: joined into sessions by `vistaId` to resolve the title the sessions feed omits.
+ *     `vistaId` is occasionally comma-joined ("HO00010000,HO00011219") when one marketing entry
+ *     covers two Vista ids (live-verified: 13 concurrent examples, e.g. "Spider-Man: Brand New
+ *     Day", "Moana", "Toy Story 5" - all real major current releases); parseMovieNames() splits
+ *     it so every id in the list resolves, not just the joined string as a whole.
  *   - GET cinemaapi/sessions/{cinemaId}?partnerId=ALL
  *       -> [ { id, cinemaId, movieId:"HO00008574"(=vistaId), date(local), utcDate, typeId,
  *              originalTags:[...], allocatedSeating, screenName, link } ]
@@ -71,7 +75,8 @@ export class HoytsAdapter implements ChainAdapter {
   // class as #67's cinemaName. Resolve titles from the chain's own movies list (`GET
   // cinemaapi-au-live/api/movies`, live-verified: entries carry `vistaId` matching Session.movieId
   // and `name`), memoized the same way as cachedCinemas() so repeated/concurrent listSessions calls
-  // within the TTL window collapse to one upstream fetch.
+  // within the TTL window collapse to one upstream fetch. `vistaId` can itself be a comma-joined
+  // list of ids sharing one entry - see parseMovieNames() for why that must be split.
   private readonly movieListTtlMs: number;
   private movieListCache?: { expiresAt: number; promise: Promise<Map<string, string>> };
 
@@ -410,7 +415,21 @@ function parseMovieNames(raw: unknown): Map<string, string> {
     if (!isObj(node)) continue;
     const vistaId = str(node.vistaId);
     const name = str(node.name);
-    if (vistaId && name) out.set(vistaId, name);
+    if (!vistaId || !name) continue;
+    // Live-verified (2026-07-05, cf. Hoyts issue investigation for the 571-session blank-title
+    // cluster): `vistaId` is sometimes a COMMA-JOINED list of Vista ids sharing one marketing
+    // entry, e.g. `"HO00010000,HO00011219"` for "Spider-Man: Brand New Day" (13 movies observed
+    // with this shape at once - all major current/advance-sale titles, always exactly 2 ids,
+    // second id block sequential ~HO000112xx - looks like a paired technical/release-window
+    // variant sharing one listing). A session's `movieId` is always a single bare id, so indexing
+    // the raw joined string as one map key meant NEITHER id ever matched - the join silently
+    // produced "" for every session of these movies, and #75's cache-heal had nothing to heal
+    // from since fresh discovery data was blank too. Split on comma and index each id to the same
+    // name; harmless no-op for the common single-id case.
+    for (const id of vistaId.split(",")) {
+      const trimmed = id.trim();
+      if (trimmed) out.set(trimmed, name);
+    }
   }
   return out;
 }

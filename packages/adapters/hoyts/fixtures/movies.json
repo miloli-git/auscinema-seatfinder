@@ -43,5 +43,29 @@
   "nowShowing": true,
   "comingThisWeek": false,
   "link": "/movies/malformed-no-name"
+ },
+ {
+  "id": 3904,
+  "type": "advanceSale",
+  "attribute": { "id": "advance-sale", "name": "Tickets On Sale" },
+  "vistaId": "HO00010500,HO00010501",
+  "slug": "comma-joined-movie",
+  "name": "Comma Joined Movie",
+  "summary": "Live-verified (2026-07-05): Hoyts occasionally shares one movies-list entry across two comma-joined vistaIds, e.g. Spider-Man: Brand New Day was 'HO00010000,HO00011219'. A session's movieId is always one bare id, so both halves must resolve to this name.",
+  "runtime": { "minutes": 0 },
+  "duration": 118,
+  "releaseDate": "2026-08-01T00:00:00",
+  "hideHeader": false,
+  "rating": { "id": "M" },
+  "metaData": {},
+  "cast": [],
+  "genres": ["Action"],
+  "tags": [],
+  "countries": [],
+  "sessionAttributes": [],
+  "onSale": true,
+  "nowShowing": false,
+  "comingThisWeek": false,
+  "link": "/movies/comma-joined-movie"
  }
 ]
