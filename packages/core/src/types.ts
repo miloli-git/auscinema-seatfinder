@@ -101,4 +101,10 @@ export interface SeatMap {
   areas: SeatArea[];
   /** All real + structural seats. Use `row`/`col` for geometry; filter `status==="spacer"` out. */
   seats: Seat[];
+  /**
+   * "exact" when the chain publishes real row/col coordinates; "approximate" when they're
+   * inferred (e.g. Hoyts, which has no published seat geometry - positions come from array
+   * order). Scoring and "most together" fit are only geometry-correct for "exact".
+   */
+  geometryConfidence: "exact" | "approximate";
 }

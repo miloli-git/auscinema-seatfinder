@@ -56,6 +56,7 @@ function seatMapWith(availableIds: string[], liveBlock?: TogetherBlock | null): 
     sessionId: "s1",
     areas: [{ id: "area1", name: "Stalls", kind: "standard" }],
     seats,
+    geometryConfidence: "exact",
     scored: seats.map((s, i) => ({ seat: s, score: 90 - i })),
     ...(liveBlock === undefined ? {} : { block: liveBlock, blocks: liveBlock ? [liveBlock] : [] }),
   };

@@ -337,5 +337,6 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
     sessionId,
     areas: [...areaSeen.values()],
     seats,
+    geometryConfidence: "exact",
   };
 }

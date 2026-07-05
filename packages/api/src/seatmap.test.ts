@@ -61,6 +61,7 @@ function seatMap(sessionId: string, chain: Chain, seats: Seat[]): SeatMap {
     sessionId,
     areas: [{ id: "standard", name: "Standard", kind: "standard" }],
     seats,
+    geometryConfidence: "exact",
   };
 }
 
@@ -103,7 +104,10 @@ async function getSeatMap(query: string): Promise<SeatMapResponse> {
 }
 
 function assertNoLiveBlockKeys(body: SeatMapResponse): void {
-  assert.deepEqual(Object.keys(body).sort(), ["areas", "chain", "scored", "seats", "sessionId"]);
+  assert.deepEqual(
+    Object.keys(body).sort(),
+    ["areas", "chain", "geometryConfidence", "scored", "seats", "sessionId"],
+  );
   assert.equal("block" in body, false);
   assert.equal("blocks" in body, false);
   assert.equal("party" in body, false);

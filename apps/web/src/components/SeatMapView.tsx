@@ -63,6 +63,14 @@ export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
 
   return (
     <>
+      {map.geometryConfidence === "approximate" && (
+        <span
+          className="confidence-chip"
+          title="Hoyts doesn't publish seat coordinates; positions are inferred from order."
+        >
+          Seat positions approximate
+        </span>
+      )}
       <div className="screen" aria-hidden="true">
         SCREEN
       </div>

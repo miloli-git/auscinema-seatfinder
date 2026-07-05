@@ -34,6 +34,7 @@ function makeMap(overrides: Partial<Seat>[] = []): SeatMap {
       { id: "gold", name: "Gold Class", kind: "goldclass" },
     ],
     seats,
+    geometryConfidence: "exact",
   };
 }
 

@@ -35,6 +35,7 @@ function tinySeatMap(sessionId: string, chain: Chain): SeatMap {
       { id: `${sessionId}-s1`, name: "A1", rowLabel: "A", row: 0, col: 0, status: "available", areaId: "1" },
       { id: `${sessionId}-s2`, name: "B1", rowLabel: "B", row: 1, col: 0, status: "available", areaId: "1" },
     ],
+    geometryConfidence: "exact",
   };
 }
 
@@ -52,6 +53,7 @@ function manySeatMap(sessionId: string, chain: Chain, count: number): SeatMap {
       status: "available",
       areaId: "1",
     })),
+    geometryConfidence: "exact",
   };
 }
 

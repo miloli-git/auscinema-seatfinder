@@ -316,6 +316,8 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
     screenName: str(root?.screenName),
     areas,
     seats,
+    // Hoyts publishes no row/col coordinates; positions are inferred from array order (#52).
+    geometryConfidence: "approximate",
   };
 }
 

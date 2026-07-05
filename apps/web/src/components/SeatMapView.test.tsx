@@ -23,6 +23,7 @@ function map(): ScoredSeatMap {
     sessionId: "s1",
     areas: [{ id: "area1", name: "Stalls", kind: "standard" }],
     seats,
+    geometryConfidence: "exact",
     scored: [
       { seat: seats[0]!, score: 90 },
       { seat: seats[1]!, score: 80 },
@@ -30,6 +31,25 @@ function map(): ScoredSeatMap {
     ],
   };
 }
+
+describe("SeatMapView geometry confidence chip (#52)", () => {
+  it("renders the approximate-geometry chip when confidence is 'approximate'", () => {
+    const { container, getByText } = render(
+      <SeatMapView map={{ ...map(), chain: "hoyts", geometryConfidence: "approximate" }} topN={3} />,
+    );
+    const chip = getByText("Seat positions approximate");
+    expect(chip).not.toBeNull();
+    expect(chip.getAttribute("title")).toEqual(
+      "Hoyts doesn't publish seat coordinates; positions are inferred from order.",
+    );
+    expect(container.querySelectorAll(".confidence-chip")).toHaveLength(1);
+  });
+
+  it("renders no chip when confidence is 'exact'", () => {
+    const { container } = render(<SeatMapView map={map()} topN={3} />);
+    expect(container.querySelectorAll(".confidence-chip")).toHaveLength(0);
+  });
+});
 
 describe("SeatMapView highlightSeatIds (L3.4 / #36)", () => {
   it("L3.4 applies the highlight class to exactly the seats in highlightSeatIds", () => {
