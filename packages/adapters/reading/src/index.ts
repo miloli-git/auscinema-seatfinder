@@ -64,9 +64,19 @@ export class ReadingAdapter implements ChainAdapter {
   private readonly countryId = "1";
   private readonly fetchJson: FetchJson;
   private tokenCache?: { token: string; expiresAt: number };
+  // #47 review follow-up: listSessions() used to call listCinemas() unconditionally on every
+  // invocation just to resolve cinemaName (#67) - that's a full uncached fetch AND a token
+  // re-check, doubling outbound requests since the ingester calls listSessions once per
+  // (watch, date). Memoize the cinema-list result per adapter instance (mirrors the TtlCache
+  // pattern in packages/api/src/index.ts) so repeated calls within one TTL window reuse it.
+  // Caches the in-flight promise (not just the resolved value) so concurrent listSessions calls
+  // within a tick also collapse to a single upstream fetch (and a single token check).
+  private readonly cinemaListTtlMs: number;
+  private cinemaListCache?: { expiresAt: number; promise: Promise<Cinema[]> };
 
-  constructor(opts?: { fetchJson?: FetchJson }) {
+  constructor(opts?: { fetchJson?: FetchJson; cinemaListTtlMs?: number }) {
     this.fetchJson = opts?.fetchJson ?? defaultFetchJson;
+    this.cinemaListTtlMs = opts?.cinemaListTtlMs ?? 60 * 60_000; // 1h default
   }
 
   /** Fetch + cache the public bootstrap bearer token from /settings/{countryId}. */
@@ -102,10 +112,26 @@ export class ReadingAdapter implements ChainAdapter {
     return parseCinemas(raw, this.siteBase);
   }
 
+  /** Cached wrapper around listCinemas() for internal cinemaName resolution (see field comment). */
+  private cachedCinemas(): Promise<Cinema[]> {
+    const now = Date.now();
+    if (this.cinemaListCache && now < this.cinemaListCache.expiresAt) {
+      return this.cinemaListCache.promise;
+    }
+    const promise = this.listCinemas();
+    this.cinemaListCache = { expiresAt: now + this.cinemaListTtlMs, promise };
+    // Don't cache a rejection - clear it so the next call retries against fresh state.
+    promise.catch(() => {
+      if (this.cinemaListCache?.promise === promise) this.cinemaListCache = undefined;
+    });
+    return promise;
+  }
+
   async listSessions(query: SessionQuery): Promise<Session[]> {
     // #67: the per-cinema films feed carries no cinema name — mirror Event/Village and resolve the
-    // real name from the chain's own cinema-list call (the same call listCinemas() makes).
-    const cinemas = await this.listCinemas();
+    // real name from the chain's own cinema-list call (the same call listCinemas() makes), reused
+    // across calls within the TTL window (see cachedCinemas()).
+    const cinemas = await this.cachedCinemas();
     const cinemaNameById = new Map(cinemas.map((c) => [c.id, c.name]));
 
     const out: Session[] = [];
