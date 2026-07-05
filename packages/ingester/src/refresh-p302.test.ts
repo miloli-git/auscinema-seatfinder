@@ -178,6 +178,8 @@ async function insertCachedSession(args: {
   fetchedAt: Date;
   lastSeen?: Date;
   disappearedAt?: Date | null;
+  wildcardMissStreak?: number;
+  seatAllocation?: boolean;
 }): Promise<void> {
   const chain = args.chain ?? "event";
   const cinemaId = args.cinemaId ?? "C1";
@@ -188,8 +190,8 @@ async function insertCachedSession(args: {
     `INSERT INTO sessions
        (id, watch_id, chain, movie_id, movie_name, cinema_id, cinema_name, date,
         start_time, format, screen, seats_available, booking_url, seat_allocation,
-        fetched_at, last_seen, disappeared_at)
-     VALUES ($1,$2,$3,$4,'Test Movie',$5,$6,$7,$8,'STANDARD','3',42,$9,true,$10,$11,$12)`,
+        fetched_at, last_seen, disappeared_at, wildcard_miss_streak)
+     VALUES ($1,$2,$3,$4,'Test Movie',$5,$6,$7,$8,'STANDARD','3',42,$9,$10,$11,$12,$13,$14)`,
     [
       args.id,
       args.watchId,
@@ -200,11 +202,20 @@ async function insertCachedSession(args: {
       date,
       `${date}T19:00:00.000Z`,
       `https://book.example/${args.id}`,
+      args.seatAllocation ?? true,
       args.fetchedAt,
       lastSeen,
       args.disappearedAt ?? null,
+      args.wildcardMissStreak ?? 0,
     ],
   );
+}
+
+async function wildcardMissStreaks(): Promise<Record<string, number>> {
+  const { rows } = await requirePool().query<{ id: string; wildcard_miss_streak: number }>(
+    `SELECT id, wildcard_miss_streak FROM sessions ORDER BY id`,
+  );
+  return Object.fromEntries(rows.map((r) => [r.id, Number(r.wildcard_miss_streak)]));
 }
 
 async function insertSeat(sessionId: string, seatId = `${sessionId}-A1`): Promise<void> {
@@ -572,6 +583,179 @@ test(
       null,
       "c2-known stays live: no session for C2 was ever returned this tick, so C2 is not conclusively listed",
     );
+  },
+);
+
+test(
+  "#78 wildcard-scope tombstone debounce: a session missing one otherwise-successful tick survives intact, and a session missing two consecutive ticks tombstones",
+  { skip: dbSkip },
+  async () => {
+    await resetToCurrentSchema();
+    const watchId = await insertWatch({
+      chain: "event",
+      cinemaIds: ["C1"],
+      dateFrom: "2026-10-05",
+      dateTo: "2026-10-05",
+      movieId: null,
+    });
+    const t0 = new Date("2026-10-05T00:00:00.000Z");
+    // "anchor" is always returned so C1/2026-10-05's wildcard scope stays conclusively listed on
+    // every tick — isolating the debounce behaviour from the "scope not listed at all" safety net.
+    await insertCachedSession({ id: "anchor", watchId, movieId: "M-ANCHOR", fetchedAt: beforeInstant(t0, hours(3)) });
+    await insertCachedSession({ id: "flicker", watchId, movieId: "MB", fetchedAt: beforeInstant(t0, hours(3)) });
+
+    const anchorSession = session("anchor", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "M-ANCHOR" });
+    const flickerSession = session("flicker", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MB" });
+    const maps = { anchor: mapFor("event", "anchor"), flicker: mapFor("event", "flicker") };
+
+    // Tick 1 (t0+1h): "flicker" is transiently absent (a backend blip / one-tick feed gap). Under the
+    // pre-#78 coarse scope this tombstoned immediately and irreversibly (7-day purge); it must not.
+    const t1 = new Date(t0.getTime() + hours(1));
+    const row1 = await runRefreshTick({
+      pool: requirePool(),
+      registry: { event: stubAdapter("event", [anchorSession], maps) },
+      nowInstant: t1,
+      budgetPerChain: 30,
+    });
+    assert.equal(row1.sessions_disappeared, 0, "a single miss must not tombstone (debounce)");
+    assert.equal((await tombstoneRows()).flicker, null, "flicker survives its first missing tick");
+    assert.equal((await wildcardMissStreaks()).flicker, 1, "the miss is counted");
+
+    // Tick 2 (t0+2h): "flicker" reappears. The streak must reset to 0 so a LATER isolated miss can't
+    // combine with this stale one to tombstone prematurely.
+    const t2 = new Date(t1.getTime() + hours(1));
+    const row2 = await runRefreshTick({
+      pool: requirePool(),
+      registry: { event: stubAdapter("event", [anchorSession, flickerSession], maps) },
+      nowInstant: t2,
+      budgetPerChain: 30,
+    });
+    assert.equal(row2.sessions_disappeared, 0);
+    assert.equal((await tombstoneRows()).flicker, null, "flicker is intact after reappearing");
+    assert.equal((await wildcardMissStreaks()).flicker, 0, "presence resets the miss streak");
+
+    // Ticks 3 and 4 (t0+3h, t0+4h): a genuine zombie — "flicker" is absent for TWO CONSECUTIVE ticks.
+    const t3 = new Date(t2.getTime() + hours(1));
+    const row3 = await runRefreshTick({
+      pool: requirePool(),
+      registry: { event: stubAdapter("event", [anchorSession], maps) },
+      nowInstant: t3,
+      budgetPerChain: 30,
+    });
+    assert.equal(row3.sessions_disappeared, 0, "the first of the two required consecutive misses must not tombstone yet");
+    assert.equal((await tombstoneRows()).flicker, null);
+    assert.equal((await wildcardMissStreaks()).flicker, 1);
+
+    const t4 = new Date(t3.getTime() + hours(1));
+    const row4 = await runRefreshTick({
+      pool: requirePool(),
+      registry: { event: stubAdapter("event", [anchorSession], maps) },
+      nowInstant: t4,
+      budgetPerChain: 30,
+    });
+    assert.equal(row4.sessions_disappeared, 1, "the second consecutive miss (default WILDCARD_TOMBSTONE_MISSES=2) tombstones");
+    assert.equal((await tombstoneRows()).flicker, t4.toISOString());
+  },
+);
+
+test(
+  "#78 village wildcard watch does NOT get coarse-scope conclusiveness (no adapter truncation guard)",
+  { skip: dbSkip },
+  async () => {
+    await resetToCurrentSchema();
+    const watchId = await insertWatch({
+      chain: "village",
+      cinemaIds: ["C1"],
+      dateFrom: "2026-10-05",
+      dateTo: "2026-10-05",
+      movieId: null,
+    });
+    const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+    // "still-showing" is returned every tick; "delisted" never is — exactly the #77 zombie shape,
+    // except the chain is village.
+    await insertCachedSession({
+      id: "still-showing",
+      watchId,
+      chain: "village",
+      movieId: "MA",
+      fetchedAt: beforeInstant(nowInstant, hours(3)),
+    });
+    await insertCachedSession({
+      id: "delisted",
+      watchId,
+      chain: "village",
+      movieId: "MB",
+      fetchedAt: beforeInstant(nowInstant, hours(3)),
+    });
+
+    const registry: AdapterRegistry = {
+      village: stubAdapter(
+        "village",
+        [session("still-showing", "village", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
+        { "still-showing": mapFor("village", "still-showing") },
+      ),
+    };
+
+    const row = await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+    assert.equal(
+      row.sessions_disappeared,
+      0,
+      "village's wildcard listing must not confer coarse-scope conclusiveness (no truncation guard)",
+    );
+    const tombstones = await tombstoneRows();
+    assert.equal(tombstones["still-showing"], null);
+    assert.equal(
+      tombstones.delisted,
+      null,
+      "'delisted' stays live: village is excluded from the wildcard-scope-conclusive adapter allowlist",
+    );
+    assert.equal(
+      (await wildcardMissStreaks()).delisted,
+      0,
+      "no miss is even counted for village — it never becomes wildcard-only-conclusive",
+    );
+  },
+);
+
+test(
+  "#78 a seatAllocation=false session returned in a wildcard listing stays alive (seenIds captured before the seatAllocation filter)",
+  { skip: dbSkip },
+  async () => {
+    await resetToCurrentSchema();
+    const watchId = await insertWatch({
+      chain: "event",
+      cinemaIds: ["C1"],
+      dateFrom: "2026-10-05",
+      dateTo: "2026-10-05",
+      movieId: null,
+    });
+    const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+    await insertCachedSession({
+      id: "no-seatmap",
+      watchId,
+      movieId: "MA",
+      fetchedAt: beforeInstant(nowInstant, hours(3)),
+      seatAllocation: false,
+    });
+
+    const registry: AdapterRegistry = {
+      event: stubAdapter(
+        "event",
+        [session("no-seatmap", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA", seatAllocation: false })],
+        { "no-seatmap": mapFor("event", "no-seatmap") },
+      ),
+    };
+
+    const row = await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+    assert.equal(
+      row.sessions_disappeared,
+      0,
+      "a returned session (even seatAllocation=false) still counts as seen before the discovery filter",
+    );
+    const tombstones = await tombstoneRows();
+    assert.equal(tombstones["no-seatmap"], null, "session stays alive under the coarse wildcard scope");
   },
 );
 

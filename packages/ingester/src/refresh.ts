@@ -11,7 +11,12 @@
 import type { Chain, SeatPreference, Session } from "@auscinema/core";
 import type { Pool } from "./db.js";
 import type { AdapterRegistry } from "./registry.js";
-import { healSessionNames, upsertSessionWithSeats, type NameHeal } from "./persist.js";
+import {
+  healSessionNames,
+  updateWildcardMissStreaks,
+  upsertSessionWithSeats,
+  type NameHeal,
+} from "./persist.js";
 import { countSeatableTotal, sessionToUpsert, toSeatUpserts } from "./sweep.js";
 import { datesInRange, loadEnabledWatches, watchToQuery } from "./watches.js";
 import { effectiveWindow, resolveHorizonDays } from "./horizon.js";
@@ -87,6 +92,31 @@ function resolveReserveForNew(): number {
   const n = raw === undefined ? NaN : Number(raw);
   return Number.isInteger(n) && n >= 0 ? n : 10;
 }
+
+/**
+ * #78 review: consecutive-tick debounce for wildcard-scope-ONLY-conclusive tombstones. A genuine
+ * zombie still tombstones within one extra tick (~30min at the production 15-min cadence with the
+ * default of 2) - an acceptable trade against irreversibly tombstoning a session on a single transient
+ * gap. Env WILDCARD_TOMBSTONE_MISSES, default 2.
+ */
+function resolveWildcardTombstoneMisses(): number {
+  const raw = process.env.WILDCARD_TOMBSTONE_MISSES;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n : 2;
+}
+
+/**
+ * #78 review: chains whose adapter provably issues one upstream request PER cinemaId and fails the
+ * whole listSessions() call if any of them fails (event/hoyts/reading - see event adapter's C8
+ * comment). That per-cinemaId atomicity is exactly what makes "a session was returned for this
+ * cinema/date" conclusive evidence for the WHOLE cinema/date scope (#77). Village is deliberately
+ * excluded: its adapter issues one COMBINED Algolia query capped at 1000 results with no truncation
+ * check (see packages/adapters/village/src/index.ts's module doc comment) - a large/busy cinema slice
+ * of that single query could be silently truncated, so "a session was returned" is NOT proof the
+ * whole scope was listed. Adding village here requires a truncation guard in its adapter first (e.g.
+ * asserting hits.length < 1000, or paginating past the cap).
+ */
+const WILDCARD_SCOPE_CONCLUSIVE_CHAINS: ReadonlySet<Chain> = new Set(["event", "hoyts", "reading"]);
 
 function jitterFraction(): number {
   const raw = process.env.REFRESH_TTL_JITTER;
@@ -313,6 +343,7 @@ interface KnownDbRow {
   seat_allocation: boolean | null;
   fetched_at: string | Date;
   disappeared_at: string | Date | null;
+  wildcard_miss_streak: number;
 }
 
 /** Normalise a DATE column (pg may return a Date or a string) to "YYYY-MM-DD". */
@@ -494,8 +525,9 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
           conclusiveScopes.add(scopeKey(s.chain, s.cinemaId, sessionDate, s.movieId));
           // #77: a wildcard watch's response is the FULL multi-movie listing for this cinema/date —
           // any session returned for it conclusively lists every movieId in that scope, delisted ones
-          // included.
-          if (w.movieId === null) {
+          // included. #78: gated to the adapter allowlist above — village's single capped/untruncated
+          // Algolia query can't back this guarantee.
+          if (w.movieId === null && WILDCARD_SCOPE_CONCLUSIVE_CHAINS.has(s.chain)) {
             conclusiveWildcardScopes.add(wildcardScopeKey(s.chain, s.cinemaId, sessionDate));
           }
           if (!s.startTime.startsWith(date)) continue;
@@ -507,11 +539,6 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
       }
     }
   }
-
-  /** True iff a known session's own (chain,cinema,date,movie) scope was conclusively listed this tick. */
-  const inListedScope = (chain: Chain, cinemaId: string, date: string, movieId: string): boolean =>
-    conclusiveScopes.has(scopeKey(chain, cinemaId, date, movieId)) ||
-    conclusiveWildcardScopes.has(wildcardScopeKey(chain, cinemaId, date));
 
   /** Null/empty (post-trim) counts as blank — the #67/#72 stale-cache symptom. */
   const isBlank = (v: string | null | undefined): boolean => v == null || v.trim() === "";
@@ -536,7 +563,7 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
     await pool.query<KnownDbRow>(
       `SELECT id, watch_id, chain, movie_id, movie_name, cinema_id, cinema_name, date,
               start_time, format, screen, seats_available, booking_url, seat_allocation, fetched_at,
-              disappeared_at
+              disappeared_at, wildcard_miss_streak
          FROM sessions`,
     )
   ).rows;
@@ -544,6 +571,10 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   // P30.2 (C6) tombstone/resurrection transitions, computed in JS then persisted in two UPDATEs.
   const toTombstone: string[] = [];
   const toResurrect: string[] = [];
+  // #78 review: sessions whose wildcard_miss_streak changes but that are NOT also being
+  // tombstoned/resurrected this tick (those two paths reset the streak as part of their own UPDATE).
+  const missStreakUpdates = new Map<string, number>();
+  const wildcardTombstoneMisses = resolveWildcardTombstoneMisses();
 
   // #67/#72 review follow-up: name heals computed below, collected here and written ONCE per tick
   // via `healSessionNames` — independent of due/budget/seatmap outcome (see that fn's doc comment).
@@ -557,9 +588,38 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
     const seen = seenIds.has(r.id);
     // A tombstoned session listed again resurrects; a live in-scope session that vanished tombstones.
     const willResurrect = wasTombstoned && seen;
-    const willTombstone = !wasTombstoned && !seen && inListedScope(r.chain, r.cinema_id, dateStr, r.movie_id);
+
+    // #78 review: the narrow per-movieId scope is EXACT evidence (a session for THIS movieId was
+    // returned this tick), so it keeps the pre-#78 immediate-tombstone behaviour. The coarse wildcard
+    // scope (#77) is evidence about the cinema/date listing as a whole, not this movie specifically —
+    // a transient one-tick gap must not tombstone irreversibly (7-day purge) on its first miss, so a
+    // wildcard-ONLY-conclusive absence must accumulate `wildcardTombstoneMisses` CONSECUTIVE misses
+    // (env WILDCARD_TOMBSTONE_MISSES, default 2) before it stamps disappeared_at. Any tick where the
+    // session IS seen resets the streak to 0 — presence is always full evidence against absence.
+    const narrowConclusive = conclusiveScopes.has(scopeKey(r.chain, r.cinema_id, dateStr, r.movie_id));
+    const wildcardOnlyConclusive =
+      !narrowConclusive && conclusiveWildcardScopes.has(wildcardScopeKey(r.chain, r.cinema_id, dateStr));
+
+    let willTombstone = false;
+    let nextMissStreak = r.wildcard_miss_streak;
+    if (!wasTombstoned && !seen) {
+      if (narrowConclusive) {
+        willTombstone = true; // exact evidence — unchanged immediate behaviour.
+      } else if (wildcardOnlyConclusive) {
+        nextMissStreak = r.wildcard_miss_streak + 1;
+        willTombstone = nextMissStreak >= wildcardTombstoneMisses;
+      }
+      // else: this scope was not conclusively listed at all this tick (an endpoint hiccup, or simply
+      // never queried) — no evidence either way, so the streak is left untouched.
+    } else if (seen && r.wildcard_miss_streak !== 0) {
+      nextMissStreak = 0;
+    }
+
     if (willResurrect) toResurrect.push(r.id);
     if (willTombstone) toTombstone.push(r.id);
+    if (!willResurrect && !willTombstone && nextMissStreak !== r.wildcard_miss_streak) {
+      missStreakUpdates.set(r.id, nextMissStreak);
+    }
     const effectivelyTombstoned = (wasTombstoned && !willResurrect) || willTombstone;
 
     candidates.push({
@@ -610,16 +670,23 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
 
   // Persist C6 transitions. Resurrect first (clear), then stamp new tombstones with the injected
   // `nowInstant` (deterministic, NOT now()). Seat upserts below never touch disappeared_at, so a
-  // resurrected session keeps its cleared tombstone after its refresh.
+  // resurrected session keeps its cleared tombstone after its refresh. #78: both transitions also
+  // reset wildcard_miss_streak to 0 — "resurrect must reset the counter", and a fresh tombstone
+  // starts a clean slate should it ever resurrect and drift again later.
   if (toResurrect.length > 0) {
-    await pool.query("UPDATE sessions SET disappeared_at = NULL WHERE id = ANY($1::text[])", [toResurrect]);
+    await pool.query(
+      "UPDATE sessions SET disappeared_at = NULL, wildcard_miss_streak = 0 WHERE id = ANY($1::text[])",
+      [toResurrect],
+    );
   }
   if (toTombstone.length > 0) {
-    await pool.query("UPDATE sessions SET disappeared_at = $1 WHERE id = ANY($2::text[])", [
-      nowInstant,
-      toTombstone,
-    ]);
+    await pool.query(
+      "UPDATE sessions SET disappeared_at = $1, wildcard_miss_streak = 0 WHERE id = ANY($2::text[])",
+      [nowInstant, toTombstone],
+    );
   }
+  // #78: persist wildcard-scope miss-streak increments/resets for rows NOT already covered above.
+  await updateWildcardMissStreaks(pool, missStreakUpdates);
 
   // #67/#72 review follow-up: write every computed name heal now, ONCE per tick, decoupled from the
   // due/budget/seatmap-gated upsert path below. A known row that is not due, is skipped by budget, or
