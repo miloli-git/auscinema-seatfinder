@@ -21,6 +21,12 @@ function pluralDays(n: number): string {
   return n === 1 ? `${n} day` : `${n} days`;
 }
 
+/** "1 good seat" / "3 good seats" — PR #83 review copy nit: solo mode with party 1 used to render
+ *  "Earliest 1 good seats" (the pluralizer covered days but not seats). */
+function pluralGoodSeats(n: number): string {
+  return n === 1 ? `${n} good seat` : `${n} good seats`;
+}
+
 /** Group-mode headcount-varies-by-day info for {@link composeHeaderSummary} — see
  *  availabilityGroup.ts's fan-out/merge. `earliestParty` is the headcount that actually produced
  *  `res.earliest` (may differ from `res.party`, the fallback/baseline party). */
@@ -59,7 +65,7 @@ export function composeHeaderSummary(
   const leadDays = res.earliestLeadDays ?? earliest.leadDays;
   const summaryLead = variesByDay
     ? `Earliest good seats for your group: ${formatShortDate(earliest.date)} (${group?.earliestParty ?? res.party} people, ${pluralDays(leadDays)} out)`
-    : `Earliest ${res.party} good seats: ${formatShortDate(earliest.date)} (${pluralDays(leadDays)} out)`;
+    : `Earliest ${pluralGoodSeats(res.party)}: ${formatShortDate(earliest.date)} (${pluralDays(leadDays)} out)`;
   let summary = summaryLead;
   if (earliest.soldHeldPct !== null && earliest.asOf) {
     summary += ` · ${clampPct(earliest.soldHeldPct)}% sold/held as of ${relativeTimeAgo(earliest.asOf, now)}`;

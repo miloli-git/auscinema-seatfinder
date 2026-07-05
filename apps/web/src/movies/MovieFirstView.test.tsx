@@ -284,7 +284,7 @@ describe("MovieFirstView", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Dune: Part Two/ }));
 
     expect(
-      await screen.findByText(/Earliest 1 good seats: .* \(2 days out\) · 81% sold\/held as of/),
+      await screen.findByText(/Earliest 1 good seat: .* \(2 days out\) · 81% sold\/held as of/),
     ).toBeInTheDocument();
     expect(mockFetchAvailability).toHaveBeenCalledWith({ movieKey: "event:555", party: 1, minScore: 74 });
   });

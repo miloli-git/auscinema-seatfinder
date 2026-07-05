@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { ScoredSeatMap, Seat } from "../types";
+import type { AreaKind, ScoredSeatMap, Seat } from "../types";
 import { seatQuality } from "../format";
 
 interface Props {
@@ -12,6 +12,16 @@ interface Props {
 /** SOLD / unavailable / special / companion all read as "not selectable" on the heatmap. */
 function isTaken(status: Seat["status"]): boolean {
   return status === "sold" || status === "unavailable" || status === "special" || status === "companion";
+}
+
+/**
+ * Direction G (#47c): class-driven seat width comes from the seat's OWN area kind (live data),
+ * never a re-derived score — collapses the area taxonomy to the mock's three physical buckets.
+ */
+function widthClass(kind: AreaKind | undefined): "standard" | "recliner" | "daybed" {
+  if (kind === "daybed") return "daybed";
+  if (kind === "recliner" || kind === "premium" || kind === "goldclass") return "recliner";
+  return "standard";
 }
 
 export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
@@ -60,6 +70,7 @@ export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
   }
   const orderedRows = [...rows.entries()].sort((a, b) => a[0] - b[0]);
   const areaName = (areaId: string) => map.areas.find((a) => a.id === areaId)?.name ?? "";
+  const areaKind = (areaId: string) => map.areas.find((a) => a.id === areaId)?.kind;
 
   const approximate = map.geometryConfidence === "approximate";
 
@@ -98,7 +109,15 @@ export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
                       return <span key={ci} className="seat" data-q="gap" aria-hidden />;
                     }
                     if (isTaken(seat.status)) {
-                      return <span key={ci} className="seat" data-q="sold" aria-hidden />;
+                      return (
+                        <span
+                          key={ci}
+                          className="seat"
+                          data-q="sold"
+                          data-class={widthClass(areaKind(seat.areaId))}
+                          aria-hidden
+                        />
+                      );
                     }
                     const score = scoreById.get(seat.id);
                     const q = typeof score === "number" ? seatQuality(score) : "weak";
@@ -119,6 +138,7 @@ export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
                         className={isHi ? "seat seat--hi" : "seat"}
                         data-seat-id={seat.id}
                         data-q={q}
+                        data-class={widthClass(areaKind(seat.areaId))}
                         {...(isTop ? { "data-best": "" } : {})}
                         {...(isHi ? { "data-highlight": "" } : {})}
                         {...(seat.paired ? { "data-paired": "" } : {})}
