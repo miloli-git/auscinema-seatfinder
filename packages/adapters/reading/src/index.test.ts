@@ -176,6 +176,7 @@ test("listCinemas: bootstraps token then normalises id(slug), name, region, url"
 test("listSessions: filters per-cinema feed by movieId(ScheduledFilmId) + date, composites the id", async () => {
   const adapter = adapterRouting({
     "/settings/": "settings.json",
+    getcinemas: "cinemas.json",
     films: "sessions.belmont.json",
   });
   const sessions = await adapter.listSessions({
@@ -193,6 +194,8 @@ test("listSessions: filters per-cinema feed by movieId(ScheduledFilmId) + date, 
   assert.equal(first.movieId, "HO00004380");
   assert.equal(first.movieName, "Minions & Monsters");
   assert.equal(first.cinemaId, "belmont");
+  // #67: cinemaName resolved from listCinemas() (fixture: "belmont" -> "Belmont"), no longer blank.
+  assert.equal(first.cinemaName, "Belmont");
   assert.equal(first.startTime, "2026-06-25T10:00:00+08:00");
   assert.equal(first.format.kind, "standard");
   assert.equal(first.seatsAvailable, 304);
@@ -213,6 +216,7 @@ test("listSessions: filters per-cinema feed by movieId(ScheduledFilmId) + date, 
 test("listSessions: wrong movieId yields no sessions", async () => {
   const adapter = adapterRouting({
     "/settings/": "settings.json",
+    getcinemas: "cinemas.json",
     films: "sessions.belmont.json",
   });
   const sessions = await adapter.listSessions({
@@ -221,6 +225,62 @@ test("listSessions: wrong movieId yields no sessions", async () => {
     date: "2026-06-25",
   });
   assert.equal(sessions.length, 0);
+});
+
+test("listSessions: #47 memoizes the cinema-list (and its token check) across repeated calls within the TTL", async () => {
+  const token = jwtExpiringIn(60 * 60);
+  let settingsFetches = 0;
+  let cinemaFetches = 0;
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/settings/")) {
+      settingsFetches += 1;
+      return settingsWithToken(token);
+    }
+    if (url.includes("getcinemas")) {
+      cinemaFetches += 1;
+      return loadFixture("cinemas.json");
+    }
+    if (url.includes("films")) return loadFixture("sessions.belmont.json");
+    throw new Error(`unexpected url: ${url}`);
+  };
+  const adapter = new ReadingAdapter({ fetchJson });
+  const query = { movieId: "HO00004380", cinemaIds: ["belmont"], date: "2026-06-25" };
+
+  await adapter.listSessions(query);
+  await adapter.listSessions(query);
+  await adapter.listSessions(query);
+
+  assert.equal(cinemaFetches, 1, "repeated listSessions calls reuse the memoized cinema list");
+  assert.equal(settingsFetches, 1, "the bearer-token check is also reused, not re-run per call");
+
+  // Concurrent calls (same tick) must also collapse to a single upstream cinema-list fetch.
+  settingsFetches = 0;
+  cinemaFetches = 0;
+  const fresh = new ReadingAdapter({ fetchJson });
+  await Promise.all([fresh.listSessions(query), fresh.listSessions(query), fresh.listSessions(query)]);
+  assert.equal(cinemaFetches, 1, "concurrent listSessions calls collapse to one cinema-list fetch");
+});
+
+test("listSessions: #47 memoization expires after the TTL and re-fetches the cinema list", async () => {
+  const token = jwtExpiringIn(60 * 60);
+  let cinemaFetches = 0;
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/settings/")) return settingsWithToken(token);
+    if (url.includes("getcinemas")) {
+      cinemaFetches += 1;
+      return loadFixture("cinemas.json");
+    }
+    if (url.includes("films")) return loadFixture("sessions.belmont.json");
+    throw new Error(`unexpected url: ${url}`);
+  };
+  const adapter = new ReadingAdapter({ fetchJson, cinemaListTtlMs: 1 });
+  const query = { movieId: "HO00004380", cinemaIds: ["belmont"], date: "2026-06-25" };
+
+  await adapter.listSessions(query);
+  await new Promise((r) => setTimeout(r, 5));
+  await adapter.listSessions(query);
+
+  assert.equal(cinemaFetches, 2, "expired cache re-fetches the cinema list");
 });
 
 test("getSeatMap: maps all seat statuses, area, and negated grid geometry", async () => {
