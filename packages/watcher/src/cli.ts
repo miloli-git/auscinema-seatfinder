@@ -77,7 +77,6 @@ async function doWatch(configPath: string): Promise<never> {
   const maxBackoff = baseInterval * 8;
   let backoff = baseInterval;
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       const cycle = await doCheck(configPath);

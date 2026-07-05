@@ -126,7 +126,7 @@ export function QueryForm({ values, onChange, onSubmit, loading, onSummary }: Pr
     return () => {
       live = false;
     };
-  }, [values.chain, values.cinemaIds, values.date, selectedIds.length]);
+  }, [values.chain, selectedIds, values.date]);
 
   // Drop the selected movie if it falls out of the available list (e.g. cinema/date change).
   useEffect(() => {

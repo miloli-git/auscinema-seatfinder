@@ -164,7 +164,6 @@ async function doIngestLoop(): Promise<never> {
   const registry = defaultRegistry();
   const pool = createPool();
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       const res = await runSweep({ registry, pool });
@@ -213,7 +212,6 @@ async function doRefreshLoop(): Promise<never> {
   const deadManState: DeadManAlertState = {};
   const deadManPoster = createDeadManWebhookPoster(process.env.REFRESH_DEAD_MAN_WEBHOOK);
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       const tickAt = new Date();

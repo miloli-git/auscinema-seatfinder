@@ -39,12 +39,6 @@ export function isSeatEligible(seat: Seat, map: SeatMap, pref?: SeatPreference):
 /**
  * Score a single seat 0–100 against a preference, using the seat map for geometry
  * (row extent for depth, per-row column extent for centrality).
- *
- * TODO(core): implement. See docs/scoring.md for the intended model:
- *   - depth = normalise seat.row over [minRow, maxRow]; penalty = |depth - targetDepth|
- *   - centrality = distance of seat.col from that row's centre, normalised by row half-width
- *   - gate on status === "available" and allowedAreaKinds
- *   - combine weighted penalties -> 0..100
  */
 export function scoreSeat(seat: Seat, map: SeatMap, pref?: SeatPreference): number {
   if (!isSeatEligible(seat, map, pref)) return 0;
