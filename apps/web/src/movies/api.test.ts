@@ -10,6 +10,17 @@ function jsonResponse(status: number, body: unknown, statusText = ""): Response 
   } as Response;
 }
 
+/** Extracts a fetch mock call's Nth argument, asserting it was actually recorded. Test-only guard
+ *  for noUncheckedIndexedAccess — a missing call/arg is a real test bug, so throw loudly rather
+ *  than silently proceeding with `undefined`. */
+function requireMockCallArg<T>(calls: (T | undefined)[][], callIndex: number, argIndex: number): T {
+  const call = calls[callIndex];
+  if (!call) throw new Error(`expected mock call at index ${callIndex}, but only ${calls.length} were recorded`);
+  const arg = call[argIndex];
+  if (arg === undefined) throw new Error(`expected arg ${argIndex} on mock call ${callIndex} to be defined`);
+  return arg;
+}
+
 describe("movies/api", () => {
   const originalFetch = global.fetch;
 
@@ -44,7 +55,10 @@ describe("movies/api", () => {
       await fetchOptions({ movieKey: "event:555", party: 3, minScore: 74 });
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
-      const url = new URL(String(vi.mocked(global.fetch).mock.calls[0][0]), "http://test");
+      const url = new URL(
+        String(requireMockCallArg(vi.mocked(global.fetch).mock.calls, 0, 0)),
+        "http://test",
+      );
       expect(url.pathname).toBe("/options");
       expect(url.searchParams.get("movieKey")).toBe("event:555");
       expect(url.searchParams.get("party")).toBe("3");
@@ -71,7 +85,10 @@ describe("movies/api", () => {
 
       await fetchOptions({ movieKey: "event:555" });
 
-      const url = new URL(String(vi.mocked(global.fetch).mock.calls[0][0]), "http://test");
+      const url = new URL(
+        String(requireMockCallArg(vi.mocked(global.fetch).mock.calls, 0, 0)),
+        "http://test",
+      );
       expect(url.searchParams.has("party")).toBe(false);
       expect(url.searchParams.has("minScore")).toBe(false);
     });
@@ -88,7 +105,10 @@ describe("movies/api", () => {
 
       await fetchCatalogTitles("hoyts");
 
-      const url = new URL(String(vi.mocked(global.fetch).mock.calls[0][0]), "http://test");
+      const url = new URL(
+        String(requireMockCallArg(vi.mocked(global.fetch).mock.calls, 0, 0)),
+        "http://test",
+      );
       expect(url.pathname).toBe("/catalog");
       expect(url.searchParams.get("chain")).toBe("hoyts");
     });
@@ -109,7 +129,7 @@ describe("movies/api", () => {
       await fetchOptions({ movieKey: "event:555" });
 
       expect(warn).toHaveBeenCalledTimes(1);
-      const loggedError = warn.mock.calls[0][1] as Error;
+      const loggedError = requireMockCallArg(warn.mock.calls, 0, 1) as Error;
       expect(loggedError.message).toBe("429: rate limited");
     });
 
@@ -121,14 +141,14 @@ describe("movies/api", () => {
         json: async () => {
           throw new Error("not json");
         },
-      } as Response;
+      } as unknown as Response;
       vi.mocked(global.fetch).mockResolvedValueOnce(res);
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       await fetchOptions({ movieKey: "event:555" });
 
       expect(warn).toHaveBeenCalledTimes(1);
-      const loggedError = warn.mock.calls[0][1] as Error;
+      const loggedError = requireMockCallArg(warn.mock.calls, 0, 1) as Error;
       expect(loggedError.message).toBe("503: Service Unavailable");
     });
   });

@@ -51,7 +51,7 @@ const isDev = (): boolean => {
 function fixtureFor(movieKey: string): OptionsResponse {
   if (movieKey === NO_GOOD_SEATS_OPTIONS_FIXTURE.movieKey) return NO_GOOD_SEATS_OPTIONS_FIXTURE;
   const chain = movieKey.split(":")[0];
-  const fixture = OPTIONS_FIXTURES_BY_CHAIN[chain] ?? OPTIONS_FIXTURE;
+  const fixture = (chain ? OPTIONS_FIXTURES_BY_CHAIN[chain] : undefined) ?? OPTIONS_FIXTURE;
   return { ...fixture, movieKey: movieKey || fixture.movieKey };
 }
 
