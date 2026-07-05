@@ -49,8 +49,13 @@
   --q-great: #c2e24f;
   --q-good: #8fb24a;
   --q-ok: #5d6b3c;
-  --q-weak: #2f3a36;
+  /* PR #83 review: weak is BOOKABLE and the only tier with no glow — lifted from the mock's #2f3a36
+   * (1.53:1 vs pit, near-invisible) to a desaturated sage at 2.68:1 vs pit and 2.13:1 vs sold. */
+  --q-weak: #4a6152;
   --q-sold: #262b2f;
+  /* PR #83 review: sold also carries a diagonal hatch (non-color cue) so weak-available and sold
+   * can never be confused — see .seat[data-q="sold"]. */
+  --q-sold-hatch: #363d43;
 
   /* Same 5-step signal, restyled as a Glossier "cosmetics swatch" ramp (cream -> blush -> coral ->
    * rose -> berry) for compact score chips that live on the LIGHT page (rail scorepill, Together
@@ -732,8 +737,14 @@ input[type="checkbox"] {
 .seat[data-q="weak"] {
   background: var(--q-weak);
 }
+/* Sold: dark base + diagonal hatch — a non-color cue (PR #83 review) so a sold seat can never be
+ * confused with a weak-but-bookable one, which shares the low end of the luminance ramp. */
 .seat[data-q="sold"] {
-  background: var(--q-sold);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--q-sold) 0 3px,
+    var(--q-sold-hatch) 3px 6px
+  );
   opacity: 0.65;
 }
 .seat[data-q="gap"] {
@@ -801,7 +812,12 @@ input[type="checkbox"] {
   display: inline-block;
 }
 .sw--sold {
-  background: var(--q-sold);
+  /* mirror the seat tile's hatch so the legend teaches the actual sold treatment */
+  background: repeating-linear-gradient(
+    45deg,
+    var(--q-sold) 0 3px,
+    var(--q-sold-hatch) 3px 6px
+  );
 }
 .sw--best {
   outline: 2px solid #ffffff;

@@ -38,8 +38,12 @@
   --q-great: #c2e24f;
   --q-good:  #8fb24a;
   --q-ok:    #5d6b3c;
-  --q-weak:  #2f3a36;
+  /* PR #83 review: weak is BOOKABLE and the only tier with no glow — lifted from the mock's
+   * #2f3a36 (1.53:1 vs pit) to a desaturated sage at 2.68:1 vs pit / 2.13:1 vs sold. Sold also
+   * carries a diagonal hatch (repeating 45deg --q-sold/--q-sold-hatch stripes) as a non-color cue. */
+  --q-weak:  #4a6152;
   --q-sold:  #262b2f;
+  --q-sold-hatch: #363d43;
 
   /* Same 5-step signal restyled as a Glossier "cosmetics swatch" ramp for compact chips on the
    * light page (rail score pill, Together matrix) — the green cinematic ramp reads as mud on white. */

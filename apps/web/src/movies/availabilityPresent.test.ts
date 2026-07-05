@@ -106,6 +106,14 @@ describe("composeHeaderSummary", () => {
     expect(noneInOne).toBe("No good 2-seat block found in the next 1 day");
   });
 
+  it("PR #83 review copy nit: singular seat copy for party 1 — 'Earliest 1 good seat', never '1 good seats'", () => {
+    const solo = composeHeaderSummary(
+      response({ party: 1, earliest: date({ soldHeldPct: null, asOf: null }) }),
+      now,
+    );
+    expect(solo).toBe("Earliest 1 good seat: Thu 16 Jul (2 days out)");
+  });
+
   describe("group.variesByDay (47c-followup: per-day headcount honesty)", () => {
     it("names the day's OWN headcount instead of the response's single `party` scalar (which is the fallback/global-max, not this day's count)", () => {
       // `res.party` is 7 (the fallback baseline party) but the earliest good-block day was actually
