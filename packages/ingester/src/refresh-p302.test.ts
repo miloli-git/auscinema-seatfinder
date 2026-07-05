@@ -487,28 +487,34 @@ test(
       fetchedAt: beforeInstant(t0, hours(3)),
     });
 
-    const captures = { seatMapCalls: [] as string[] };
     // The wildcard listing for C1/2026-10-05 returns every movie STILL showing — movie A only, on
-    // both ticks below (a real delisting, not a one-tick blip).
-    const registryFor = (): AdapterRegistry => ({
+    // both ticks below (a real delisting, not a one-tick blip). Both known sessions have a map so
+    // tick 1's seatmap fetch (delisted-movie-b is still LIVE and due at that point — it only tombstones
+    // on tick 2) doesn't spuriously error.
+    const maps = { "live-movie-a": mapFor("event", "live-movie-a"), "delisted-movie-b": mapFor("event", "delisted-movie-b") };
+    const registryFor = (captures: { seatMapCalls: string[] }): AdapterRegistry => ({
       event: stubAdapter(
         "event",
         [session("live-movie-a", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
-        { "live-movie-a": mapFor("event", "live-movie-a") },
+        maps,
         captures,
       ),
     });
 
     // Tick 1 (#78 debounce): the FIRST absent tick must not tombstone yet — it's the coarse wildcard
     // scope's evidence, not the exact per-movieId evidence, so it needs a 2nd consecutive miss.
-    const row1 = await runRefreshTick({ pool: requirePool(), registry: registryFor(), nowInstant: t0, budgetPerChain: 30 });
+    // delisted-movie-b is still live/due at this point, so both known sessions get seatmap-refreshed.
+    const captures1 = { seatMapCalls: [] as string[] };
+    const row1 = await runRefreshTick({ pool: requirePool(), registry: registryFor(captures1), nowInstant: t0, budgetPerChain: 30 });
     assert.equal(row1.outcome, "ok");
     assert.equal(row1.sessions_disappeared, 0, "1st consecutive miss (of 2 required) must not tombstone yet");
+    assert.deepEqual([...captures1.seatMapCalls].sort(), ["delisted-movie-b", "live-movie-a"]);
     assert.equal((await tombstoneRows())["delisted-movie-b"], null);
 
     // Tick 2: the SECOND consecutive absent tick reaches the default WILDCARD_TOMBSTONE_MISSES=2.
     const t1 = new Date(t0.getTime() + hours(1));
-    const row = await runRefreshTick({ pool: requirePool(), registry: registryFor(), nowInstant: t1, budgetPerChain: 30 });
+    const captures2 = { seatMapCalls: [] as string[] };
+    const row = await runRefreshTick({ pool: requirePool(), registry: registryFor(captures2), nowInstant: t1, budgetPerChain: 30 });
 
     assert.equal(row.outcome, "ok");
     assert.equal(row.sessions_disappeared, 1, "the delisted movie's cached session is tombstoned");
@@ -517,7 +523,7 @@ test(
     assert.equal(row.errors, 0);
     assert.equal(row.sessions_skipped_budget, 0);
     assert.equal(row.sessions_due, row.sessions_refreshed + row.errors + row.sessions_skipped_budget);
-    assert.deepEqual(captures.seatMapCalls, ["live-movie-a", "live-movie-a"]);
+    assert.deepEqual(captures2.seatMapCalls, ["live-movie-a"], "the newly-tombstoned session is not seatmap-refreshed");
 
     const tombstones = await tombstoneRows();
     assert.equal(tombstones["live-movie-a"], null, "the still-listed movie stays live");
@@ -564,21 +570,28 @@ test(
       fetchedAt: beforeInstant(t0, hours(3)),
     });
 
-    const captures = { seatMapCalls: [] as string[] };
     // Merged response only ever carries a C1 session (movie A, still showing) — C2 never appears
     // in ANY returned session, so C2 must stay inconclusive exactly as it did pre-#77, on every tick.
-    const registryFor = (): AdapterRegistry => ({
+    // c1-delisted-movie has a map too: it's still LIVE and due on tick 1 (it only tombstones on tick 2),
+    // so its seatmap fetch must not spuriously error.
+    const maps = {
+      "c1-live-movie": mapFor("event", "c1-live-movie"),
+      "c2-known": mapFor("event", "c2-known"),
+      "c1-delisted-movie": mapFor("event", "c1-delisted-movie"),
+    };
+    const registryFor = (captures: { seatMapCalls: string[] }): AdapterRegistry => ({
       event: stubAdapter(
         "event",
         [session("c1-live-movie", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
-        { "c1-live-movie": mapFor("event", "c1-live-movie"), "c2-known": mapFor("event", "c2-known") },
+        maps,
         captures,
       ),
     });
 
     // Tick 1 (#78 debounce): C1 is conclusively listed (c1-live-movie returned), so c1-delisted-movie
     // accrues its FIRST miss — must not tombstone yet. C2 was never conclusively listed either way.
-    const row1 = await runRefreshTick({ pool: requirePool(), registry: registryFor(), nowInstant: t0, budgetPerChain: 30 });
+    const captures1 = { seatMapCalls: [] as string[] };
+    const row1 = await runRefreshTick({ pool: requirePool(), registry: registryFor(captures1), nowInstant: t0, budgetPerChain: 30 });
     assert.equal(row1.sessions_disappeared, 0, "1st consecutive miss (of 2 required) must not tombstone yet");
     let tombstones = await tombstoneRows();
     assert.equal(tombstones["c1-delisted-movie"], null);
@@ -586,7 +599,8 @@ test(
 
     // Tick 2: c1-delisted-movie's 2nd consecutive miss reaches the default WILDCARD_TOMBSTONE_MISSES=2.
     const t1 = new Date(t0.getTime() + hours(1));
-    const row = await runRefreshTick({ pool: requirePool(), registry: registryFor(), nowInstant: t1, budgetPerChain: 30 });
+    const captures2 = { seatMapCalls: [] as string[] };
+    const row = await runRefreshTick({ pool: requirePool(), registry: registryFor(captures2), nowInstant: t1, budgetPerChain: 30 });
 
     assert.equal(row.outcome, "ok");
     assert.equal(
