@@ -459,7 +459,7 @@ test(
 );
 
 test(
-  "#77 wildcard watch: a session whose movie has been fully delisted tombstones even though its own movieId never reappears",
+  "#77/#78 wildcard watch: a session whose movie has been fully delisted tombstones on its 2nd consecutive absent tick, even though its own movieId never reappears",
   { skip: dbSkip },
   async () => {
     await resetToCurrentSchema();
@@ -471,12 +471,12 @@ test(
       dateTo: "2026-10-05",
       movieId: null,
     });
-    const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+    const t0 = new Date("2026-10-05T00:00:00.000Z");
     await insertCachedSession({
       id: "live-movie-a",
       watchId,
       movieId: "MA",
-      fetchedAt: beforeInstant(nowInstant, hours(3)),
+      fetchedAt: beforeInstant(t0, hours(3)),
     });
     // "delisted-movie-b" has vanished from the chain's feed entirely — its movieId will never again
     // be returned by any listing, so the pre-#77 per-movieId conclusive-scope check could never fire.
@@ -484,21 +484,31 @@ test(
       id: "delisted-movie-b",
       watchId,
       movieId: "MB",
-      fetchedAt: beforeInstant(nowInstant, hours(3)),
+      fetchedAt: beforeInstant(t0, hours(3)),
     });
 
     const captures = { seatMapCalls: [] as string[] };
-    const registry: AdapterRegistry = {
+    // The wildcard listing for C1/2026-10-05 returns every movie STILL showing — movie A only, on
+    // both ticks below (a real delisting, not a one-tick blip).
+    const registryFor = (): AdapterRegistry => ({
       event: stubAdapter(
         "event",
-        // The wildcard listing for C1/2026-10-05 returns every movie STILL showing — movie A only.
         [session("live-movie-a", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
         { "live-movie-a": mapFor("event", "live-movie-a") },
         captures,
       ),
-    };
+    });
 
-    const row = await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+    // Tick 1 (#78 debounce): the FIRST absent tick must not tombstone yet — it's the coarse wildcard
+    // scope's evidence, not the exact per-movieId evidence, so it needs a 2nd consecutive miss.
+    const row1 = await runRefreshTick({ pool: requirePool(), registry: registryFor(), nowInstant: t0, budgetPerChain: 30 });
+    assert.equal(row1.outcome, "ok");
+    assert.equal(row1.sessions_disappeared, 0, "1st consecutive miss (of 2 required) must not tombstone yet");
+    assert.equal((await tombstoneRows())["delisted-movie-b"], null);
+
+    // Tick 2: the SECOND consecutive absent tick reaches the default WILDCARD_TOMBSTONE_MISSES=2.
+    const t1 = new Date(t0.getTime() + hours(1));
+    const row = await runRefreshTick({ pool: requirePool(), registry: registryFor(), nowInstant: t1, budgetPerChain: 30 });
 
     assert.equal(row.outcome, "ok");
     assert.equal(row.sessions_disappeared, 1, "the delisted movie's cached session is tombstoned");
@@ -507,20 +517,20 @@ test(
     assert.equal(row.errors, 0);
     assert.equal(row.sessions_skipped_budget, 0);
     assert.equal(row.sessions_due, row.sessions_refreshed + row.errors + row.sessions_skipped_budget);
-    assert.deepEqual(captures.seatMapCalls, ["live-movie-a"]);
+    assert.deepEqual(captures.seatMapCalls, ["live-movie-a", "live-movie-a"]);
 
     const tombstones = await tombstoneRows();
     assert.equal(tombstones["live-movie-a"], null, "the still-listed movie stays live");
     assert.equal(
       tombstones["delisted-movie-b"],
-      nowInstant.toISOString(),
+      t1.toISOString(),
       "a session whose movie vanished from the wildcard listing tombstones on the cinema/date scope, not its own movieId",
     );
   },
 );
 
 test(
-  "#77 wildcard watch multi-cinema: absence of ANY returned session for a cinema still keeps its cached sessions live (endpoint-hiccup safety net preserved)",
+  "#77/#78 wildcard watch multi-cinema: absence of ANY returned session for a cinema still keeps its cached sessions live (endpoint-hiccup safety net preserved), and the conclusively-listed cinema's absentee tombstones only on its 2nd consecutive miss",
   { skip: dbSkip },
   async () => {
     await resetToCurrentSchema();
@@ -531,42 +541,52 @@ test(
       dateTo: "2026-10-05",
       movieId: null,
     });
-    const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+    const t0 = new Date("2026-10-05T00:00:00.000Z");
     await insertCachedSession({
       id: "c1-delisted-movie",
       watchId,
       cinemaId: "C1",
       movieId: "MB",
-      fetchedAt: beforeInstant(nowInstant, hours(3)),
+      fetchedAt: beforeInstant(t0, hours(3)),
     });
     await insertCachedSession({
       id: "c2-known",
       watchId,
       cinemaId: "C2",
       movieId: "MA",
-      fetchedAt: beforeInstant(nowInstant, hours(3)),
+      fetchedAt: beforeInstant(t0, hours(3)),
     });
-
-    const captures = { seatMapCalls: [] as string[] };
-    const registry: AdapterRegistry = {
-      event: stubAdapter(
-        "event",
-        // Merged response only ever carries a C1 session (movie A, still showing) — C2 never appears
-        // in ANY returned session, so C2 must stay inconclusive exactly as it did pre-#77.
-        [session("c1-live-movie", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
-        { "c1-live-movie": mapFor("event", "c1-live-movie"), "c2-known": mapFor("event", "c2-known") },
-        captures,
-      ),
-    };
     await insertCachedSession({
       id: "c1-live-movie",
       watchId,
       cinemaId: "C1",
       movieId: "MA",
-      fetchedAt: beforeInstant(nowInstant, hours(3)),
+      fetchedAt: beforeInstant(t0, hours(3)),
     });
 
-    const row = await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+    const captures = { seatMapCalls: [] as string[] };
+    // Merged response only ever carries a C1 session (movie A, still showing) — C2 never appears
+    // in ANY returned session, so C2 must stay inconclusive exactly as it did pre-#77, on every tick.
+    const registryFor = (): AdapterRegistry => ({
+      event: stubAdapter(
+        "event",
+        [session("c1-live-movie", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
+        { "c1-live-movie": mapFor("event", "c1-live-movie"), "c2-known": mapFor("event", "c2-known") },
+        captures,
+      ),
+    });
+
+    // Tick 1 (#78 debounce): C1 is conclusively listed (c1-live-movie returned), so c1-delisted-movie
+    // accrues its FIRST miss — must not tombstone yet. C2 was never conclusively listed either way.
+    const row1 = await runRefreshTick({ pool: requirePool(), registry: registryFor(), nowInstant: t0, budgetPerChain: 30 });
+    assert.equal(row1.sessions_disappeared, 0, "1st consecutive miss (of 2 required) must not tombstone yet");
+    let tombstones = await tombstoneRows();
+    assert.equal(tombstones["c1-delisted-movie"], null);
+    assert.equal(tombstones["c2-known"], null);
+
+    // Tick 2: c1-delisted-movie's 2nd consecutive miss reaches the default WILDCARD_TOMBSTONE_MISSES=2.
+    const t1 = new Date(t0.getTime() + hours(1));
+    const row = await runRefreshTick({ pool: requirePool(), registry: registryFor(), nowInstant: t1, budgetPerChain: 30 });
 
     assert.equal(row.outcome, "ok");
     assert.equal(
@@ -575,13 +595,13 @@ test(
       "only c1-delisted-movie tombstones: C1 was conclusively listed (a session for it was returned), C2 was not",
     );
 
-    const tombstones = await tombstoneRows();
+    tombstones = await tombstoneRows();
     assert.equal(tombstones["c1-live-movie"], null);
-    assert.equal(tombstones["c1-delisted-movie"], nowInstant.toISOString());
+    assert.equal(tombstones["c1-delisted-movie"], t1.toISOString());
     assert.equal(
       tombstones["c2-known"],
       null,
-      "c2-known stays live: no session for C2 was ever returned this tick, so C2 is not conclusively listed",
+      "c2-known stays live: no session for C2 was ever returned in either tick, so C2 is not conclusively listed",
     );
   },
 );
