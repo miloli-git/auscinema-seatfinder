@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { chainLabel } from "../format";
 import { groupTitles, matchesSearch } from "./grouping";
+import { displayMovieTitle } from "./present";
 import type { CatalogTitle } from "./types";
 
 interface Props {
@@ -49,8 +50,11 @@ export function MovieList({ titles, onSelect }: Props) {
                   className="movielist__item"
                   onClick={() => onSelect(group.entries[0]!.movieKey)}
                 >
+                  {/* #84: a blank displayTitle used to fall back to the raw movieKey (e.g.
+                      "hoyts:HO00010001") wrapped in "(untitled — …)" — still a raw id leaking into
+                      the picker. Degrade to an honest, chain-scoped label instead; never the id. */}
                   <span className="movielist__title">
-                    {group.displayTitle.trim() || `(untitled — ${group.entries[0]!.movieKey})`}
+                    {displayMovieTitle(group.displayTitle, group.entries[0]!.chain)}
                   </span>
                   <span className="movielist__sub">
                     {chainLabel(group.entries[0]!.chain)} · {group.entries[0]!.sessionCount} session

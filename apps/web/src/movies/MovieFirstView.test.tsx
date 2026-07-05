@@ -130,6 +130,36 @@ describe("MovieFirstView", () => {
     expect(await screen.findByText(/Event George St/)).toBeInTheDocument();
   });
 
+  // #84: a blank /options movieTitle used to fall back to the raw movieKey heading
+  // (e.g. "hoyts:HO00010001") — must degrade to an honest, chain-scoped label instead.
+  it("#84: a blank movieTitle never renders the raw movieKey as the heading", async () => {
+    const hoytsTitles: CatalogTitle[] = [
+      { movieKey: "hoyts:HO00010001", chain: "hoyts", title: "", sessionCount: 3 },
+    ];
+    mockFetchCatalogTitles.mockResolvedValue(hoytsTitles);
+    mockFetchOptions.mockResolvedValue({
+      movieKey: "hoyts:HO00010001",
+      movieTitle: "",
+      party: 1,
+      minScore: 74,
+      count: 0,
+      options: [],
+      freshness: {
+        oldestFetchedAt: "2026-07-21T01:00:00.000Z",
+        newestFetchedAt: "2026-07-21T01:00:00.000Z",
+        lastSuccessfulIngestAt: "2026-07-21T01:00:00.000Z",
+        coverage: { hoyts: "cached" },
+      },
+    });
+
+    render(<MovieFirstView />);
+    const movieButton = await screen.findByRole("button", { name: /Untitled \(Hoyts\)/ });
+    fireEvent.click(movieButton);
+
+    expect(await screen.findByRole("heading", { name: /Untitled \(Hoyts\)/ })).toBeInTheDocument();
+    expect(screen.queryByText(/HO00010001/)).toBeNull();
+  });
+
   it(
     "47c fix #3: Plan-group mode fans out one /options call per distinct per-day headcount and keeps each card's own honest fit tier",
     async () => {

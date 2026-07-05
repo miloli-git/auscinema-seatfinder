@@ -8,6 +8,7 @@ import { groupDatesByParty, mergeGroupOptions } from "./groupOptions";
 import { MovieList } from "./MovieList";
 import { OptionList } from "./OptionList";
 import { OptionSeatMapPanel } from "./OptionSeatMapPanel";
+import { chainFromMovieKey, displayMovieTitle } from "./present";
 import type { CatalogTitle, Option, OptionsResponse } from "./types";
 
 // 47c fix #7: "Just me" now means party 1 (label-honest) — the solo default used to be 2, which
@@ -266,7 +267,11 @@ export function MovieFirstView() {
         <button type="button" className="btn btn--ghost" onClick={backToList}>
           ← Movies
         </button>
-        <h2 className="movieforward__title">{movieTitle || movieKey}</h2>
+        {/* #84: a blank movieTitle used to fall back to the raw movieKey (e.g. "hoyts:HO00010001")
+            — never render that; degrade to an honest "Untitled (Chain)" label instead. */}
+        <h2 className="movieforward__title">
+          {displayMovieTitle(movieTitle, chainFromMovieKey(movieKey))}
+        </h2>
       </div>
 
       <AvailabilitySummary

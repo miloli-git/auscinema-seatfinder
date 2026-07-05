@@ -67,5 +67,29 @@
   "nowShowing": false,
   "comingThisWeek": false,
   "link": "/movies/comma-joined-movie"
+ },
+ {
+  "id": 3367,
+  "type": "advanceSale",
+  "attribute": { "id": "advance-sale", "name": "Tickets On Sale" },
+  "vistaId": "HO00010001",
+  "slug": "the-odyssey",
+  "name": "The Odyssey",
+  "summary": "#84 regression fixture - live-verified (2026-07-06) exact payload shape for Hoyts issue #84: a STANDALONE (non-comma-joined) vistaId under an advanceSale-type entry. Confirms the join itself was never the bug for this class of id - root cause was a DB-side query bug in packages/api (see #84 fix notes there).",
+  "runtime": { "minutes": 173 },
+  "duration": 0,
+  "releaseDate": "2026-08-20T00:00:00",
+  "hideHeader": false,
+  "rating": { "id": "M" },
+  "metaData": {},
+  "cast": [],
+  "genres": ["Drama", "History", "War"],
+  "tags": [],
+  "countries": [],
+  "sessionAttributes": [],
+  "onSale": false,
+  "nowShowing": false,
+  "comingThisWeek": false,
+  "link": "/movies/the-odyssey"
  }
 ]

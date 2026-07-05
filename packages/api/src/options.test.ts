@@ -479,6 +479,32 @@ test("empty cache for a movieKey -> count 0, empty options, movieTitle still res
   assert.equal(res.movieTitle, "Dune: Part Two");
 });
 
+test(
+  "movieTitle #84 fix: a single blank-named dead row never outranks hundreds of correctly-named rows " +
+    "for the same (chain, movie_id) (live-verified: Hoyts HO00010001 'The Odyssey')",
+  { skip: dbSkip },
+  async () => {
+    // Reproduces the live bug's exact shape: many live sessions with the real name, plus a handful
+    // of dead/tombstoned rows ingested before the movies-list join resolved (movie_name = ''). The
+    // old query's `ORDER BY movie_name NULLS LAST` picked the blank row every time, because an empty
+    // string sorts before any non-blank name - NULLS LAST only defends against actual SQL NULL.
+    for (let i = 0; i < 5; i++) {
+      await insertSession({ id: `odyssey-live-${i}`, movieId: "HO00010001", movieName: "The Odyssey" });
+    }
+    await insertSession({
+      id: "odyssey-dead",
+      movieId: "HO00010001",
+      movieName: "",
+      disappearedAt: "2020-01-01T00:00:00.000Z",
+    });
+
+    const { body } = await getOptions("movieKey=event:HO00010001&party=1&minScore=74");
+    const res = body as OptionsResponse;
+    assert.equal(res.movieTitle, "The Odyssey");
+    assert.notEqual(res.movieTitle, "", "must never regress to the blank dead row's name");
+  },
+);
+
 // --- §1.4 classifyFormat wired end-to-end ------------------------------------------------------
 
 test("formatRank/isLargeFormat match §1.4 classifier for IMAX, Vmax, and empty string", { skip: dbSkip }, async () => {
@@ -535,3 +561,29 @@ test("/catalog titles sessionCount aggregates multiple live sessions for the sam
   const dune = catalog.titles.find((t) => t.movieKey === "event:555")!;
   assert.equal(dune.sessionCount, 2);
 });
+
+// --- unfiltered /catalog `movies` field (consumed by the Together mode's movie <select>) --------
+
+test(
+  "/catalog `movies` #84 fix: a single blank-named dead row never outranks hundreds of " +
+    "correctly-named rows for the same (chain, movie_id) (live-verified: Hoyts HO00010001 'The Odyssey')",
+  { skip: dbSkip },
+  async () => {
+    for (let i = 0; i < 5; i++) {
+      await insertSession({ id: `odyssey-live-${i}`, movieId: "HO00010001", movieName: "The Odyssey" });
+    }
+    await insertSession({
+      id: "odyssey-dead",
+      movieId: "HO00010001",
+      movieName: "",
+      disappearedAt: "2020-01-01T00:00:00.000Z",
+    });
+
+    const catalog = await getCatalog();
+    const odyssey = catalog.movies.find(
+      (m) => (m as { id: string }).id === "HO00010001",
+    ) as { id: string; name: string | null; chain: string } | undefined;
+    assert.ok(odyssey, "expected an HO00010001 entry in catalog.movies");
+    assert.equal(odyssey!.name, "The Odyssey");
+  },
+);
