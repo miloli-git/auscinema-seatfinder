@@ -103,6 +103,29 @@ describe("mergeGroupAvailability", () => {
     expect(merged.dates).toEqual(baseline.dates);
     expect(merged.earliestParty).toBe(3);
   });
+
+  it("PR #82 review point 2: a date present in a GROUP response but absent from the baseline is included, not silently dropped (per-party cache coverage can differ)", () => {
+    const baseline = response([day({ date: "2026-07-06", state: "good-block", leadDays: 0, bestBlockScore: 91 })], {
+      party: 2,
+      horizonDate: "2026-08-01",
+      maxCachedDate: "2026-07-06",
+    });
+    const merged = mergeGroupAvailability(baseline, [
+      {
+        group: { party: 6, dates: ["2026-07-07"] },
+        data: response([day({ date: "2026-07-07", state: "good-block", leadDays: 1, bestBlockScore: 80 })], {
+          horizonDate: "2026-08-05",
+          maxCachedDate: "2026-07-07",
+        }),
+      },
+    ]);
+    // Group-only date included, dates still ascending.
+    expect(merged.dates.map((d) => d.date)).toEqual(["2026-07-06", "2026-07-07"]);
+    expect(merged.dates[1]).toMatchObject({ state: "good-block", bestBlockScore: 80 });
+    // horizonDate/maxCachedDate widen to the max across responses.
+    expect(merged.horizonDate).toBe("2026-08-05");
+    expect(merged.maxCachedDate).toBe("2026-07-07");
+  });
 });
 
 describe("fetchGroupAvailability", () => {
@@ -143,6 +166,43 @@ describe("fetchGroupAvailability", () => {
     const dayCounts = new Map([["2026-07-06", 2], ["2026-07-07", 6]]);
     const result = await fetchGroupAvailability({ movieKey: "event:555", minScore: 74 }, dayCounts, 6, fetchAvailability);
     expect(result.variesByDay).toBe(true);
+  });
+
+  it("PR #82 review point 1: one failed group call does NOT blank the result — resolved group's dates are overridden, failed group's dates keep the baseline rows", async () => {
+    const fetchAvailability = vi.fn().mockImplementation((q) => {
+      if (q.party === 2) return Promise.reject(new Error("boom")); // the party=2 group fails
+      // Baseline (party=6, fallback) and the party=6 group share this response: both days present.
+      return Promise.resolve(
+        response([
+          day({ date: "2026-07-06", state: "good-block", leadDays: 0, bestBlockScore: 95 }),
+          day({ date: "2026-07-07", state: "good-block", leadDays: 1, bestBlockScore: 70 }),
+        ], { party: q.party }),
+      );
+    });
+    const dayCounts = new Map([["2026-07-06", 2], ["2026-07-07", 6]]);
+
+    const result = await fetchGroupAvailability({ movieKey: "event:555", minScore: 74 }, dayCounts, 6, fetchAvailability);
+
+    // Present, not rejected — fail-open per group.
+    expect(result.variesByDay).toBe(true);
+    expect(result.data.dates.map((d) => d.date)).toEqual(["2026-07-06", "2026-07-07"]);
+    // 07-06 (the failed party=2 group's date) keeps the BASELINE row — knowingly baseline-party
+    // data, but real data over a blanked surface.
+    expect(result.data.dates[0]).toMatchObject({ state: "good-block", bestBlockScore: 95 });
+    // 07-07 (the resolved party=6 group's date) is that group's own row.
+    expect(result.data.dates[1]).toMatchObject({ state: "good-block", bestBlockScore: 70 });
+  });
+
+  it("PR #82 review point 1: the BASELINE call failing still rejects (no honest full-horizon shape to merge into) — same semantics as the pre-fix single call", async () => {
+    const fetchAvailability = vi.fn().mockImplementation((q) =>
+      q.party === 6
+        ? Promise.reject(new Error("baseline down")) // fallbackParty=6 -> baseline AND the party=6 group fail
+        : Promise.resolve(response([], { party: q.party })),
+    );
+    const dayCounts = new Map([["2026-07-06", 2], ["2026-07-07", 6]]);
+    await expect(
+      fetchGroupAvailability({ movieKey: "event:555", minScore: 74 }, dayCounts, 6, fetchAvailability),
+    ).rejects.toThrow("baseline down");
   });
 });
 

@@ -374,7 +374,7 @@ describe("MovieFirstView", () => {
       // own (party=2) fetch says no-qualifying-block, so the party=7 baseline's false claim about it
       // must be overridden, and the copy must name 07-22's own headcount (7), not res.party.
       const header = await screen.findByText(
-        /Earliest good seats for your group: Wed 22 Jul \(7 people, 1 days out\)/,
+        /Earliest good seats for your group: Wed 22 Jul \(7 people, 1 day out\)/,
       );
       expect(header).toBeInTheDocument();
       // The 07-21 (Tue) day stepper label is legitimately still on screen (day picker chip) — what

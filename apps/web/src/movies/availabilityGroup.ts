@@ -17,6 +17,13 @@
 // When counts are uniform (or solo mode / no day counts seeded yet), `groupDatesByParty` returns at
 // most one group — the existing single-call path is preserved exactly (same call shape the tests
 // already assert on).
+//
+// Accepted request-volume profile (PR #82 review, point 3): the header (movie-scoped) and the
+// strip (cinema-scoped) each run their own fan-out — 2 surfaces × (distinct headcounts + 1
+// baseline) calls per settled edit, bounded by the 350ms debounce upstream. Deduping across the
+// two surfaces was considered and rejected: per-cinema availability states are server-side
+// aggregates (contract §1.1's cinemaId filter), NOT client-filterable from the movie-wide
+// response, so the strip's cinema-scoped calls cannot be derived from the header's.
 
 import type { AvailabilityQuery } from "./api";
 import { groupDatesByParty, type PartyDateGroup } from "./groupOptions";
@@ -34,35 +41,53 @@ export interface MergedAvailability extends AvailabilityResponse {
   earliestParty: number | null;
 }
 
-/** Merges one baseline /availability response (full-horizon, fallback party) with one response per
- *  distinct headcount group, honestly: each group's own dates override the baseline's rows for
- *  those dates; everything else keeps the baseline's row. */
+/**
+ * Merges one baseline /availability response (full-horizon, fallback party) with one response per
+ * distinct headcount group, honestly:
+ * - union of dates across ALL responses (PR #82 review, point 2: per-party cache coverage can
+ *   genuinely differ, so a date present only in a group response must not be silently dropped);
+ * - where a date is in a group's own day set, that group's row wins; otherwise the baseline row
+ *   wins (a group response's row for a date OUTSIDE its own day set is never used — that would be
+ *   the wrong-party claim this module exists to prevent);
+ * - `horizonDate`/`maxCachedDate` widen to the max across all responses.
+ */
 export function mergeGroupAvailability(
   baseline: AvailabilityResponse,
   results: readonly AvailabilityGroupFetchResult[],
 ): MergedAvailability {
-  const overrideByDate = new Map<string, { row: AvailabilityDate; party: number }>();
+  const rowByDate = new Map<string, { row: AvailabilityDate; party: number }>();
+  for (const row of baseline.dates) rowByDate.set(row.date, { row, party: baseline.party });
+
+  let horizonDate = baseline.horizonDate;
+  let maxCachedDate = baseline.maxCachedDate;
   for (const { group, data } of results) {
     const dateSet = new Set(group.dates);
     for (const row of data.dates) {
-      if (dateSet.has(row.date)) overrideByDate.set(row.date, { row, party: group.party });
+      if (dateSet.has(row.date)) rowByDate.set(row.date, { row, party: group.party });
+    }
+    if (data.horizonDate > horizonDate) horizonDate = data.horizonDate;
+    if (data.maxCachedDate !== null && (maxCachedDate === null || data.maxCachedDate > maxCachedDate)) {
+      maxCachedDate = data.maxCachedDate;
     }
   }
 
-  const dates = baseline.dates.map((row) => overrideByDate.get(row.date)?.row ?? row);
+  const merged = [...rowByDate.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const dates = merged.map(([, entry]) => entry.row);
 
   let earliest: AvailabilityDate | null = null;
   let earliestParty: number | null = null;
-  for (const row of dates) {
-    if (row.state === "good-block") {
-      earliest = row;
-      earliestParty = overrideByDate.get(row.date)?.party ?? baseline.party;
+  for (const [, entry] of merged) {
+    if (entry.row.state === "good-block") {
+      earliest = entry.row;
+      earliestParty = entry.party;
       break;
     }
   }
 
   return {
     ...baseline,
+    horizonDate,
+    maxCachedDate,
     dates,
     earliest,
     earliestLeadDays: earliest?.leadDays ?? null,
@@ -88,6 +113,14 @@ export interface GroupAvailabilityResult {
  * Fetches /availability honestly for the current group-mode day counts (or a single call for solo
  * mode / uniform counts — `dayCounts` empty means "not in group mode, or no per-day counts to fan
  * out over yet", matching the existing behaviour exactly in that case).
+ *
+ * Partial-failure policy (PR #82 review, point 1): the group fan-out is settled per call, so one
+ * failed headcount's fetch never blanks the whole header/strip. Overrides apply only from the
+ * groups that resolved; a failed group's dates keep the baseline's rows — knowingly imperfect
+ * (baseline party, not that day's own headcount) but fail-open per group beats rejecting the
+ * entire surface, and the baseline row is at least real, labelled data. The baseline call itself
+ * still rejects the whole fetch — without it there is no honest full-horizon shape to merge into
+ * (same failure semantics as the pre-fix single call).
  */
 export async function fetchGroupAvailability(
   query: AvailabilityFanOutQuery,
@@ -101,10 +134,16 @@ export async function fetchGroupAvailability(
     const data = await fetchAvailability({ ...query, party });
     return { data, variesByDay: false, earliestParty: data.earliest ? party : null };
   }
-  const baseline = await fetchAvailability({ ...query, party: fallbackParty });
-  const results = await Promise.all(
-    groups.map(async (group) => ({ group, data: await fetchAvailability({ ...query, party: group.party }) })),
-  );
+  const [baseline, ...settledGroups] = await Promise.all([
+    fetchAvailability({ ...query, party: fallbackParty }),
+    ...groups.map((group) =>
+      fetchAvailability({ ...query, party: group.party }).then(
+        (data): AvailabilityGroupFetchResult | null => ({ group, data }),
+        () => null, // failed group: fail open, baseline rows stand for its dates (see doc comment)
+      ),
+    ),
+  ]);
+  const results = settledGroups.filter((r): r is AvailabilityGroupFetchResult => r !== null);
   const merged = mergeGroupAvailability(baseline, results);
   return { data: merged, variesByDay: true, earliestParty: merged.earliestParty };
 }

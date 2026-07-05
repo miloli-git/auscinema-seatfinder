@@ -92,6 +92,20 @@ describe("composeHeaderSummary", () => {
     assertNoForecastLanguage(summary);
   });
 
+  it("PR #82 review point 4: singular day copy in the non-group branches — '1 day out' / 'next 1 day', never '1 days'", () => {
+    const oneOut = composeHeaderSummary(
+      response({ earliest: date({ leadDays: 1, soldHeldPct: null, asOf: null }), earliestLeadDays: 1 }),
+      now,
+    );
+    expect(oneOut).toBe("Earliest 2 good seats: Thu 16 Jul (1 day out)");
+
+    const noneInOne = composeHeaderSummary(
+      response({ earliest: null, earliestLeadDays: null, dates: [date({ state: "no-qualifying-block" })] }),
+      now,
+    );
+    expect(noneInOne).toBe("No good 2-seat block found in the next 1 day");
+  });
+
   describe("group.variesByDay (47c-followup: per-day headcount honesty)", () => {
     it("names the day's OWN headcount instead of the response's single `party` scalar (which is the fallback/global-max, not this day's count)", () => {
       // `res.party` is 7 (the fallback baseline party) but the earliest good-block day was actually
@@ -119,7 +133,7 @@ describe("composeHeaderSummary", () => {
     it("no good-block day anywhere -> honest no-seats copy without a stale party-N claim", () => {
       const res = response({ earliest: null, earliestLeadDays: null, dates: [date({ state: "no-qualifying-block" })] });
       const summary = composeHeaderSummary(res, now, { variesByDay: true, earliestParty: null });
-      expect(summary).toBe("No good seats found for your group in the next 1 days");
+      expect(summary).toBe("No good seats found for your group in the next 1 day");
       expect(summary).not.toMatch(/No good \d+-seat/);
     });
 
@@ -180,6 +194,11 @@ describe("cellStateLabel / cellAccessibleLabel", () => {
   it("accessible label includes date, state, and lead days always", () => {
     const label = cellAccessibleLabel(date({ bestBlockScore: null, soldHeldPct: null, asOf: null }), ctx, now);
     expect(label).toBe("Thu 16 Jul: Good seats available · 2 days out");
+  });
+
+  it("PR #82 review point 4: singular lead day in the accessible label — '1 day out', never '1 days out'", () => {
+    const label = cellAccessibleLabel(date({ leadDays: 1, bestBlockScore: null, soldHeldPct: null, asOf: null }), ctx, now);
+    expect(label).toBe("Thu 16 Jul: Good seats available · 1 day out");
   });
 
   it("accessible label appends block score and sold/held-with-asOf when present", () => {

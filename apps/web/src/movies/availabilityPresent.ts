@@ -16,6 +16,11 @@ function clampPct(pct: number): number {
   return Math.max(0, Math.min(100, pct));
 }
 
+/** "1 day" / "3 days" — PR #82 review point 4: "1 days out" / "next 1 days" read as broken copy. */
+function pluralDays(n: number): string {
+  return n === 1 ? `${n} day` : `${n} days`;
+}
+
 /** Group-mode headcount-varies-by-day info for {@link composeHeaderSummary} — see
  *  availabilityGroup.ts's fan-out/merge. `earliestParty` is the headcount that actually produced
  *  `res.earliest` (may differ from `res.party`, the fallback/baseline party). */
@@ -48,13 +53,13 @@ export function composeHeaderSummary(
   const variesByDay = group?.variesByDay ?? false;
   if (!earliest) {
     return variesByDay
-      ? `No good seats found for your group in the next ${res.dates.length} days`
-      : `No good ${res.party}-seat block found in the next ${res.dates.length} days`;
+      ? `No good seats found for your group in the next ${pluralDays(res.dates.length)}`
+      : `No good ${res.party}-seat block found in the next ${pluralDays(res.dates.length)}`;
   }
   const leadDays = res.earliestLeadDays ?? earliest.leadDays;
   const summaryLead = variesByDay
-    ? `Earliest good seats for your group: ${formatShortDate(earliest.date)} (${group?.earliestParty ?? res.party} people, ${leadDays} days out)`
-    : `Earliest ${res.party} good seats: ${formatShortDate(earliest.date)} (${leadDays} days out)`;
+    ? `Earliest good seats for your group: ${formatShortDate(earliest.date)} (${group?.earliestParty ?? res.party} people, ${pluralDays(leadDays)} out)`
+    : `Earliest ${res.party} good seats: ${formatShortDate(earliest.date)} (${pluralDays(leadDays)} out)`;
   let summary = summaryLead;
   if (earliest.soldHeldPct !== null && earliest.asOf) {
     summary += ` · ${clampPct(earliest.soldHeldPct)}% sold/held as of ${relativeTimeAgo(earliest.asOf, now)}`;
@@ -105,7 +110,7 @@ export function cellAccessibleLabel(
   res: Pick<AvailabilityResponse, "horizonDate" | "maxCachedDate">,
   now: number = Date.now(),
 ): string {
-  const parts = [`${formatShortDate(d.date)}: ${cellStateLabel(d, res)}`, `${d.leadDays} days out`];
+  const parts = [`${formatShortDate(d.date)}: ${cellStateLabel(d, res)}`, `${pluralDays(d.leadDays)} out`];
   if (d.bestBlockScore !== null) parts.push(`best block score ${d.bestBlockScore}`);
   if (d.soldHeldPct !== null && d.asOf) {
     parts.push(`${clampPct(d.soldHeldPct)}% sold/held as of ${relativeTimeAgo(d.asOf, now)}`);
