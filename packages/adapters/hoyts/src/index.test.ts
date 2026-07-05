@@ -279,6 +279,37 @@ test("listMovieNames: #72 movieListTtlMs memoizes the movies-list fetch across r
   assert.equal(movieFetchCount, 1, "repeated listSessions calls reuse the memoized movies list");
 });
 
+test("listMovieNames: #75 skips malformed entries (missing vistaId or name)", async () => {
+  const adapter = adapterReturning(loadFixture("movies.json"));
+  const names = await adapter.listMovieNames();
+
+  // Fixture now carries 3 entries: 1 well-formed + 1 missing vistaId + 1 missing name.
+  assert.equal(names.size, 1, "malformed entries without vistaId/name are skipped");
+  assert.equal(names.get("HO00008574"), "Example Movie Title");
+  assert.equal(names.get("HO00009999"), undefined, "entry missing name is skipped, not stored as undefined");
+});
+
+test("listSessions: #75 degrades to blank movieName when the movies endpoint rejects (session/seat discovery unaffected)", async () => {
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/cinemas")) return loadFixture("cinemas.json");
+    if (url.includes("/movies")) throw new Error("movies endpoint down");
+    if (url.includes("/sessions/")) return loadFixture("sessions.midcin.json");
+    throw new Error(`no fixture for url: ${url}`);
+  };
+  const adapter = new HoytsAdapter({ fetchJson });
+  const sessions = await adapter.listSessions({
+    movieId: "HO00008574",
+    cinemaIds: ["MIDCIN"],
+    date: "2026-06-24",
+  });
+
+  assert.ok(sessions.length > 0, "session/seat discovery is unaffected by a rejecting movies endpoint");
+  for (const s of sessions) assert.equal(s.movieName, "", "movieName degrades to blank rather than throwing");
+  for (const s of sessions) {
+    assert.equal(s.cinemaName, "ACE HOYTS Midland Gate", "cinemaName resolution (independent cache) is unaffected");
+  }
+});
+
 test("listCinemas: normalises id, name, region and url", async () => {
   const adapter = adapterReturning(loadFixture("cinemas.json"));
   const cinemas = await adapter.listCinemas();

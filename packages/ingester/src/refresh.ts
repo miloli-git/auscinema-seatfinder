@@ -11,7 +11,7 @@
 import type { Chain, SeatPreference, Session } from "@auscinema/core";
 import type { Pool } from "./db.js";
 import type { AdapterRegistry } from "./registry.js";
-import { upsertSessionWithSeats } from "./persist.js";
+import { healSessionNames, upsertSessionWithSeats, type NameHeal } from "./persist.js";
 import { countSeatableTotal, sessionToUpsert, toSeatUpserts } from "./sweep.js";
 import { datesInRange, loadEnabledWatches, watchToQuery } from "./watches.js";
 import { effectiveWindow, resolveHorizonDays } from "./horizon.js";
@@ -518,6 +518,10 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   const toTombstone: string[] = [];
   const toResurrect: string[] = [];
 
+  // #67/#72 review follow-up: name heals computed below, collected here and written ONCE per tick
+  // via `healSessionNames` — independent of due/budget/seatmap outcome (see that fn's doc comment).
+  const nameHeals: NameHeal[] = [];
+
   for (const r of knownRows) {
     const dateStr = ymdOf(r.date);
     const tier = tierForSessionDate(dateStr, nowInstant);
@@ -555,6 +559,9 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
     const freshSession = discovered.get(r.id)?.session;
     const movieName = healedName(r.movie_name, freshSession?.movieName);
     const cinemaName = healedName(r.cinema_name, freshSession?.cinemaName);
+    if (movieName !== r.movie_name || cinemaName !== r.cinema_name) {
+      nameHeals.push({ id: r.id, movieName, cinemaName });
+    }
     const upsert: SessionUpsert = {
       id: r.id,
       watchId: Number(r.watch_id ?? 0),
@@ -586,6 +593,11 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
       toTombstone,
     ]);
   }
+
+  // #67/#72 review follow-up: write every computed name heal now, ONCE per tick, decoupled from the
+  // due/budget/seatmap-gated upsert path below. A known row that is not due, is skipped by budget, or
+  // whose seatmap fetch fails/429s still gets its blank name healed here.
+  await healSessionNames(pool, nameHeals);
 
   // Newly-discovered sessions: maximally stale (epoch fetchedAt) so they are always due this tick.
   for (const { session, watch } of discovered.values()) {

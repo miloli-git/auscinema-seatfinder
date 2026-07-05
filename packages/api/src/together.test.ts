@@ -656,6 +656,58 @@ test("/catalog?chain=event scopes movies, cinemas, and dates to that chain", { s
   });
 });
 
+test("/catalog titles fallback: a blank live movie_name self-heals from an older cached row for the same movie", { skip: dbSkip }, async () => {
+  // Outside the liveness filter (past date), but still queryable by the cross-row fallback -
+  // mirrors the /options cinemaName fallback pattern (#67 §5), applied here to /catalog's titles.
+  await insertSession({
+    id: "catalog-fallback-old",
+    chain: "event",
+    movieId: "M-FB",
+    movieName: "Real Fallback Title",
+    cinemaId: "C-FB",
+    cinemaName: "FB Cinema",
+    date: "2020-01-01",
+    startTime: "2020-01-01T19:30:00.000Z",
+    fetchedAt: "2020-01-01T09:00:00.000Z",
+  });
+  await insertSession({
+    id: "catalog-fallback-live",
+    chain: "event",
+    movieId: "M-FB",
+    movieName: "", // blank live row - e.g. ingested before a title fix landed
+    cinemaId: "C-FB",
+    cinemaName: "FB Cinema",
+    date: "2099-06-25",
+    startTime: "2099-06-25T19:30:00.000Z",
+    fetchedAt: "2099-06-24T09:00:00.000Z",
+  });
+
+  const body = await getCatalog();
+
+  const row = body.titles.find((t) => t.movieKey === "event:M-FB");
+  assert.ok(row, "movieKey present in titles");
+  assert.equal(row!.title, "Real Fallback Title", "blank live title self-heals from an older cached row");
+  assert.equal(row!.sessionCount, 1, "sessionCount still reflects only the liveness-filtered rows");
+});
+
+test("/catalog titles: stays blank when no cached row anywhere has a name for that movie (known transitional gap)", { skip: dbSkip }, async () => {
+  await insertSession({
+    id: "catalog-cold",
+    chain: "event",
+    movieId: "M-COLD",
+    movieName: "",
+    cinemaId: "C-COLD",
+    cinemaName: "Cold Cinema",
+    date: "2099-06-25",
+  });
+
+  const body = await getCatalog();
+
+  const row = body.titles.find((t) => t.movieKey === "event:M-COLD");
+  assert.ok(row, "movieKey present in titles");
+  assert.equal(row!.title, "", "no cached row anywhere has a name - title stays blank, not the movieId");
+});
+
 test("/catalog on an empty DB returns empty arrays", { skip: dbSkip }, async () => {
   const body = await getCatalog();
 

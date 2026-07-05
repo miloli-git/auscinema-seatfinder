@@ -841,3 +841,109 @@ test("#67/#72 self-heal policy: non-blank cached names are NOT overwritten by a 
   assert.equal(rows[0]!.movie_name, "Test Movie", "non-blank DB movie_name is preserved, not overwritten");
   assert.equal(rows[0]!.cinema_name, "Cinema C1", "non-blank DB cinema_name is preserved, not overwritten");
 });
+
+test("#67/#72 self-heal: whitespace-only cached names are treated as blank and heal (isBlank trims)", { skip: dbSkip }, async () => {
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["C1"], dateFrom: "2026-10-05", dateTo: "2026-10-05" });
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  await insertCachedSession({
+    id: "S-whitespace",
+    watchId,
+    fetchedAt: beforeInstant(nowInstant, hours(3)),
+  });
+  // Whitespace-only, not empty-string - isBlank trims before checking, so this must heal too.
+  await requirePool().query("UPDATE sessions SET movie_name = '   ', cinema_name = '\t \n' WHERE id = $1", [
+    "S-whitespace",
+  ]);
+
+  const fresh = session("S-whitespace", "event", "C1", "2026-10-05T19:00:00.000Z", {
+    movieName: "Real Movie Title",
+    cinemaName: "Real Cinema Name",
+  });
+  const registry: AdapterRegistry = {
+    event: stubAdapter("event", [fresh], { "S-whitespace": mapFor("event", "S-whitespace") }),
+  };
+
+  await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+  const { rows } = await requirePool().query<{ movie_name: string | null; cinema_name: string | null }>(
+    "SELECT movie_name, cinema_name FROM sessions WHERE id = $1",
+    ["S-whitespace"],
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.movie_name, "Real Movie Title", "whitespace-only movie_name heals (isBlank trims)");
+  assert.equal(rows[0]!.cinema_name, "Real Cinema Name", "whitespace-only cinema_name heals (isBlank trims)");
+});
+
+// --- #75 review follow-up: name heal decoupled from the seat-refresh write --------------------
+
+test("#75 name heal is decoupled from seat-refresh: a NOT-due known row still heals when discovery lists it", { skip: dbSkip }, async () => {
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["C1"], dateFrom: "2026-10-05", dateTo: "2026-10-05" });
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  // fetchedAt = nowInstant itself -> age 0, well under the T0 TTL, so this row is NOT due and will
+  // never be selected into sel.selected / upsertSessionWithSeats this tick.
+  await insertCachedSession({ id: "S-not-due", watchId, fetchedAt: nowInstant });
+  await requirePool().query("UPDATE sessions SET movie_name = '', cinema_name = NULL WHERE id = $1", ["S-not-due"]);
+
+  const fresh = session("S-not-due", "event", "C1", "2026-10-05T19:00:00.000Z", {
+    movieName: "Real Movie Title",
+    cinemaName: "Real Cinema Name",
+  });
+  const seatMapCalls: string[] = [];
+  // No map registered for "S-not-due" - if it were ever selected for seat-refresh, getSeatMap would
+  // throw "no map for S-not-due"; asserting seatMapCalls stays empty below proves it never was.
+  const registry: AdapterRegistry = {
+    event: stubAdapter("event", [fresh], {}, { seatMapCalls }),
+  };
+
+  const result = await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+  assert.deepEqual(seatMapCalls, [], "the not-due row was never selected for seat-refresh");
+  assert.equal(result.sessions_refreshed, 0, "no seat-refresh happened this tick");
+
+  const { rows } = await requirePool().query<{ movie_name: string | null; cinema_name: string | null }>(
+    "SELECT movie_name, cinema_name FROM sessions WHERE id = $1",
+    ["S-not-due"],
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.movie_name, "Real Movie Title", "a NOT-due row still heals its blank name from discovery");
+  assert.equal(rows[0]!.cinema_name, "Real Cinema Name", "a NOT-due row still heals its blank cinema name too");
+});
+
+test("#75 name heal is decoupled from seat-refresh: a getSeatMap failure does not block the heal", { skip: dbSkip }, async () => {
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["C1"], dateFrom: "2026-10-05", dateTo: "2026-10-05" });
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  // Old enough to be due this tick, so it IS selected for seat-refresh - but its getSeatMap fails.
+  await insertCachedSession({ id: "S-seatmap-fail", watchId, fetchedAt: beforeInstant(nowInstant, hours(3)) });
+  await requirePool().query("UPDATE sessions SET movie_name = '', cinema_name = NULL WHERE id = $1", [
+    "S-seatmap-fail",
+  ]);
+
+  const fresh = session("S-seatmap-fail", "event", "C1", "2026-10-05T19:00:00.000Z", {
+    movieName: "Real Movie Title",
+    cinemaName: "Real Cinema Name",
+  });
+  const registry: AdapterRegistry = {
+    event: stubAdapter("event", [fresh], {
+      "S-seatmap-fail": new Error("upstream 429"),
+    }),
+  };
+
+  const result = await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+  const perChain = asRecord(result.per_chain);
+  const event = perChain.event as Record<string, unknown>;
+  assert.ok(Number(event.errors) > 0, "the seat-refresh attempt recorded a failure");
+
+  const { rows } = await requirePool().query<{
+    movie_name: string | null;
+    cinema_name: string | null;
+    total_seats: number | null;
+  }>("SELECT movie_name, cinema_name, total_seats FROM sessions WHERE id = $1", ["S-seatmap-fail"]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.movie_name, "Real Movie Title", "a getSeatMap failure does not block the name heal");
+  assert.equal(rows[0]!.cinema_name, "Real Cinema Name", "cinema name heals too, despite the failed seat-refresh");
+  // upsertSessionWithSeats was never reached for this session (it threw before that call), so
+  // total_seats/session_seats are untouched by the (failed) seat-refresh attempt - proving the heal
+  // write is a genuinely separate path, not a side effect of the seat upsert.
+  assert.equal(rows[0]!.total_seats, null, "seat-refresh never completed, so total_seats is untouched");
+});

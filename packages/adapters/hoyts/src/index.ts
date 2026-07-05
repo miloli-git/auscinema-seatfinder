@@ -126,7 +126,14 @@ export class HoytsAdapter implements ChainAdapter {
     // #67: the per-cinema sessions feed carries only `cinemaId`, no name — mirror Event/Village and
     // resolve the real name from the chain's own cinema-list call (the same call listCinemas()
     // makes), reused across calls within the TTL window (see cachedCinemas()).
-    const [cinemas, movieNameById] = await Promise.all([this.cachedCinemas(), this.cachedMovieNames()]);
+    // #75 review follow-up: a rejecting cachedMovieNames() (movies endpoint down/429) used to fail
+    // the whole Promise.all and abort listSessions entirely, even though title resolution is a
+    // best-effort join and session/seat discovery has nothing to do with it. Degrade to an empty Map
+    // instead - movieName resolves to "" for this call, sessions/seats still flow.
+    const [cinemas, movieNameById] = await Promise.all([
+      this.cachedCinemas(),
+      this.cachedMovieNames().catch(() => new Map<string, string>()),
+    ]);
     const cinemaNameById = new Map(cinemas.map((c) => [c.id, c.name]));
 
     const out: Session[] = [];

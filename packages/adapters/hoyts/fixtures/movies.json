@@ -21,5 +21,27 @@
   "nowShowing": true,
   "comingThisWeek": false,
   "link": "/movies/example-movie"
+ },
+ {
+  "id": 3902,
+  "type": "nowShowing",
+  "slug": "malformed-no-vista-id",
+  "name": "Malformed Movie (No Vista Id)",
+  "summary": "Fixture entry missing vistaId - must be skipped by parseMovieNames.",
+  "onSale": true,
+  "nowShowing": true,
+  "comingThisWeek": false,
+  "link": "/movies/malformed-no-vista-id"
+ },
+ {
+  "id": 3903,
+  "type": "nowShowing",
+  "vistaId": "HO00009999",
+  "slug": "malformed-no-name",
+  "summary": "Fixture entry missing name - must be skipped by parseMovieNames.",
+  "onSale": true,
+  "nowShowing": true,
+  "comingThisWeek": false,
+  "link": "/movies/malformed-no-name"
  }
 ]
