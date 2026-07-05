@@ -176,6 +176,7 @@ test("listCinemas: bootstraps token then normalises id(slug), name, region, url"
 test("listSessions: filters per-cinema feed by movieId(ScheduledFilmId) + date, composites the id", async () => {
   const adapter = adapterRouting({
     "/settings/": "settings.json",
+    getcinemas: "cinemas.json",
     films: "sessions.belmont.json",
   });
   const sessions = await adapter.listSessions({
@@ -193,6 +194,8 @@ test("listSessions: filters per-cinema feed by movieId(ScheduledFilmId) + date, 
   assert.equal(first.movieId, "HO00004380");
   assert.equal(first.movieName, "Minions & Monsters");
   assert.equal(first.cinemaId, "belmont");
+  // #67: cinemaName resolved from listCinemas() (fixture: "belmont" -> "Belmont"), no longer blank.
+  assert.equal(first.cinemaName, "Belmont");
   assert.equal(first.startTime, "2026-06-25T10:00:00+08:00");
   assert.equal(first.format.kind, "standard");
   assert.equal(first.seatsAvailable, 304);
@@ -213,6 +216,7 @@ test("listSessions: filters per-cinema feed by movieId(ScheduledFilmId) + date, 
 test("listSessions: wrong movieId yields no sessions", async () => {
   const adapter = adapterRouting({
     "/settings/": "settings.json",
+    getcinemas: "cinemas.json",
     films: "sessions.belmont.json",
   });
   const sessions = await adapter.listSessions({

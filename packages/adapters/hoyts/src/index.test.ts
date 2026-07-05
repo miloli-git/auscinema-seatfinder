@@ -159,6 +159,23 @@ test("listSessions: wrong movieId yields no sessions", async () => {
   assert.equal(sessions.length, 0);
 });
 
+test("listSessions: #67 resolves real cinemaName from listCinemas(), never blank", async () => {
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/cinemas")) return loadFixture("cinemas.json");
+    if (url.includes("/sessions/")) return loadFixture("sessions.midcin.json");
+    throw new Error(`no fixture for url: ${url}`);
+  };
+  const adapter = new HoytsAdapter({ fetchJson });
+  const sessions = await adapter.listSessions({
+    movieId: "HO00008574",
+    cinemaIds: ["MIDCIN"],
+    date: "2026-06-24",
+  });
+
+  assert.ok(sessions.length > 0);
+  for (const s of sessions) assert.equal(s.cinemaName, "ACE HOYTS Midland Gate");
+});
+
 test("listCinemas: normalises id, name, region and url", async () => {
   const adapter = adapterReturning(loadFixture("cinemas.json"));
   const cinemas = await adapter.listCinemas();

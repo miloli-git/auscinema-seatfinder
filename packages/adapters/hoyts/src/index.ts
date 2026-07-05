@@ -67,11 +67,16 @@ export class HoytsAdapter implements ChainAdapter {
   }
 
   async listSessions(query: SessionQuery): Promise<Session[]> {
+    // #67: the per-cinema sessions feed carries only `cinemaId`, no name — mirror Event/Village and
+    // resolve the real name from the chain's own cinema-list call (the same call listCinemas() makes).
+    const cinemas = await this.listCinemas();
+    const cinemaNameById = new Map(cinemas.map((c) => [c.id, c.name]));
+
     const out: Session[] = [];
     for (const cinemaId of query.cinemaIds) {
       const url = `${this.webBase}/sessions/${encodeURIComponent(cinemaId)}?partnerId=ALL`;
       const raw = await this.fetchJson(url);
-      out.push(...parseSessions(raw, query, this.siteBase));
+      out.push(...parseSessions(raw, query, this.siteBase, cinemaNameById.get(cinemaId) ?? ""));
     }
     return out;
   }
@@ -166,7 +171,12 @@ function mapFormat(typeId: unknown): ScreenFormat {
   return { kind, raw };
 }
 
-function parseSessions(raw: unknown, query: SessionQuery, siteBase: string): Session[] {
+function parseSessions(
+  raw: unknown,
+  query: SessionQuery,
+  siteBase: string,
+  cinemaName: string,
+): Session[] {
   const out: Session[] = [];
   for (const s of arr(raw)) {
     if (!isObj(s)) continue;
@@ -185,7 +195,10 @@ function parseSessions(raw: unknown, query: SessionQuery, siteBase: string): Ses
       movieId,
       movieName: "", // sessions feed carries no title; resolve via /movies/* if needed
       cinemaId,
-      cinemaName: "",
+      // #67: resolved from listCinemas() by the caller (mirrors Event's `cm.Name` / Village's
+      // `cinema.name`, which both come embedded in-payload — Hoyts' sessions feed has no name, so we
+      // join it in from the cinema-list call instead).
+      cinemaName,
       startTime: date, // local, no tz - matches core contract
       format: mapFormat(s.typeId),
       screenName: str(s.screenName),

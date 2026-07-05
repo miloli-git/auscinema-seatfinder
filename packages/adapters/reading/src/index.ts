@@ -103,13 +103,18 @@ export class ReadingAdapter implements ChainAdapter {
   }
 
   async listSessions(query: SessionQuery): Promise<Session[]> {
+    // #67: the per-cinema films feed carries no cinema name — mirror Event/Village and resolve the
+    // real name from the chain's own cinema-list call (the same call listCinemas() makes).
+    const cinemas = await this.listCinemas();
+    const cinemaNameById = new Map(cinemas.map((c) => [c.id, c.name]));
+
     const out: Session[] = [];
     for (const cinemaId of query.cinemaIds) {
       const url =
         `${this.base}/films?countryId=${this.countryId}` +
         `&cinemaId=${encodeURIComponent(cinemaId)}&status=nowShowing`;
       const raw = await this.fetchAuthedJson(url);
-      out.push(...parseSessions(raw, cinemaId, query, this.siteBase));
+      out.push(...parseSessions(raw, cinemaId, query, this.siteBase, cinemaNameById.get(cinemaId) ?? ""));
     }
     return out;
   }
@@ -272,6 +277,7 @@ function parseSessions(
   cinemaId: string,
   query: SessionQuery,
   siteBase: string,
+  cinemaName: string,
 ): Session[] {
   const movies = arr(unwrap(raw));
   const out: Session[] = [];
@@ -299,7 +305,9 @@ function parseSessions(
             movieId,
             movieName,
             cinemaId,
-            cinemaName: "",
+            // #67: resolved from listCinemas() by the caller (mirrors Event/Village, which get the
+            // name embedded in-payload — Reading's films feed has no name, so it's joined in here).
+            cinemaName,
             startTime: str(sh.date_time) ?? "",
             format: mapFormat(screenType),
             screenName: str(sh.auditorium) || undefined,
