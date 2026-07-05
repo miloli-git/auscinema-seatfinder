@@ -114,6 +114,17 @@ CREATE INDEX IF NOT EXISTS idx_sessions_chain_cinema_fetched
   ON sessions (chain, cinema_id, fetched_at DESC)
   WHERE cinema_name IS NOT NULL AND cinema_name <> '';
 
+-- movieTitle/movie-name self-heal fallback (#84) — the movie_name twin of the #67 index above.
+-- GET /options' movieTitle lookup and GET /catalog's `movies`/`titles` COALESCE subqueries all
+-- resolve the most recent non-blank movie_name for a (chain, movie_id); /catalog's fires per
+-- distinct movie row over the WHOLE unfiltered sessions table (tombstoned rows retained), so
+-- without a supporting index it has no efficient plan as the table grows. Same partial-index
+-- shape: only rows that can satisfy the subquery's own WHERE, with fetched_at DESC serving the
+-- "most recent" ORDER BY ... LIMIT 1 directly.
+CREATE INDEX IF NOT EXISTS idx_sessions_chain_movie_fetched
+  ON sessions (chain, movie_id, fetched_at DESC)
+  WHERE movie_name IS NOT NULL AND movie_name <> '';
+
 -- #47b soldHeldPct (date-availability module). Sellable capacity = available + sold + unavailable,
 -- computed from the FULL seat map at ingest time (before toSeatUpserts filters to available-only) —
 -- the same isSeatable() rule scripts/lead-time.ts already uses for the #49 lesson (Event maps

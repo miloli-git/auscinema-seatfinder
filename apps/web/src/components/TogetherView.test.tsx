@@ -151,7 +151,9 @@ describe("TogetherView movie picker acceptance", () => {
       expect(within(select).getByRole("option", { name: /pick a movie/i })).toHaveValue("");
       expect(within(select).getByRole("option", { name: "Blue Harvest (19796)" })).toHaveValue("19796");
       expect(within(select).getByRole("option", { name: "Blue Harvest (19797)" })).toHaveValue("19797");
-      expect(within(select).getByRole("option", { name: "19800" })).toHaveValue("19800");
+      // #84: a blank-named catalog row must never surface its bare id as the label — shared
+      // displayMovieTitle placeholder, consistent with the movie-first surfaces.
+      expect(within(select).getByRole("option", { name: "Untitled (Event Cinemas)" })).toHaveValue("19800");
     });
 
     it("req 2: selecting a catalog movie and scanning calls getTogether with the selected id", async () => {
@@ -271,12 +273,14 @@ describe("TogetherView movie picker acceptance", () => {
       expect(await view.findByText(/enter a movie id/i)).toBeInTheDocument();
     });
 
-    it("req 8: null-name movie uses its id as the option label and scans with that id", async () => {
+    it("req 8: null-name movie gets an honest 'Untitled (Chain)' label (never the bare raw id) and scans with that id", async () => {
       mockGetTogether.mockResolvedValueOnce(respFor({ cinemaId: "null-name", cinemaName: "Null Name Cinema", movieId: "19800" }));
 
       const view = setup();
       const select = await readyMovieSelect(view);
-      expect(within(select).getByRole("option", { name: "19800" })).toHaveValue("19800");
+      // #84: a blank-named catalog row must never surface its bare id as the label — the shared
+      // displayMovieTitle placeholder is the only entry with no name here, so no id disambiguator.
+      expect(within(select).getByRole("option", { name: "Untitled (Event Cinemas)" })).toHaveValue("19800");
 
       fireEvent.change(select, { target: { value: "19800" } });
       fireEvent.click(view.scanBtn());
@@ -299,6 +303,24 @@ describe("TogetherView movie picker acceptance", () => {
       expect(view.queryByPlaceholderText(/^e\.g\./i)).not.toBeInTheDocument();
       expect(select.value).toBe("");
       expect(within(select).getAllByRole("option")).toHaveLength(1);
+    });
+
+    it("req 9b: two blank-named movies disambiguate as 'Untitled (Chain) (id)', never the bare id alone", async () => {
+      mockFetchCatalog.mockResolvedValueOnce(
+        catalog([
+          { id: "19800", name: null, chain: "event" },
+          { id: "19801", name: "", chain: "event" },
+        ]),
+      );
+
+      const view = setup();
+      const select = await readyMovieSelect(view);
+      // #84: neither row has a name, so both collide on the shared displayMovieTitle placeholder
+      // and get id-disambiguated — "19800"/"19801" must never appear as a STANDALONE label.
+      expect(within(select).getByRole("option", { name: "Untitled (Event Cinemas) (19800)" })).toHaveValue("19800");
+      expect(within(select).getByRole("option", { name: "Untitled (Event Cinemas) (19801)" })).toHaveValue("19801");
+      expect(within(select).queryByRole("option", { name: "19800" })).not.toBeInTheDocument();
+      expect(within(select).queryByRole("option", { name: "19801" })).not.toBeInTheDocument();
     });
   });
 

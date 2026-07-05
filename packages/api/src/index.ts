@@ -822,20 +822,47 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const params = chain !== undefined ? [chain] : [];
 
     // Distinct by (chain, movie_id) / (chain, cinema_id) per contract — NOT by (id,name,chain), so a
-    // name that drifts for the same id across cached rows still collapses to one entry. DISTINCT ON
-    // picks one deterministic name per key (lowest non-null name), then the outer query sorts by name,id.
+    // name that drifts for the same id across cached rows still collapses to one entry.
+    //
+    // #84 fix: `ORDER BY ... movie_name NULLS LAST` only pushes actual SQL NULLs last — an empty
+    // string movie_name sorts BEFORE any non-blank name ('' < 'The Odyssey' lexicographically), so
+    // DISTINCT ON used to pick a single blank-named row over hundreds of correctly-named ones for the
+    // same (chain, movie_id) whenever even one blank row existed (e.g. a handful of now-dead session
+    // rows ingested before the movies-list join resolved). This is the same fallback-picker surface
+    // the Together mode's movie <select> renders (`TogetherView.tsx`'s `buildMovieOptions`), which
+    // used to fall back to the bare raw id when `name` came back blank from here — live-verified via
+    // Hoyts movie_id HO00010001 ("The Odyssey"). Fixed with the same self-heal COALESCE convention the
+    // `titles` query below already uses (#75): pick the most recently fetched NON-BLANK name for this
+    // (chain, movie_id) across the whole cache, falling back to NULL only when no non-blank name was
+    // ever cached for it.
     const movies = await db.query<{ id: string; name: string | null; chain: string }>(
       `SELECT id, name, chain FROM (
-         SELECT DISTINCT ON (chain, movie_id) movie_id AS id, movie_name AS name, chain
+         SELECT DISTINCT ON (chain, movie_id) movie_id AS id, chain,
+                COALESCE(NULLIF(movie_name, ''), (
+                  SELECT s2.movie_name FROM sessions s2
+                   WHERE s2.chain = sessions.chain AND s2.movie_id = sessions.movie_id
+                     AND s2.movie_name IS NOT NULL AND s2.movie_name <> ''
+                   ORDER BY s2.fetched_at DESC LIMIT 1
+                )) AS name
            FROM sessions ${where}
           ORDER BY chain, movie_id, movie_name NULLS LAST
        ) m
         ORDER BY name NULLS LAST, id`,
       params,
     );
+    // #84 review follow-up: same blank-outranks-live bug class as `movies` above — '' sorts before
+    // any real cinema_name, so one blank-named row hid the real name for the whole (chain,
+    // cinema_id). Same self-heal COALESCE; the correlated subquery is served by the existing #67
+    // partial index (idx_sessions_chain_cinema_fetched — same shape, cinema_name variant).
     const cinemas = await db.query<{ id: string; name: string | null; chain: string }>(
       `SELECT id, name, chain FROM (
-         SELECT DISTINCT ON (chain, cinema_id) cinema_id AS id, cinema_name AS name, chain
+         SELECT DISTINCT ON (chain, cinema_id) cinema_id AS id, chain,
+                COALESCE(NULLIF(cinema_name, ''), (
+                  SELECT s2.cinema_name FROM sessions s2
+                   WHERE s2.chain = sessions.chain AND s2.cinema_id = sessions.cinema_id
+                     AND s2.cinema_name IS NOT NULL AND s2.cinema_name <> ''
+                   ORDER BY s2.fetched_at DESC LIMIT 1
+                )) AS name
            FROM sessions ${where}
           ORDER BY chain, cinema_id, cinema_name NULLS LAST
        ) c
@@ -965,15 +992,26 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     // Aggregate freshness: identical helper/shape to /together's, computed from the SAME live set.
     const freshness = await computeFreshness(db, chain, sessions, now);
 
-    // movieTitle: same DISTINCT-ON/NULLS-LAST convention /catalog uses for `movies`, but NOT
-    // liveness-filtered — a title should still resolve even when the live session count is 0 (e.g.
-    // between refreshes), matching /catalog's `movies` field's own (unfiltered) semantics.
+    // movieTitle: NOT liveness-filtered — a title should still resolve even when the live session
+    // count is 0 (e.g. between refreshes), matching /catalog's `movies` field's own (unfiltered)
+    // semantics.
+    //
+    // #84 fix: the old query was `DISTINCT ON (chain, movie_id) ... ORDER BY movie_name NULLS LAST`,
+    // which only pushes actual NULLs last — an empty string movie_name sorts BEFORE any non-blank
+    // name ('' < 'The Odyssey' lexicographically). So a single blank-named row (e.g. a handful of
+    // now-disappeared/dead session rows ingested before the movies-list join resolved) permanently
+    // outranked hundreds of correctly-named rows for the same (chain, movie_id), making /options
+    // return movieTitle: "" forever even though the cache plainly has the real name. Live-verified:
+    // Hoyts movie_id HO00010001 ("The Odyssey") had 3 dead rows with movie_name='' vs 223 live rows
+    // with movie_name='The Odyssey' — the old query picked the blank one every time.
+    // Fix: same self-heal convention /catalog's `titles` query already uses (#75) — pick the most
+    // recently fetched NON-BLANK name for this (chain, movie_id), across the whole cache (not just
+    // the live/undisappeared set). Only genuinely nameless movie_ids (no non-blank name ever cached)
+    // fall through to "".
     const titleRes = await db.query<{ name: string | null }>(
-      `SELECT name FROM (
-         SELECT DISTINCT ON (chain, movie_id) movie_name AS name
-           FROM sessions WHERE chain = $1 AND movie_id = $2
-          ORDER BY chain, movie_id, movie_name NULLS LAST
-       ) t`,
+      `SELECT movie_name AS name FROM sessions
+        WHERE chain = $1 AND movie_id = $2 AND movie_name IS NOT NULL AND movie_name <> ''
+        ORDER BY fetched_at DESC LIMIT 1`,
       [chain, movieId],
     );
     const movieTitle = titleRes.rows[0]?.name ?? "";

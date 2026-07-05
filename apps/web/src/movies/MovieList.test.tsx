@@ -47,4 +47,13 @@ describe("MovieList", () => {
     render(<MovieList titles={[]} onSelect={vi.fn()} />);
     expect(screen.getByText(/no cached titles yet/i)).toBeInTheDocument();
   });
+
+  // #84: a blank cached title used to fall back to the raw movieKey (e.g. "hoyts:HO00010001");
+  // it must degrade to an honest, chain-scoped placeholder instead.
+  it("never renders the raw movieKey for a blank-titled single entry", () => {
+    const blank: CatalogTitle[] = [{ movieKey: "hoyts:HO00010001", chain: "hoyts", title: "", sessionCount: 3 }];
+    render(<MovieList titles={blank} onSelect={vi.fn()} />);
+    expect(screen.getByText("Untitled (Hoyts)")).toBeInTheDocument();
+    expect(screen.queryByText(/HO00010001/)).toBeNull();
+  });
 });

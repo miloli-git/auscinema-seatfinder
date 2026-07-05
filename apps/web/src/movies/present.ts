@@ -2,6 +2,7 @@
 // (types.ts) so display formatting can be unit-tested without dragging in components.
 
 import { chainLabel } from "../format";
+import type { Chain } from "../types";
 import type { Option, OptionFreshness } from "./types";
 
 /**
@@ -12,6 +13,25 @@ import type { Option, OptionFreshness } from "./types";
  */
 export function displayCinemaName(o: Option): string {
   return o.cinemaName.trim() || chainLabel(o.chain);
+}
+
+/**
+ * #84 defense-in-depth: even with the server-side title-resolution fix (the `/options` +
+ * `/catalog` movieTitle self-heal), a blank title can still reach the client during a transition
+ * window (a movie genuinely never named upstream, or not yet re-ingested post-fix) — same
+ * transitional gap `displayCinemaName` above already accepts for cinemaName. A raw `chain:movieId`
+ * key (e.g. `hoyts:HO00010001`) must never stand in for a title, so this degrades to an honest
+ * "Untitled" label scoped by chain instead — mirrors `displayCinemaName`'s fallback-to-chain-label
+ * shape, never leaks the numeric id.
+ */
+export function displayMovieTitle(title: string, chain: Chain): string {
+  return title.trim() || `Untitled (${chainLabel(chain)})`;
+}
+
+/** Parses the `<chain>:<movieId>` movieKey's chain prefix (contract §3 shape) for display-only use
+ *  (e.g. `displayMovieTitle`'s fallback) — never used to reconstruct or expose the numeric id. */
+export function chainFromMovieKey(movieKey: string): Chain {
+  return movieKey.slice(0, movieKey.indexOf(":")) as Chain;
 }
 
 /** Format badge for an Option (contract §1.4's classifier already ran server-side — this just

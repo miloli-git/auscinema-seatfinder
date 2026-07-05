@@ -283,11 +283,24 @@ test("listMovieNames: #75 skips malformed entries (missing vistaId or name)", as
   const adapter = adapterReturning(loadFixture("movies.json"));
   const names = await adapter.listMovieNames();
 
-  // Fixture now carries 4 entries: 1 well-formed + 1 missing vistaId + 1 missing name + 1
-  // comma-joined vistaId (which expands to 2 map entries - see the next test).
-  assert.equal(names.size, 3, "malformed entries without vistaId/name are skipped");
+  // Fixture now carries 5 entries: 1 well-formed + 1 missing vistaId + 1 missing name + 1
+  // comma-joined vistaId (which expands to 2 map entries - see the next test) + 1 standalone
+  // advanceSale entry (#84 regression, see the test below).
+  assert.equal(names.size, 4, "malformed entries without vistaId/name are skipped");
   assert.equal(names.get("HO00008574"), "Example Movie Title");
   assert.equal(names.get("HO00009999"), undefined, "entry missing name is skipped, not stored as undefined");
+});
+
+test("listMovieNames: #84 standalone (non-comma-joined) advanceSale vistaId resolves correctly", async () => {
+  const adapter = adapterReturning(loadFixture("movies.json"));
+  const names = await adapter.listMovieNames();
+
+  // Live-verified 2026-07-06 exact payload shape for Hoyts issue #84 ("The Odyssey",
+  // movie_id HO00010001): a standalone (NOT comma-joined) vistaId under an advanceSale-type
+  // entry. This resolves fine here - confirming the adapter join was never the bug for this id;
+  // the actual #84 root cause was a DB query in packages/api that let a handful of dead/blank
+  // session rows outrank hundreds of correctly-named ones (fixed there, see index.ts comments).
+  assert.equal(names.get("HO00010001"), "The Odyssey");
 });
 
 test("listMovieNames: comma-joined vistaId resolves BOTH ids to the same name (571-session blank-title cluster)", async () => {
