@@ -22,15 +22,31 @@ export function optionFormatBadge(o: Option): { label: string; premium: boolean 
   return { label, premium: true };
 }
 
-/** Fit-tier readout per the wireframe's "all N together / N nearby / M of N" language. */
+/**
+ * Fit-tier readout (docs/47a-contract.md §1.5's together/nearby/split algorithm).
+ *
+ * 47c fixes #10/#11: "N nearby" was ambiguous (seats? people? party?) and "N of {party}" repeated
+ * the exact "only N can attend" misread the 2026-06-26 review flagged — both are about SEAT
+ * adjacency, never headcount/attendance, so the copy now says "seats" explicitly and states plainly
+ * whether they're together or not:
+ * - nearby: a smaller adjacent block than the full party was found (§1.5 step 2) — togetherCount
+ *   seats ARE together, just not the whole party.
+ * - split: no adjacent run of 2+ was found (§1.5 step 3) — togetherCount is individual, non-adjacent
+ *   seats, capped at party; explicitly "(not adjacent)" so it can't be misread as an attendance cap.
+ *
+ * `party` is the effective party for the option's own list context; 47c fix #3's group-mode fan-out
+ * stamps `o.effectiveParty` on each option with the headcount that actually produced its fitTier —
+ * that always wins over the list-level `party` fallback so a card's claim is honest for its own day.
+ */
 export function fitTierLabel(o: Option, party: number): string {
+  const effectiveParty = o.effectiveParty ?? party;
   switch (o.fitTier) {
     case "together":
       return `All ${o.togetherCount} together`;
     case "nearby":
-      return `${o.togetherCount} nearby`;
+      return `${o.togetherCount} together, not all ${effectiveParty}`;
     case "split":
-      return `${o.togetherCount} of ${party}`;
+      return `${o.togetherCount} of ${effectiveParty} seats (not adjacent)`;
   }
 }
 

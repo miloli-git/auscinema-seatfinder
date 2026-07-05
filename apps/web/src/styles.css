@@ -1062,6 +1062,30 @@ input[type="checkbox"] {
   margin: 0 0 0 var(--sp-2);
   padding: 0 var(--sp-2);
 }
+/* 47c fixes #1/#2 — the date now shown on every card, and the day-grouped list. */
+.sess__date {
+  color: var(--text-2);
+  font-weight: 650;
+}
+.optionlist__group {
+  display: grid;
+  gap: var(--sp-2);
+}
+.optionlist__daybreak {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--t-sm);
+  font-weight: 650;
+  color: var(--text-2);
+  letter-spacing: 0.01em;
+}
+.optionlist__group:first-child .optionlist__daybreak {
+  margin-top: 0;
+}
+.optionlist__dayfilter {
+  margin-top: var(--sp-2);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
 
 .optionseatmap__actions {
   display: flex;
@@ -1102,7 +1126,7 @@ input[type="checkbox"] {
   padding: var(--sp-2);
   font: inherit;
   color: var(--text-2);
-  cursor: default;
+  cursor: pointer;
 }
 .datestrip__daynum {
   font-size: var(--t-md);
@@ -1137,8 +1161,10 @@ input[type="checkbox"] {
   color: var(--muted);
 }
 /* no-qualifying-block: plain/default — no extra weight or pattern. */
-/* not-cached: least information available — faint dashed, low opacity. */
+/* not-cached: least information available — solid (not dashed, unlike sold-held-now), faint and
+ * low opacity, so the two "nothing to book here" states read as visually distinct (#73 deferred
+ * OPTIONAL, folded into 47c: they were both dashed before, differing only by opacity). */
 .datestrip__cell[data-state="not-cached"] {
-  border-style: dashed;
-  opacity: 0.55;
+  border-style: solid;
+  opacity: 0.5;
 }

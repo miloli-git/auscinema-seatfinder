@@ -76,6 +76,15 @@ describe("composeHeaderSummary", () => {
     assertNoForecastLanguage(summary);
   });
 
+  it("47c fix #12: clamps a negative soldHeldPct rather than rendering it raw (belt-and-braces to the server clamp)", () => {
+    const res = response({
+      earliest: date({ soldHeldPct: -3 }),
+    });
+    const summary = composeHeaderSummary(res, now);
+    expect(summary).toContain("0% sold/held");
+    expect(summary).not.toContain("-3%");
+  });
+
   it("falls back to the honest no-good-seats copy when earliest is null, never a blank header", () => {
     const res = response({ earliest: null, earliestLeadDays: null, party: 3, dates: [date({}), date({ date: "2026-07-17" })] });
     const summary = composeHeaderSummary(res, now);
@@ -134,9 +143,17 @@ describe("cellStateLabel / cellAccessibleLabel", () => {
   });
 
   it("accessible label appends block score and sold/held-with-asOf when present", () => {
+    // 49.5h elapsed -> 50h -> now past the 48h cutover, so relativeTimeAgo renders whole days
+    // (47c fix, deferred #73 OPTIONAL: "50h ago" reads worse than "2d ago").
     const label = cellAccessibleLabel(date({}), ctx, now);
     expect(label).toBe(
-      "Thu 16 Jul: Good seats available · 2 days out · best block score 91 · 42% sold/held as of 50h ago",
+      "Thu 16 Jul: Good seats available · 2 days out · best block score 91 · 42% sold/held as of 2d ago",
     );
+  });
+
+  it("47c fix #12: clamps a negative soldHeldPct in the accessible label too", () => {
+    const label = cellAccessibleLabel(date({ soldHeldPct: -3 }), ctx, now);
+    expect(label).toContain("0% sold/held");
+    expect(label).not.toContain("-3%");
   });
 });

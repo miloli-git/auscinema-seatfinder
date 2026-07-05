@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_SCORING, fetchSeatMap as apiFetchSeatMap, type ScoringParams } from "../api";
 import { SeatMapView } from "../components/SeatMapView";
-import { chainLabel, formatTime } from "../format";
+import { chainLabel, formatShortDate, formatTime } from "../format";
 import type { ScoredSeatMap } from "../types";
 import { fetchAvailability as apiFetchAvailability, type AvailabilityQuery } from "./api";
 import { DateAvailabilityStrip } from "./DateAvailabilityStrip";
@@ -21,6 +21,9 @@ interface Props {
   party: number;
   minScore: number;
   onClose: () => void;
+  /** 47c fix #5: forwarded to the DateAvailabilityStrip so a cell click applies that date as the
+   *  option list's day filter (fix #2) — omit to leave the strip's cells non-interactive. */
+  onSelectDate?: (date: string) => void;
   /** Injectable for tests; defaults to the live /seatmap call. */
   fetchSeatMap?: SeatMapFetcher;
   /** Injectable for tests; defaults to the live /availability call. */
@@ -51,6 +54,7 @@ export function OptionSeatMapPanel({
   party,
   minScore,
   onClose,
+  onSelectDate,
   fetchSeatMap = apiFetchSeatMap,
   fetchAvailability = apiFetchAvailability,
   scoring = DEFAULT_SCORING,
@@ -101,7 +105,10 @@ export function OptionSeatMapPanel({
     <section className="hero optionseatmap" aria-label="Seat map">
       <div className="hero__head">
         <h3 className="hero__title">
-          {displayCinemaName(option)} · {formatTime(option.startsAt)}
+          {/* 47c fix #4: the booking handoff must show the full selected session identity — the
+             heading used to omit the date entirely, so the CTA was reached without on-screen
+             confirmation of which calendar date was being booked. */}
+          {displayCinemaName(option)} · {formatShortDate(option.date)} · {formatTime(option.startsAt)}
           <small>{chainLabel(option.chain)}</small>
         </h3>
         <div className="optionseatmap__actions">
@@ -126,7 +133,7 @@ export function OptionSeatMapPanel({
         <SeatMapView map={state.map} topN={topN} highlightSeatIds={state.map.block?.seatIds} />
       )}
       {availability.status === "ready" && (
-        <DateAvailabilityStrip availability={availability.data} />
+        <DateAvailabilityStrip availability={availability.data} onSelectDate={onSelectDate} />
       )}
     </section>
   );

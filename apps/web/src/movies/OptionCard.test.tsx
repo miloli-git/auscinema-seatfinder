@@ -52,6 +52,43 @@ describe("OptionCard", () => {
         onSelect={vi.fn()}
       />,
     );
-    expect(screen.getByText(/^Hoyts ·/)).toBeInTheDocument();
+    expect(screen.getByText(/Hoyts ·/)).toBeInTheDocument();
+  });
+
+  it("47c fix #1/#2: every card shows its own DATE, not just clock time — the fix for genuinely-ambiguous same-time-different-day cards", () => {
+    render(
+      <OptionCard
+        option={option({ date: "2026-07-21", startsAt: "2026-07-21T19:00:00.000Z" })}
+        party={2}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/Tue 21 Jul/)).toBeInTheDocument();
+  });
+
+  it("47c fix #14: Hoyts approximate-geometry chip uses the same visible copy as SeatMapView's chip, not the cryptic '(~)'", () => {
+    render(
+      <OptionCard
+        option={option({ chain: "hoyts", geometryConfidence: "approximate" })}
+        party={2}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Seat positions approximate")).toBeInTheDocument();
+    expect(screen.queryByText("(~)")).toBeNull();
+  });
+
+  it("47c fix #9: a non-qualifying card (Soonest good's pure re-rank, no silent filter) states its own honest sub-copy", () => {
+    render(
+      <OptionCard
+        option={option({ bestBlockScore: null })}
+        party={2}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/No qualifying block ·/)).toBeInTheDocument();
   });
 });

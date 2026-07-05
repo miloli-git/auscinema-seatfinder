@@ -32,6 +32,14 @@ export interface Option {
   geometryConfidence: "exact" | "approximate";
   freshness: OptionFreshness;
   bookingUrl: string;
+  /**
+   * CLIENT-ONLY augmentation, never sent by the API (47c fix #3): the actual per-day headcount used
+   * to produce THIS option's own fitTier/togetherCount/bestBlockScore, when the client fanned out
+   * /options per distinct group-mode day-count (see movies/groupOptions.ts). Absent in solo mode and
+   * in the raw API response — callers should read `option.effectiveParty ?? party` (the list-level
+   * fallback), never assume it's always set.
+   */
+  effectiveParty?: number;
 }
 
 /** Whole-response freshness object — byte-identical shape to /together's. Aggregate, page-level. */

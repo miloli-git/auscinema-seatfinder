@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { DateAvailabilityStrip } from "./DateAvailabilityStrip";
 import type { AvailabilityDate, AvailabilityResponse } from "./types";
 
@@ -80,5 +80,19 @@ describe("DateAvailabilityStrip", () => {
     render(<DateAvailabilityStrip availability={response([])} />);
     expect(screen.queryByRole("group")).toBeNull();
     expect(screen.getByRole("status")).toHaveTextContent("No cached dates yet for this movie.");
+  });
+
+  it("47c fix #5: cells are a real action when onSelectDate is provided (no longer an inert button)", () => {
+    const onSelectDate = vi.fn();
+    render(
+      <DateAvailabilityStrip
+        availability={response([date({ date: "2026-07-16" }), date({ date: "2026-07-17", state: "no-qualifying-block", bestBlockScore: null, soldHeldPct: null })])}
+        onSelectDate={onSelectDate}
+      />,
+    );
+    const cells = screen.getAllByRole("button");
+    fireEvent.click(cells[1]!);
+    expect(onSelectDate).toHaveBeenCalledWith("2026-07-17");
+    expect(cells[0]).toHaveAccessibleName(/^Show options for/);
   });
 });

@@ -7,6 +7,16 @@ import { formatShortDate, relativeTimeAgo } from "../format";
 import type { AvailabilityDate, AvailabilityResponse } from "./types";
 
 /**
+ * 47c fix #12: client-side guard alongside the server-side clamp in packages/api/src/availability.ts
+ * — a negative (or over-100) sold/held percentage reads as broken math, not an honest data state.
+ * Belt-and-braces: this module must never render a raw out-of-range value even if an unclamped
+ * response reaches the client (a stale deploy, a different upstream, etc).
+ */
+function clampPct(pct: number): number {
+  return Math.max(0, Math.min(100, pct));
+}
+
+/**
  * Header summary string, exact form from the locked spec (contract §6):
  * "Earliest 2 good seats: Tue 16 Jul (14 days out) · 81% sold/held as of 2h ago"
  *
@@ -23,7 +33,7 @@ export function composeHeaderSummary(res: AvailabilityResponse, now: number = Da
   const leadDays = res.earliestLeadDays ?? earliest.leadDays;
   let summary = `Earliest ${res.party} good seats: ${formatShortDate(earliest.date)} (${leadDays} days out)`;
   if (earliest.soldHeldPct !== null && earliest.asOf) {
-    summary += ` · ${earliest.soldHeldPct}% sold/held as of ${relativeTimeAgo(earliest.asOf, now)}`;
+    summary += ` · ${clampPct(earliest.soldHeldPct)}% sold/held as of ${relativeTimeAgo(earliest.asOf, now)}`;
   }
   return summary;
 }
@@ -74,7 +84,7 @@ export function cellAccessibleLabel(
   const parts = [`${formatShortDate(d.date)}: ${cellStateLabel(d, res)}`, `${d.leadDays} days out`];
   if (d.bestBlockScore !== null) parts.push(`best block score ${d.bestBlockScore}`);
   if (d.soldHeldPct !== null && d.asOf) {
-    parts.push(`${d.soldHeldPct}% sold/held as of ${relativeTimeAgo(d.asOf, now)}`);
+    parts.push(`${clampPct(d.soldHeldPct)}% sold/held as of ${relativeTimeAgo(d.asOf, now)}`);
   }
   return parts.join(" · ");
 }
