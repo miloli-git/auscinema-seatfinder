@@ -136,7 +136,20 @@ call. We fetch + cache it per adapter instance. Send a browser `User-Agent` + `A
   showtimes:[ { id, ScheduledFilmId(=Vista film id), date_time(+offset), auditorium, reservedSeating,
   availableSeats, totalNumberOfSeats, type, soldout } ] } ] } ] } ] }`. Per-cinema feed carries ALL
   movies + ALL dates; filter client-side by movie + date (cf. Hoyts). `ScheduledFilmId` is the portable
-  movie id; `slug` is the SPA film id used in the booking deep-link `/sessions/{sessionId}/{filmSlug}`.
+  movie id, AND is the id used in the booking deep-link (see below); `slug` is an unrelated numeric
+  SPA film id (not part of any working URL - do not use it for links).
+
+### Booking deep-link - cold-load verified (2026-07-05)
+Every direct/cold navigation to a bare deep route (`/`, `/cinemas/{slug}`, or the old
+`/sessions/{sessionId}/{slug}` form) 302s to `/movies/now-showing` in a fresh browser context - the
+SPA's router falls back to the homepage unless the URL is the *exact* route it produces itself.
+Browsing the live site (select cinema → click a showtime) shows the SPA's own link is
+**`/cinemas/{cinemaSlug}/sessions/{sessionId}/{ScheduledFilmId}`** (e.g.
+`/cinemas/belmont/sessions/190643/HO00004379`) - cinema-prefixed, and keyed by the Vista
+`ScheduledFilmId` (`HO...`), not the numeric `slug` field. This exact form **does** survive a cold
+load (verified: fresh headed-Chrome context navigating straight to the URL lands on the correct
+movie/cinema/session ticket-purchase modal, not the homepage). The adapter's `bookingUrl` uses this
+form.
 - `POST /ticketing/tickettypes` body
   `{ cinemaId, sessionId, reservedSeating, requestType:"seatPlan", covidFlag:0, countryId:"1",
   screenType, showLoyaltyTicket:true }` →

@@ -278,7 +278,6 @@ function parseSessions(
   for (const movie of movies) {
     if (!isObj(movie)) continue;
     const movieName = str(movie.name) ?? "";
-    const movieSlug = str(movie.slug) ?? ""; // SPA film id used in the booking deep-link
     for (const sd of arr(movie.showdates)) {
       if (!isObj(sd)) continue;
       const date = str(sd.date) ?? "";
@@ -310,7 +309,13 @@ function parseSessions(
                 ? Number.parseInt(sh.availableSeats, 10) || undefined
                 : undefined),
             seatAllocation: reservedSeating === 1,
-            bookingUrl: `${siteBase}/sessions/${sid}/${movieSlug}`,
+            // Cold-load verified (2026-07-05): the site's own session links are
+            // `/cinemas/{cinemaSlug}/sessions/{sessionId}/{VistaFilmId}` - the bare
+            // `/sessions/{id}/{slug}` form (no cinema prefix, numeric `slug`) 404s to
+            // /movies/now-showing on a fresh browser context. `movieId` here is already
+            // the Vista `ScheduledFilmId` (e.g. "HO00004380"), which is what the deep-link
+            // needs - NOT `movieSlug` (a numeric SPA film id, unrelated to the URL route).
+            bookingUrl: `${siteBase}/cinemas/${cinemaId}/sessions/${sid}/${movieId}`,
             attributes: arr(stype.amenities)
               .map((a) => str(a))
               .filter((a): a is string => !!a),

@@ -197,7 +197,11 @@ test("listSessions: filters per-cinema feed by movieId(ScheduledFilmId) + date, 
   assert.equal(first.format.kind, "standard");
   assert.equal(first.seatsAvailable, 304);
   assert.equal(first.seatAllocation, true);
-  assert.equal(first.bookingUrl, "https://readingcinemas.com.au/sessions/190222/10143");
+  // Cold-load verified format: /cinemas/{cinemaSlug}/sessions/{sessionId}/{VistaFilmId}.
+  assert.equal(
+    first.bookingUrl,
+    "https://readingcinemas.com.au/cinemas/belmont/sessions/190222/HO00004380",
+  );
 
   // Gold showtime normalises to the "goldclass" bucket and carries its own composite id.
   const gold = sessions.find((s) => s.format.raw === "Gold");
