@@ -3,6 +3,7 @@ import { QueryForm, DEFAULTS, type FormValues } from "./components/QueryForm";
 import { SessionCard } from "./components/SessionCard";
 import { SeatMapView } from "./components/SeatMapView";
 import { TogetherView } from "./components/TogetherView";
+import { MovieFirstView } from "./movies/MovieFirstView";
 import { fetchBest, fetchSeatMap, type ScoringParams, API_BASE } from "./api";
 import type { BestResponse, ScoredSeatMap, Session } from "./types";
 import { chainLabel, formatLabel, formatTime, largeFormatOnly, withinWindow } from "./format";
@@ -17,10 +18,12 @@ function scoringOf(v: FormValues): ScoringParams {
   };
 }
 
-type Mode = "best" | "together";
+type Mode = "movies" | "best" | "together";
 
 export function App() {
-  const [mode, setMode] = useState<Mode>("together");
+  // "movies" (the new movie-first entry, #47a) is the new default landing screen. The old
+  // together/best two-tab UI stays fully intact and reachable via its own tabs — unretired.
+  const [mode, setMode] = useState<Mode>("movies");
   const [values, setValues] = useState<FormValues>(DEFAULTS);
   const [result, setResult] = useState<BestResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -151,6 +154,15 @@ export function App() {
           <button
             type="button"
             role="tab"
+            aria-selected={mode === "movies"}
+            className={`btn btn--ghost${mode === "movies" ? " btn--on" : ""}`}
+            onClick={() => setMode("movies")}
+          >
+            Movies
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={mode === "together"}
             className={`btn btn--ghost${mode === "together" ? " btn--on" : ""}`}
             onClick={() => setMode("together")}
@@ -179,6 +191,8 @@ export function App() {
           </button>
         )}
       </header>
+
+      {mode === "movies" && <MovieFirstView />}
 
       {mode === "together" && <TogetherView />}
 
