@@ -34,6 +34,12 @@ import { HoytsAdapter } from "@auscinema/adapter-hoyts";
 import { ReadingAdapter } from "@auscinema/adapter-reading";
 import { VillageAdapter } from "@auscinema/adapter-village";
 import { createPoolFromEnv, type Pool } from "./db.js";
+import {
+  buildAvailabilityDates,
+  fetchAvailabilitySessions,
+  fetchSeatsBySession,
+  resolveSoldHeldThresholdPct,
+} from "./availability.js";
 
 // --- Errors -----------------------------------------------------------------
 
@@ -1027,6 +1033,72 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       count: options.length,
       options,
       freshness,
+    };
+  });
+
+  // GET /availability — cache-only, Together-only date-level lead-time summary for one movieKey
+  // (#47b contract). Same requirePool()/parseMovieKey/chain-mismatch pattern as /options; no live
+  // adapter calls, ever. All DB-read + per-day aggregation plumbing lives in ./availability.ts —
+  // packages/core/src/leadtime.ts is imported and called exactly as scripts/lead-time.ts does.
+  app.get("/availability", async (req: FastifyRequest) => {
+    const q = req.query as Query;
+    const movieKeyRaw = reqStr(q, "movieKey"); // 400 before any DB touch when missing
+    const { chain, movieId } = parseMovieKey(movieKeyRaw); // 400 on malformed/unknown-chain movieKey
+
+    const chainParam = optStr(q, "chain");
+    if (chainParam !== undefined && chainParam !== chain) {
+      throw new HttpError(400, "chain query param does not match movieKey's chain");
+    }
+    resolveAdapter(adapters, chain); // 400 on a chain with no adapter registered (registry check only)
+    const db = requirePool(); // 503 when the pool is not configured
+
+    const party = Math.max(1, optInt(q, "party") ?? 2);
+    const minScore = optInt(q, "minScore") ?? 74;
+    const cinemaId = optStr(q, "cinemaId");
+
+    const now = new Date();
+    const today = sydneyDate(now);
+
+    // Same P30.2 liveness filter as /together/§2's aggregation table (disappeared_at IS NULL AND
+    // date >= today), scoped to this movieKey[+cinemaId].
+    const sessions = await fetchAvailabilitySessions(db, { chain, movieId, cinemaId, today });
+    const seatsBySession =
+      sessions.length > 0 ? await fetchSeatsBySession(db, sessions.map((s) => s.id)) : new Map();
+
+    // maxCachedDate: furthest live (non-tombstoned, future) cached date FOR THIS movieKey[+cinemaId]
+    // — derived from the SAME live set just fetched (no second query needed).
+    const maxCachedDate = sessions.reduce<string | null>(
+      (max, s) => (max === null || s.date > max ? s.date : max),
+      null,
+    );
+    const horizonDateStr = horizonDate(today, resolveHorizonDays());
+    const rangeEnd = maxCachedDate ?? horizonDateStr;
+
+    const dates = buildAvailabilityDates(sessions, seatsBySession, {
+      party,
+      minScore,
+      today,
+      rangeEnd,
+      staleMs: freshnessStaleMs(),
+      soldHeldThresholdPct: resolveSoldHeldThresholdPct(),
+      now: now.getTime(),
+    });
+
+    // earliest: first `dates` row with state === "good-block" (chronological — `dates` is already
+    // ascending), NOT the best-scoring one.
+    const earliest = dates.find((d) => d.state === "good-block") ?? null;
+    const earliestLeadDays = earliest ? earliest.leadDays : null;
+
+    return {
+      movieKey: movieKeyRaw,
+      cinemaId: cinemaId ?? null,
+      party,
+      minScore,
+      horizonDate: horizonDateStr,
+      maxCachedDate,
+      earliest,
+      earliestLeadDays,
+      dates,
     };
   });
   });
