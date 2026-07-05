@@ -39,6 +39,9 @@ export interface SessionUpsert {
   seatsAvailable?: number;
   bookingUrl?: string;
   seatAllocation?: boolean;
+  /** Sellable capacity (#47b) — available+sold+unavailable seats from the full seat map, per the
+   *  shared core `isSeatable` predicate. Undefined when the caller didn't compute it this write. */
+  totalSeats?: number;
 }
 
 /** A `session_seats` row to upsert — AVAILABLE + scored seats only. */

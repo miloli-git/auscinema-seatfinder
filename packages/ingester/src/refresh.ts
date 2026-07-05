@@ -12,7 +12,7 @@ import type { Chain, SeatPreference, Session } from "@auscinema/core";
 import type { Pool } from "./db.js";
 import type { AdapterRegistry } from "./registry.js";
 import { upsertSessionWithSeats } from "./persist.js";
-import { sessionToUpsert, toSeatUpserts } from "./sweep.js";
+import { countSeatableTotal, sessionToUpsert, toSeatUpserts } from "./sweep.js";
 import { datesInRange, loadEnabledWatches, watchToQuery } from "./watches.js";
 import { effectiveWindow, resolveHorizonDays } from "./horizon.js";
 import type { SessionUpsert, WatchRow } from "./types.js";
@@ -642,7 +642,10 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
           if (!adapter) throw new Error(`no adapter for chain "${chain}"`);
           const map = await adapter.getSeatMap(id, { preview: true });
           const seats = toSeatUpserts(map, target.pref);
-          await upsertSessionWithSeats(pool, target.upsert, seats);
+          // #47b: refresh is a real second write path for total_seats — without this, a session's
+          // total_seats would silently regress to stale/null on every refresh after initial ingest.
+          const totalSeats = countSeatableTotal(map);
+          await upsertSessionWithSeats(pool, { ...target.upsert, totalSeats }, seats);
           chainStat(chain).refreshed++;
           refreshed++;
           if (target.isNew) sessionsNew++;

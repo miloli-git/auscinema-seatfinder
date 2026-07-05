@@ -10,6 +10,7 @@ import type {
   SessionQuery,
 } from "@auscinema/core";
 import {
+  countSeatableTotal,
   createPool,
   datesInRange,
   loadEnabledWatches,
@@ -244,6 +245,26 @@ test("toSeatUpserts stores available seats only and keeps scored zeroes", () => 
   assert.equal(rows.every((r) => r.score === 0), true, "available seats are retained even with zero score");
 });
 
+// #47b: sellable capacity from the FULL seat map (available+sold+unavailable), before
+// toSeatUpserts filters down to available-only. Same isSeatable predicate as scripts/lead-time.ts,
+// now shared from @auscinema/core rather than duplicated.
+test("countSeatableTotal counts available+sold+unavailable, excludes spacer/companion/special", () => {
+  const map = mapWith([
+    seat("a1", "A1", 1, 1, "available"),
+    seat("a2", "A2", 1, 2, "sold"),
+    seat("a3", "A3", 1, 3, "unavailable"),
+    seat("a4", "A4", 1, 4, "spacer"),
+    seat("a5", "A5", 1, 5, "companion"),
+    seat("a6", "A6", 1, 6, "special"),
+  ]);
+  assert.equal(countSeatableTotal(map), 3);
+});
+
+test("countSeatableTotal is 0 for an all-structural map", () => {
+  const map = mapWith([seat("a1", "A1", 1, 1, "spacer")]);
+  assert.equal(countSeatableTotal(map), 0);
+});
+
 test("toSeatUpserts returns an empty list for an all-sold seat map", () => {
   const rows = toSeatUpserts(
     mapWith([
@@ -440,6 +461,30 @@ test("runSweep upserts sessions and finishes exactly one ingest run", { skip: db
       errors: result.errors.length,
     },
   );
+});
+
+test("#47b runSweep writes total_seats (available+sold+unavailable) from the FULL seat map", { skip: dbSkip }, async () => {
+  await insertWatch();
+  const s = session("S-total", "2026-07-21T18:30");
+  const map = mapWith(
+    [
+      seat("t1", "A1", 1, 1, "available"),
+      seat("t2", "A2", 1, 2, "sold"),
+      seat("t3", "A3", 1, 3, "unavailable"),
+      seat("t4", "A4", 1, 4, "spacer"), // excluded from sellable capacity
+      seat("t5", "A5", 1, 5, "companion"), // excluded
+    ],
+    { sessionId: "S-total" },
+  );
+  const registry: AdapterRegistry = { event: stubAdapter([s], { "S-total": map }) };
+
+  await runSweep({ pool: requirePool(), registry });
+
+  const { rows } = await requirePool().query<{ total_seats: number | null }>(
+    "SELECT total_seats FROM sessions WHERE id = $1",
+    ["S-total"],
+  );
+  assert.equal(rows[0]!.total_seats, 3);
 });
 
 test("runSweep isolates a mid-sweep getSeatMap failure", { skip: dbSkip }, async () => {
