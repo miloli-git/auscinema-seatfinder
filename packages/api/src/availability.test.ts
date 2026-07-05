@@ -260,6 +260,19 @@ describe("buildAvailabilityDates — #86 fix: tier-aware staleness gate", () => 
     assert.equal(fixtureAt(7, (6 * 60 + 1) * 60_000, 1).state, "stale");
   });
 
+  test("T0/T1 lower boundary (diff=2): first day OUT of T0 classifies T1, not T0 (PR #87 review)", () => {
+    assert.equal(tierForDayDiff(2), "T1");
+    // Behavioural check at margin 1: a 2h-old session 2 days out is fine under T1's 6h TTL but would
+    // have been stale under T0's 1h TTL — proves the diff=2 date really gets the T1 threshold.
+    assert.equal(fixtureAt(2, 2 * 60 * 60_000, 1).state, "good-block");
+  });
+
+  test("default-margin boundary (PR #87 review): age exactly TTL*1.5 -> stale (gate is >=), just under -> good-block", () => {
+    const t2ThresholdMs = 24 * 60 * 60_000 * DEFAULT_STALE_MARGIN; // 36h at the default margin
+    assert.equal(fixtureAt(14, t2ThresholdMs).state, "stale"); // exactly at threshold: stale (>=)
+    assert.equal(fixtureAt(14, t2ThresholdMs - 60_000).state, "good-block"); // 1min under: fresh
+  });
+
   test("T2 boundary (diff=8, 24h TTL, margin 1): just under threshold -> good-block, just over -> stale", () => {
     assert.equal(tierForDayDiff(8), "T2");
     assert.equal(fixtureAt(8, (24 * 60 - 1) * 60_000, 1).state, "good-block");

@@ -150,6 +150,48 @@ describe("composeHeaderSummary", () => {
       const noDataSummary = composeHeaderSummary(noDataRes, now, { variesByDay: true, earliestParty: null });
       expect(noDataSummary).toBe("No fresh availability data for your group in the next 1 day");
     });
+
+    it("PR #87 review BLOCKER — mixed freshness: a fresh-checked-and-disqualified today must NOT scope an absence claim over the whole horizon when a stale-but-qualifying date exists later; earliestStale wins", () => {
+      // Today is fresh but oversold (sold-held-now); a T2 date 14 days out is stale-but-qualifying.
+      // The old hasFreshCheckedDate-first ordering returned "No good 2-seat block found in the next
+      // 15 days" — a false absence claim over the WHOLE horizon backed by ONE fresh date. The
+      // stale-but-qualifying branch must win.
+      const res = response({
+        earliest: null,
+        earliestLeadDays: null,
+        party: 2,
+        dates: [
+          date({ date: "2026-07-16", state: "sold-held-now", leadDays: 0, bestBlockScore: null, soldHeldPct: 95 }),
+          date({ date: "2026-07-30", state: "stale", leadDays: 14, bestBlockScore: null, soldHeldPct: null, asOf: "2026-07-15T04:30:00.000Z" }),
+        ],
+        earliestStale: date({ date: "2026-07-30", state: "stale", leadDays: 14, bestBlockScore: 88, soldHeldPct: 40, asOf: "2026-07-15T04:30:00.000Z" }),
+      });
+      const summary = composeHeaderSummary(res, now);
+      expect(summary).toContain("Earliest 2 good seats");
+      expect(summary).toContain("Thu 30 Jul");
+      expect(summary).toContain("14 days out");
+      expect(summary).toMatch(/as of/i);
+      expect(summary).not.toMatch(/No good/i);
+      assertNoForecastLanguage(summary);
+    });
+
+    it("PR #87 review BLOCKER — mixed freshness, group mode: earliestStale wins over a fresh-disqualified date there too", () => {
+      const res = response({
+        earliest: null,
+        earliestLeadDays: null,
+        dates: [
+          date({ date: "2026-07-16", state: "no-qualifying-block", leadDays: 0, bestBlockScore: null, soldHeldPct: 40 }),
+          date({ date: "2026-07-30", state: "stale", leadDays: 14, bestBlockScore: null, soldHeldPct: null, asOf: null }),
+        ],
+        earliestStale: date({ date: "2026-07-30", state: "stale", leadDays: 14, bestBlockScore: 88, soldHeldPct: null, asOf: null }),
+      });
+      const summary = composeHeaderSummary(res, now, { variesByDay: true, earliestParty: 6 });
+      expect(summary).toContain("Earliest good seats for your group");
+      expect(summary).toContain("6 people");
+      expect(summary).toContain("14 days out");
+      expect(summary).not.toMatch(/No good/i);
+      assertNoForecastLanguage(summary);
+    });
   });
 
   it("PR #82 review point 4: singular day copy in the non-group branches — '1 day out' / 'next 1 day', never '1 days'", () => {

@@ -50,14 +50,17 @@ export interface HeaderSummaryGroupInfo {
  * "Earliest good seats for your group: Tue 8 Jul (6 people, 3 days out) · ...".
  *
  * #86 fix: when `earliest` is null, the header used to always assert absence ("No good {party}-seat
- * block found...") — but that claim is only honest when the cached horizon was actually FRESHLY
- * checked and genuinely came up empty. Three distinct null-`earliest` cases, in priority order:
- *   1. At least one date was freshly examined and didn't qualify (`no-qualifying-block`/
- *      `sold-held-now` reachable in `dates[]`) → the absence claim is true and fresh; keep the
- *      original "No good {party}-seat block found" copy.
- *   2. No fresh date exists, but `res.earliestStale` is set (a stale-but-qualifying date exists) →
- *      surface THAT date with an honest "as of" qualifier — never claim absence when a qualifying
- *      row exists below, just stale.
+ * block found...") — but that claim is only honest when NO qualifying data exists anywhere in the
+ * horizon, fresh or stale. Three distinct null-`earliest` cases, in priority order:
+ *   1. `res.earliestStale` is set (a stale-but-qualifying date exists) → surface THAT date with an
+ *      honest "as of" qualifier — never claim absence when a qualifying row exists below, just
+ *      stale. This is checked FIRST (PR #87 review BLOCKER): a single freshly-checked-and-
+ *      disqualified date (e.g. today oversold) must not scope an absence claim over the WHOLE
+ *      horizon while a stale-but-qualifying date sits 14 days out — that would be the exact #86
+ *      false-absence bug again through a mixed-freshness combination.
+ *   2. No stale-but-qualifying date, but at least one date was freshly examined and didn't qualify
+ *      (`no-qualifying-block`/`sold-held-now` reachable in `dates[]`) → the absence claim is backed
+ *      by fresh evidence; keep the original "No good {party}-seat block found" copy.
  *   3. Neither of the above (every date is `not-cached`, or stale-and-non-qualifying) → there is
  *      truly no data to judge from; say so plainly ("No fresh availability data...") rather than
  *      asserting a negative the cache can't actually back up.
@@ -70,14 +73,6 @@ export function composeHeaderSummary(
   const { earliest } = res;
   const variesByDay = group?.variesByDay ?? false;
   if (!earliest) {
-    const hasFreshCheckedDate = res.dates.some(
-      (d) => d.state === "no-qualifying-block" || d.state === "sold-held-now",
-    );
-    if (hasFreshCheckedDate) {
-      return variesByDay
-        ? `No good seats found for your group in the next ${pluralDays(res.dates.length)}`
-        : `No good ${res.party}-seat block found in the next ${pluralDays(res.dates.length)}`;
-    }
     const stale = res.earliestStale;
     if (stale) {
       const leadDays = stale.leadDays;
@@ -85,6 +80,14 @@ export function composeHeaderSummary(
       return variesByDay
         ? `Earliest good seats for your group${asOfSuffix}: ${formatShortDate(stale.date)} (${group?.earliestParty ?? res.party} people, ${pluralDays(leadDays)} out)`
         : `Earliest ${pluralGoodSeats(res.party)}${asOfSuffix}: ${formatShortDate(stale.date)} (${pluralDays(leadDays)} out)`;
+    }
+    const hasFreshCheckedDate = res.dates.some(
+      (d) => d.state === "no-qualifying-block" || d.state === "sold-held-now",
+    );
+    if (hasFreshCheckedDate) {
+      return variesByDay
+        ? `No good seats found for your group in the next ${pluralDays(res.dates.length)}`
+        : `No good ${res.party}-seat block found in the next ${pluralDays(res.dates.length)}`;
     }
     return variesByDay
       ? `No fresh availability data for your group in the next ${pluralDays(res.dates.length)}`
