@@ -18,10 +18,13 @@ import {
   scoreAvailableSeats,
   bestSeatScore,
   findAdjacentBlocks,
+  classifyFormat,
+  computeFitTier,
   UpstreamError,
   type BlockSeat,
   type Chain,
   type ChainAdapter,
+  type FitTier,
   type ScoredSeat,
   type SeatPreference,
   type Session,
@@ -318,6 +321,25 @@ function buildSessionFilter(opts: {
   if (opts.dateTo !== undefined) add("date <= $?", opts.dateTo);
 
   return { where: clauses.join(" AND "), params };
+}
+
+// --- #47a movieKey parsing ---------------------------------------------------
+
+const MOVIE_KEY_CHAINS: ReadonlySet<string> = new Set<Chain>(["event", "hoyts", "reading", "village"]);
+
+/**
+ * `"<chain>:<movieId>"` (contract §3). Split on the FIRST colon — `chain` is one of four known
+ * colon-free tokens, so this is safe even if a future `movieId` ever contained one. 400 on missing
+ * `:`, empty chain, empty id, or an unknown chain token.
+ */
+function parseMovieKey(raw: string): { chain: Chain; movieId: string } {
+  const idx = raw.indexOf(":");
+  if (idx < 0) throw new HttpError(400, 'movieKey must be "<chain>:<movieId>"');
+  const chain = raw.slice(0, idx);
+  const movieId = raw.slice(idx + 1);
+  if (!chain || !movieId) throw new HttpError(400, 'movieKey must be "<chain>:<movieId>"');
+  if (!MOVIE_KEY_CHAINS.has(chain)) throw new HttpError(400, `unknown chain in movieKey: ${chain}`);
+  return { chain: chain as Chain, movieId };
 }
 
 // --- P30.3 (C7) /together freshness metadata --------------------------------
@@ -804,12 +826,207 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       [...params, sydneyToday],
     );
 
+    // #47a §2: `titles` — what Screen 0's movie list actually renders. Derived with the SAME liveness
+    // filter `/together` applies (disappeared_at IS NULL AND date >= today), NOT the unfiltered
+    // `movies` query above (which predates this need and would show titles with zero bookable
+    // sessions). `names` picks one deterministic name per (chain, movie_id) via the same DISTINCT ON /
+    // NULLS LAST convention as `movies`/`cinemas`; `counts` aggregates session_count over the same
+    // liveness-filtered set.
+    const titlesWhere = [`disappeared_at IS NULL`, `date >= $${params.length + 1}`];
+    if (chain !== undefined) titlesWhere.push(`chain = $1`);
+    const titlesParams = [...params, sydneyToday];
+    const titlesRes = await db.query<{ movieKey: string; chain: string; title: string | null; sessionCount: number }>(
+      `WITH live AS (
+         SELECT chain, movie_id, movie_name FROM sessions WHERE ${titlesWhere.join(" AND ")}
+       ),
+       names AS (
+         SELECT DISTINCT ON (chain, movie_id) chain, movie_id, movie_name AS title
+           FROM live
+          ORDER BY chain, movie_id, movie_name NULLS LAST
+       ),
+       counts AS (
+         SELECT chain, movie_id, COUNT(*)::int AS session_count FROM live GROUP BY chain, movie_id
+       )
+       SELECT (n.chain || ':' || n.movie_id) AS "movieKey", n.chain, n.title,
+              c.session_count AS "sessionCount"
+         FROM names n JOIN counts c USING (chain, movie_id)
+        ORDER BY n.title NULLS LAST, n.movie_id`,
+      titlesParams,
+    );
+    // "" if genuinely null in cache (§2) — never coalesce to movieId.
+    const titles = titlesRes.rows.map((r) => ({
+      movieKey: r.movieKey,
+      chain: r.chain,
+      title: r.title ?? "",
+      sessionCount: r.sessionCount,
+    }));
+
     return {
       movies: movies.rows,
       cinemas: cinemas.rows,
       dates: dates.rows.map((r) => r.date),
       horizonDate: horizonDate(sydneyToday, resolveHorizonDays()),
       maxCachedDate: maxRes.rows[0]?.max ?? null,
+      titles,
+    };
+  });
+
+  // GET /options — cache-only ranked (cinema, session) candidates for one movieKey (#47a contract).
+  // Same requirePool() cache-only pattern as /together; no live adapter calls, ever.
+  app.get("/options", async (req: FastifyRequest) => {
+    const q = req.query as Query;
+    const movieKeyRaw = reqStr(q, "movieKey"); // 400 before any DB touch when missing
+    const { chain, movieId } = parseMovieKey(movieKeyRaw); // 400 on malformed/unknown-chain movieKey
+
+    const chainParam = optStr(q, "chain");
+    if (chainParam !== undefined && chainParam !== chain) {
+      throw new HttpError(400, "chain query param does not match movieKey's chain");
+    }
+    resolveAdapter(adapters, chain); // 400 on a chain with no adapter registered (registry check only)
+    const db = requirePool(); // 503 when the pool is not configured
+
+    const party = Math.max(1, optInt(q, "party") ?? 2);
+    const minScore = optInt(q, "minScore") ?? 74;
+
+    const now = new Date();
+    const today = sydneyDate(now);
+
+    // Same P30.2 liveness filter as /together: tombstoned rows and past-date sessions excluded.
+    // cinemaName (§5, #67): COALESCE a blank/NULL cinema_name with the most recently fetched
+    // non-blank name cached for the SAME (chain, cinema_id) — a cache-only, self-healing fallback for
+    // rows ingested before the #67 adapter fix landed (see the fix in
+    // packages/adapters/hoyts|reading/src/index.ts). /options stays cache-only per contract §4 ("no
+    // live adapter calls"), so this deliberately does NOT call adapter.listCinemas() live; once ANY
+    // session for that cinema is re-ingested post-fix, every other cached row for it self-heals here
+    // too. A cinema with ZERO backfilled rows anywhere in the cache still surfaces "" until its first
+    // post-fix ingest — a known, accepted transitional gap (contract §5 explicitly permits pre-fix
+    // rows to stay blank until their next refresh).
+    const sessionsRes = await db.query<SessionRow>(
+      `SELECT id, chain, movie_id, movie_name, cinema_id,
+              COALESCE(NULLIF(cinema_name, ''), (
+                SELECT s2.cinema_name FROM sessions s2
+                 WHERE s2.chain = sessions.chain AND s2.cinema_id = sessions.cinema_id
+                   AND s2.cinema_name IS NOT NULL AND s2.cinema_name <> ''
+                 ORDER BY s2.fetched_at DESC LIMIT 1
+              )) AS cinema_name,
+              date::text AS date,
+              to_char(start_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS start_time,
+              format, screen, seats_available, booking_url, seat_allocation,
+              to_char(fetched_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS fetched_at
+         FROM sessions
+        WHERE chain = $1 AND movie_id = $2 AND disappeared_at IS NULL AND date >= $3`,
+      [chain, movieId, today],
+    );
+    const sessions = sessionsRes.rows;
+
+    // Aggregate freshness: identical helper/shape to /together's, computed from the SAME live set.
+    const freshness = await computeFreshness(db, chain, sessions, now);
+
+    // movieTitle: same DISTINCT-ON/NULLS-LAST convention /catalog uses for `movies`, but NOT
+    // liveness-filtered — a title should still resolve even when the live session count is 0 (e.g.
+    // between refreshes), matching /catalog's `movies` field's own (unfiltered) semantics.
+    const titleRes = await db.query<{ name: string | null }>(
+      `SELECT name FROM (
+         SELECT DISTINCT ON (chain, movie_id) movie_name AS name
+           FROM sessions WHERE chain = $1 AND movie_id = $2
+          ORDER BY chain, movie_id, movie_name NULLS LAST
+       ) t`,
+      [chain, movieId],
+    );
+    const movieTitle = titleRes.rows[0]?.name ?? "";
+
+    if (sessions.length === 0) {
+      return { movieKey: movieKeyRaw, movieTitle, party, minScore, count: 0, options: [], freshness };
+    }
+
+    const ids = sessions.map((s) => s.id);
+    const seatsRes = await db.query<SeatRow>(
+      `SELECT session_id, seat_id, row_label, row, col, score
+         FROM session_seats
+        WHERE session_id = ANY($1::text[])`,
+      [ids],
+    );
+    const seatsBySession = new Map<string, BlockSeat[]>();
+    for (const s of seatsRes.rows) {
+      let arr = seatsBySession.get(s.session_id);
+      if (!arr) {
+        arr = [];
+        seatsBySession.set(s.session_id, arr);
+      }
+      arr.push({ id: s.seat_id, rowLabel: s.row_label ?? "", row: s.row, col: s.col, score: s.score });
+    }
+
+    const staleMs = freshnessStaleMs();
+    interface Option {
+      chain: string;
+      cinemaId: string;
+      cinemaName: string;
+      sessionId: string;
+      startsAt: string;
+      date: string;
+      format: string;
+      isLargeFormat: boolean;
+      formatRank: 0 | 1 | 2;
+      bestBlockScore: number | null;
+      bestBlockSize: number | null;
+      fitTier: FitTier;
+      togetherCount: number;
+      geometryConfidence: "exact" | "approximate";
+      freshness: { asOf: string; state: "fresh" | "stale" };
+      bookingUrl: string;
+    }
+
+    const options: Option[] = sessions.map((row) => {
+      const seats = seatsBySession.get(row.id) ?? [];
+      const fit = computeFitTier(seats, minScore, party);
+      const rawFormat = row.format ?? "";
+      const { formatRank, isLargeFormat } = classifyFormat(rawFormat);
+      // Per-card freshness (§1.3): this session's OWN fetched_at, independent of the top-level
+      // aggregate `freshness` object — two sessions in the same response can honestly differ.
+      const age = now.getTime() - Date.parse(row.fetched_at);
+      const state: "fresh" | "stale" = age < staleMs ? "fresh" : "stale";
+      return {
+        chain: row.chain,
+        cinemaId: row.cinema_id,
+        cinemaName: row.cinema_name ?? "",
+        sessionId: row.id,
+        startsAt: row.start_time ?? "",
+        date: row.date,
+        format: rawFormat,
+        isLargeFormat,
+        formatRank,
+        bestBlockScore: fit.bestBlockScore,
+        bestBlockSize: fit.bestBlockSize,
+        fitTier: fit.fitTier,
+        togetherCount: fit.togetherCount,
+        geometryConfidence: row.chain === "hoyts" ? "approximate" : "exact",
+        freshness: { asOf: row.fetched_at, state },
+        bookingUrl: row.booking_url ?? "",
+      };
+    });
+
+    // Default order = "most together" (contract §1.5/§1.6 — the only server-sorted lens): fitTier
+    // rank (together > nearby > split) desc, then togetherCount desc, then bestBlockScore desc
+    // (nulls last), then startsAt asc. Hoyts rows are NOT excluded or re-sorted specially.
+    const TIER_RANK: Record<FitTier, number> = { together: 2, nearby: 1, split: 0 };
+    options.sort((a, b) => {
+      const tier = TIER_RANK[b.fitTier] - TIER_RANK[a.fitTier];
+      if (tier !== 0) return tier;
+      if (b.togetherCount !== a.togetherCount) return b.togetherCount - a.togetherCount;
+      const av = a.bestBlockScore ?? Number.NEGATIVE_INFINITY;
+      const bv = b.bestBlockScore ?? Number.NEGATIVE_INFINITY;
+      if (bv !== av) return bv - av;
+      return a.startsAt < b.startsAt ? -1 : a.startsAt > b.startsAt ? 1 : 0;
+    });
+
+    return {
+      movieKey: movieKeyRaw,
+      movieTitle,
+      party,
+      minScore,
+      count: options.length,
+      options,
+      freshness,
     };
   });
   });

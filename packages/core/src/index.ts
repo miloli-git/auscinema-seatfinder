@@ -4,3 +4,5 @@ export * from "./scoring.js";
 export * from "./blocks.js";
 export * from "./leadtime.js";
 export * from "./errors.js";
+export * from "./format-classifier.js";
+export * from "./fit-tier.js";

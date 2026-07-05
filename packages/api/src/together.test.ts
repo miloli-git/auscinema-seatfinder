@@ -107,6 +107,7 @@ type CatalogResponse = {
   dates: string[];
   horizonDate: string;
   maxCachedDate: string | null;
+  titles: Array<{ movieKey: string; chain: string; title: string; sessionCount: number }>;
 };
 
 const MS_PER_DAY = 86_400_000;
@@ -257,9 +258,20 @@ function assertTogetherShape(body: TogetherResponse): void {
 }
 
 function assertCatalogShape(body: CatalogResponse): void {
-  assert.deepEqual(Object.keys(body).sort(), ["cinemas", "dates", "horizonDate", "maxCachedDate", "movies"]);
+  // #47a §2: `titles` is additive; every existing key is unchanged.
+  assert.deepEqual(Object.keys(body).sort(), [
+    "cinemas",
+    "dates",
+    "horizonDate",
+    "maxCachedDate",
+    "movies",
+    "titles",
+  ]);
   for (const movie of body.movies) assert.deepEqual(Object.keys(movie).sort(), ["chain", "id", "name"]);
   for (const cinema of body.cinemas) assert.deepEqual(Object.keys(cinema).sort(), ["chain", "id", "name"]);
+  for (const title of body.titles) {
+    assert.deepEqual(Object.keys(title).sort(), ["chain", "movieKey", "sessionCount", "title"]);
+  }
 }
 
 function resultIds(body: TogetherResponse): string[] {
@@ -603,6 +615,11 @@ test("/catalog returns distinct sorted movies, cinemas, and dates", { skip: dbSk
     dates: ["2099-06-25", "2099-06-26", "2099-06-27"],
     horizonDate: expectedCatalogHorizonDate(),
     maxCachedDate: "2099-06-27",
+    titles: [
+      { movieKey: "event:M-A", chain: "event", title: "Alpha", sessionCount: 1 },
+      { movieKey: "hoyts:M-B", chain: "hoyts", title: "Beta", sessionCount: 1 },
+      { movieKey: "event:M-Z", chain: "event", title: "Zed", sessionCount: 2 },
+    ],
   });
 });
 
@@ -635,6 +652,7 @@ test("/catalog?chain=event scopes movies, cinemas, and dates to that chain", { s
     dates: ["2099-06-25"],
     horizonDate: expectedCatalogHorizonDate(),
     maxCachedDate: "2099-06-25",
+    titles: [{ movieKey: "event:M-event", chain: "event", title: "Event Movie", sessionCount: 1 }],
   });
 });
 
@@ -647,6 +665,7 @@ test("/catalog on an empty DB returns empty arrays", { skip: dbSkip }, async () 
     dates: [],
     horizonDate: expectedCatalogHorizonDate(),
     maxCachedDate: null,
+    titles: [],
   });
 });
 
