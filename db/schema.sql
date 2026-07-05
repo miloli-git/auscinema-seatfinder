@@ -103,3 +103,13 @@ CREATE INDEX IF NOT EXISTS idx_session_seats_session_rowcol     ON session_seats
 -- Existing rows get NULL. Old code tolerates NULL. Re-appliable via IF NOT EXISTS.
 ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS disappeared_at TIMESTAMPTZ NULL;
 CREATE INDEX IF NOT EXISTS idx_sessions_disappeared_at ON sessions (disappeared_at);
+
+-- /options cinemaName fallback (#47a §5, #67 review follow-up). The COALESCE subquery in
+-- GET /options looks up the most recent non-blank cinema_name for the SAME (chain, cinema_id) when
+-- the row's own cinema_name is blank/NULL. On deploy day every cached Hoyts/Reading row is
+-- blank-named (#67), so this correlated subquery fires per row; without a supporting index it has
+-- no efficient plan. Partial index (only rows that can satisfy the subquery's own WHERE) keeps it
+-- small and lets fetched_at DESC serve the "most recent" ORDER BY ... LIMIT 1 directly.
+CREATE INDEX IF NOT EXISTS idx_sessions_chain_cinema_fetched
+  ON sessions (chain, cinema_id, fetched_at DESC)
+  WHERE cinema_name IS NOT NULL AND cinema_name <> '';
