@@ -150,6 +150,39 @@ export function isUpcoming(startTime: string, now: { date: string; time: string 
 }
 
 /**
+ * "2026-07-16" -> "Tue 16 Jul" (no comma — en-AU's toLocaleDateString would insert one). Used by
+ * the #47b date-availability header summary/strip; built via formatToParts rather than string
+ * concatenation of toLocaleDateString output so the exact "Weekday D Mon" shape from the contract's
+ * copy example is guaranteed regardless of locale punctuation quirks.
+ */
+export function formatShortDate(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  // en-GB (not en-AU, which renders a full "July" for the "short" month style in this ICU build) —
+  // same locale sydneyNow() already uses, and it gives the "Jul" abbreviation the contract's copy
+  // example needs.
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).formatToParts(d);
+  const get = (t: string): string => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("weekday")} ${get("day")} ${get("month")}`;
+}
+
+/**
+ * "as of {relative}" fragment for a true UTC instant, e.g. "2h ago" / "moments ago". Shared by the
+ * #47b header summary and date-strip cell labels (contract §6: every sold/held number must carry a
+ * relative timestamp, never presented as a bare live fact). `now` is injectable for deterministic
+ * tests, same convention as freshnessLabel (movies/present.ts).
+ */
+export function relativeTimeAgo(iso: string, now: number = Date.now()): string {
+  const ms = Math.max(0, now - new Date(iso).getTime());
+  const hours = Math.round(ms / 3_600_000);
+  return hours < 1 ? "moments ago" : `${hours}h ago`;
+}
+
+/**
  * Render a TRUE UTC instant (e.g. a session's `fetched_at` "2026-06-25T01:04:17Z") in Sydney local
  * time, e.g. "11:04 am". Distinct from formatTime(), which reads a local-wall-time string as-is and
  * would print the UTC hour (the "as of 1:04 AM" bug, #44).

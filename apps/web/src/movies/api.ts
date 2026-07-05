@@ -5,9 +5,12 @@
 // production this fallback never fires — a real failure surfaces as a real error to the caller.
 
 import { API_BASE, fetchCatalog } from "../api";
-import type { CatalogTitle, OptionsResponse } from "./types";
+import type { AvailabilityResponse, CatalogTitle, OptionsResponse } from "./types";
 import {
+  AVAILABILITY_FIXTURE,
+  AVAILABILITY_FIXTURES_BY_CHAIN,
   CATALOG_TITLES_FIXTURE,
+  NO_GOOD_SEATS_AVAILABILITY_FIXTURE,
   NO_GOOD_SEATS_OPTIONS_FIXTURE,
   OPTIONS_FIXTURE,
   OPTIONS_FIXTURES_BY_CHAIN,
@@ -83,6 +86,46 @@ export async function fetchCatalogTitles(chain?: string): Promise<CatalogTitle[]
     if (isDev()) {
       console.warn("[/catalog titles] live API unavailable, using contract fixture mock data", err);
       return CATALOG_TITLES_FIXTURE;
+    }
+    throw err;
+  }
+}
+
+export interface AvailabilityQuery {
+  movieKey: string;
+  party?: number;
+  minScore?: number;
+  cinemaId?: string;
+  chain?: string;
+}
+
+/** Picks the matching dev-mode fixture by movieKey, mirroring fixtureFor() above (never mixing
+ *  chains into one response). `cinemaId` is echoed onto the fixture per the contract's "echoes the
+ *  request; null when unscoped" rule (§1.2) — the fixture itself is always cinema-unscoped. */
+function fixtureForAvailability(movieKey: string, cinemaId?: string): AvailabilityResponse {
+  const base =
+    movieKey === NO_GOOD_SEATS_AVAILABILITY_FIXTURE.movieKey
+      ? NO_GOOD_SEATS_AVAILABILITY_FIXTURE
+      : (AVAILABILITY_FIXTURES_BY_CHAIN[movieKey.split(":")[0] ?? ""] ?? AVAILABILITY_FIXTURE);
+  return { ...base, movieKey: movieKey || base.movieKey, cinemaId: cinemaId ?? null };
+}
+
+/** GET /availability?movieKey&party&minScore[&cinemaId|chain] (docs/47b-contract.md §1.1). Falls
+ *  back to the contract fixture in dev mode on any failure — the same pattern fetchOptions uses,
+ *  since /availability is being built in parallel by another agent and has no live implementation
+ *  yet either. */
+export async function fetchAvailability(q: AvailabilityQuery): Promise<AvailabilityResponse> {
+  const qs = new URLSearchParams({ movieKey: q.movieKey });
+  if (q.party !== undefined) qs.set("party", String(q.party));
+  if (q.minScore !== undefined) qs.set("minScore", String(q.minScore));
+  if (q.cinemaId !== undefined) qs.set("cinemaId", q.cinemaId);
+  if (q.chain !== undefined) qs.set("chain", q.chain);
+  try {
+    return await getJson<AvailabilityResponse>("/availability", qs);
+  } catch (err) {
+    if (isDev()) {
+      console.warn("[/availability] live API unavailable, using contract fixture mock data", err);
+      return fixtureForAvailability(q.movieKey, q.cinemaId);
     }
     throw err;
   }

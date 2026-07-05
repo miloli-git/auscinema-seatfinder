@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MovieFirstView } from "./MovieFirstView";
-import { fetchCatalogTitles, fetchOptions } from "./api";
-import type { CatalogTitle, Option, OptionsResponse } from "./types";
+import { fetchAvailability, fetchCatalogTitles, fetchOptions } from "./api";
+import type { AvailabilityResponse, CatalogTitle, Option, OptionsResponse } from "./types";
 
 vi.mock("./api", () => ({
   fetchCatalogTitles: vi.fn(),
   fetchOptions: vi.fn(),
+  fetchAvailability: vi.fn(),
 }));
 
 // The tap-through seat map hits the real (unmocked) fetchSeatMap in ../api, which would attempt a
@@ -25,6 +26,35 @@ vi.mock("../api", async (importActual) => ({
 
 const mockFetchCatalogTitles = vi.mocked(fetchCatalogTitles);
 const mockFetchOptions = vi.mocked(fetchOptions);
+const mockFetchAvailability = vi.mocked(fetchAvailability);
+
+const AVAILABILITY_RESPONSE: AvailabilityResponse = {
+  movieKey: "event:555",
+  cinemaId: null,
+  party: 2,
+  minScore: 74,
+  horizonDate: "2026-08-25",
+  maxCachedDate: "2026-08-05",
+  earliest: {
+    date: "2026-07-23",
+    state: "good-block",
+    leadDays: 2,
+    bestBlockScore: 91,
+    soldHeldPct: 81,
+    asOf: "2026-07-21T00:00:00.000Z",
+  },
+  earliestLeadDays: 2,
+  dates: [
+    {
+      date: "2026-07-23",
+      state: "good-block",
+      leadDays: 2,
+      bestBlockScore: 91,
+      soldHeldPct: 81,
+      asOf: "2026-07-21T00:00:00.000Z",
+    },
+  ],
+};
 
 const TITLES: CatalogTitle[] = [
   { movieKey: "event:555", chain: "event", title: "Dune: Part Two", sessionCount: 12 },
@@ -73,6 +103,8 @@ describe("MovieFirstView", () => {
   beforeEach(() => {
     mockFetchCatalogTitles.mockReset();
     mockFetchOptions.mockReset();
+    mockFetchAvailability.mockReset();
+    mockFetchAvailability.mockResolvedValue(AVAILABILITY_RESPONSE);
   });
 
   it("Screen 0 -> pick a movie -> fetches and renders the option list", async () => {
@@ -146,5 +178,38 @@ describe("MovieFirstView", () => {
 
     const bookLink = await screen.findByRole("link", { name: /Book on Event Cinemas/i });
     expect(bookLink).toHaveAttribute("href", "https://book.test/x");
+  });
+
+  it("47b: renders the header availability summary once /availability resolves", async () => {
+    mockFetchCatalogTitles.mockResolvedValue(TITLES);
+    mockFetchOptions.mockResolvedValue(optionsResponse([option({})]));
+
+    render(<MovieFirstView />);
+    fireEvent.click(await screen.findByRole("button", { name: /Dune: Part Two/ }));
+
+    expect(
+      await screen.findByText(/Earliest 2 good seats: .* \(2 days out\) · 81% sold\/held as of/),
+    ).toBeInTheDocument();
+    expect(mockFetchAvailability).toHaveBeenCalledWith({ movieKey: "event:555", party: 2, minScore: 74 });
+  });
+
+  it("47b: tap-through renders the date-availability strip scoped to the option's cinema", async () => {
+    mockFetchCatalogTitles.mockResolvedValue(TITLES);
+    mockFetchOptions.mockResolvedValue(optionsResponse([option({ cinemaId: "12" })]));
+
+    render(<MovieFirstView />);
+    fireEvent.click(await screen.findByRole("button", { name: /Dune: Part Two/ }));
+    const card = await screen.findByText(/Event George St/);
+    fireEvent.click(card.closest("button")!);
+
+    expect(await screen.findByRole("group", { name: "Date availability" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mockFetchAvailability).toHaveBeenCalledWith({
+        movieKey: "event:555",
+        party: 2,
+        minScore: 74,
+        cinemaId: "12",
+      }),
+    );
   });
 });

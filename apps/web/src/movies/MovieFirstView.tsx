@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchCatalogTitles, fetchOptions } from "./api";
+import { AvailabilitySummary } from "./AvailabilitySummary";
 import { ContextBar, type DayCount } from "./ContextBar";
 import { MovieList } from "./MovieList";
 import { OptionList } from "./OptionList";
@@ -167,6 +168,8 @@ export function MovieFirstView() {
         <h2 className="movieforward__title">{movieTitle || movieKey}</h2>
       </div>
 
+      <AvailabilitySummary movieKey={movieKey} party={effectiveParty} minScore={minScore} />
+
       <ContextBar
         groupMode={groupMode}
         onToggleGroupMode={setGroupMode}
@@ -201,6 +204,7 @@ export function MovieFirstView() {
       {selectedOption && (
         <OptionSeatMapPanel
           option={selectedOption}
+          movieKey={movieKey}
           party={effectiveParty}
           minScore={minScore}
           onClose={() => setSelectedOption(null)}
