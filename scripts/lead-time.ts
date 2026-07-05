@@ -20,6 +20,7 @@ import {
   scoreAvailableSeats,
   findAdjacentBlocks,
   buildLeadTimeReport,
+  isSeatable,
   type Chain,
   type Session,
   type SeatMap,
@@ -176,17 +177,6 @@ function dateRange(startDate: string, horizonDays: number): string[] {
 }
 
 // --- availability assembly --------------------------------------------------
-
-/**
- * A seat counts toward sellable capacity if it's a real seat the public could occupy: available,
- * sold, OR unavailable. Event releases far-future houses in waves and maps both taken AND
- * not-yet-released seats to `unavailable` (its raw "Sold" status is rare for advance sales), so
- * counting only available+sold would treat a barely-released house as empty (the soldPct=0 bug).
- * Spacers and companion/special allocations are structural/non-general-sale and excluded.
- */
-function isSeatable(status: string): boolean {
-  return status === "available" || status === "sold" || status === "unavailable";
-}
 
 /** Map a session's seat map into the pure-core SessionAvailability shape. */
 function toAvailability(session: Session, map: SeatMap, pref: SeatPreference, party: number, minScore: number): SessionAvailability {

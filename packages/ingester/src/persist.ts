@@ -29,8 +29,8 @@ export async function upsertSessionWithSeats(
       `INSERT INTO sessions
          (id, watch_id, chain, movie_id, movie_name, cinema_id, cinema_name, date,
           start_time, format, screen, seats_available, booking_url, seat_allocation,
-          fetched_at, last_seen)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, now(), now())
+          total_seats, fetched_at, last_seen)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now(), now())
        ON CONFLICT (id) DO UPDATE SET
           watch_id        = EXCLUDED.watch_id,
           chain           = EXCLUDED.chain,
@@ -45,6 +45,7 @@ export async function upsertSessionWithSeats(
           seats_available = EXCLUDED.seats_available,
           booking_url     = EXCLUDED.booking_url,
           seat_allocation = EXCLUDED.seat_allocation,
+          total_seats     = EXCLUDED.total_seats,
           fetched_at      = now(),
           last_seen       = now()`,
       [
@@ -62,6 +63,7 @@ export async function upsertSessionWithSeats(
         session.seatsAvailable ?? null,
         session.bookingUrl ?? null,
         session.seatAllocation ?? null,
+        session.totalSeats ?? null,
       ],
     );
 

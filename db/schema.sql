@@ -113,3 +113,11 @@ CREATE INDEX IF NOT EXISTS idx_sessions_disappeared_at ON sessions (disappeared_
 CREATE INDEX IF NOT EXISTS idx_sessions_chain_cinema_fetched
   ON sessions (chain, cinema_id, fetched_at DESC)
   WHERE cinema_name IS NOT NULL AND cinema_name <> '';
+
+-- #47b soldHeldPct (date-availability module). Sellable capacity = available + sold + unavailable,
+-- computed from the FULL seat map at ingest time (before toSeatUpserts filters to available-only) —
+-- the same isSeatable() rule scripts/lead-time.ts already uses for the #49 lesson (Event maps
+-- sold/held seats to `unavailable`; counting only available+sold undercounts a barely-released
+-- house). NULL for any row ingested before this column existed; the API treats NULL as "not
+-- derivable" (§4.3), never as 0.
+ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS total_seats INTEGER NULL;

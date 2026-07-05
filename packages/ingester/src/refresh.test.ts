@@ -540,6 +540,44 @@ test("C4 clean no-due tick writes one refresh_runs row with zero fetches and non
   assert.ok(rows[0]!.per_tier);
 });
 
+test("#47b refresh writes total_seats from the FULL seat map (real second write path, not just sweep)", { skip: dbSkip }, async () => {
+  const watchId = await insertWatch();
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  // Cached row already has a (now-stale-by-fixture) total_seats from a prior sweep, to prove the
+  // refresh tick actually recomputes it rather than leaving/regressing the old value.
+  await insertCachedSession({
+    id: "S-refresh-total",
+    watchId,
+    fetchedAt: beforeInstant(nowInstant, minutes(120)), // old enough to be due for T0
+  });
+  await requirePool().query("UPDATE sessions SET total_seats = 999 WHERE id = $1", ["S-refresh-total"]);
+
+  const refreshedMap: SeatMap = {
+    chain: "event",
+    sessionId: "S-refresh-total",
+    screenName: "3",
+    areas: [{ id: "1", name: "Stalls", code: "std", kind: "standard" }],
+    seats: [
+      seat("r1", "A1", 1, 1, "available"),
+      seat("r2", "A2", 1, 2, "sold"),
+      seat("r3", "A3", 1, 3, "unavailable"),
+      seat("r4", "A4", 1, 4, "spacer"), // excluded from sellable capacity
+    ],
+    geometryConfidence: "exact",
+  };
+  const registry: AdapterRegistry = {
+    event: stubAdapter("event", [], { "S-refresh-total": refreshedMap }),
+  };
+
+  await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+  const { rows } = await requirePool().query<{ total_seats: number | null }>(
+    "SELECT total_seats FROM sessions WHERE id = $1",
+    ["S-refresh-total"],
+  );
+  assert.equal(rows[0]!.total_seats, 3); // available + sold + unavailable, spacer excluded
+});
+
 test("C5 majority-error chain backoff is recorded without starving another chain", { skip: dbSkip }, async () => {
   const nowInstant = new Date("2026-10-05T00:00:00.000Z");
   const eventWatch = await insertWatch({ chain: "event", cinemaIds: ["E1"] });

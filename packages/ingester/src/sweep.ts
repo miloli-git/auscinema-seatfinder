@@ -3,7 +3,7 @@
  * score each seat map, and upsert the session + its AVAILABLE scored seats. Mirrors the watcher's
  * per-session isolation, concurrency limit and backoff classifier (packages/watcher/src/check.ts).
  */
-import { scoreAvailableSeats, type SeatMap, type SeatPreference, type Session } from "@auscinema/core";
+import { isSeatable, scoreAvailableSeats, type SeatMap, type SeatPreference, type Session } from "@auscinema/core";
 import type { Pool } from "./db.js";
 import type { AdapterRegistry } from "./registry.js";
 import { resolveAdapter } from "./registry.js";
@@ -44,8 +44,25 @@ export function toSeatUpserts(map: SeatMap, pref?: SeatPreference): SeatUpsert[]
   }));
 }
 
-/** Map a normalised Session to a sessions-table upsert. */
-export function sessionToUpsert(session: Session, watchId: number): SessionUpsert {
+/**
+ * Sellable capacity (#47b): every seat the FULL seat map counts as seatable, per the shared core
+ * `isSeatable` predicate (the #49 lesson — available+sold+unavailable, since Event maps sold/held
+ * seats to `unavailable`). Computed here (not in `toSeatUpserts`, which already only sees the
+ * available-filtered subset) so both ingester write paths (sweep + refresh) count from the same
+ * raw map before any filtering.
+ */
+export function countSeatableTotal(map: SeatMap): number {
+  let total = 0;
+  for (const s of map.seats) {
+    if (isSeatable(s.status)) total += 1;
+  }
+  return total;
+}
+
+/** Map a normalised Session to a sessions-table upsert. `totalSeats` (#47b) is sourced from the
+ *  full seat-map scan (`countSeatableTotal`) done just before this call, at each write call site
+ *  where the full `SeatMap` is in scope; this mapper itself stays a pure metadata projection. */
+export function sessionToUpsert(session: Session, watchId: number, totalSeats?: number): SessionUpsert {
   return {
     id: session.id,
     watchId,
@@ -66,6 +83,7 @@ export function sessionToUpsert(session: Session, watchId: number): SessionUpser
     ...(session.seatsAvailable !== undefined ? { seatsAvailable: session.seatsAvailable } : {}),
     bookingUrl: session.bookingUrl,
     seatAllocation: session.seatAllocation,
+    ...(totalSeats !== undefined ? { totalSeats } : {}),
   };
 }
 
@@ -145,7 +163,8 @@ async function sweepWatch(watch: WatchRow, deps: SweepDeps, counters: SweepCount
       const map = await adapter.getSeatMap(session.id, { preview: true });
       counters.seatmapsFetched++;
       const seats = toSeatUpserts(map, pref);
-      await upsertSessionWithSeats(deps.pool, sessionToUpsert(session, watch.id), seats);
+      const totalSeats = countSeatableTotal(map);
+      await upsertSessionWithSeats(deps.pool, sessionToUpsert(session, watch.id, totalSeats), seats);
       counters.sessionsUpserted++;
     } catch (err) {
       counters.errors.push({ watchId: watch.id, sessionId: session.id, error: errorMessage(err) });
