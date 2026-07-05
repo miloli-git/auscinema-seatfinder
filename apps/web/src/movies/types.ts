@@ -99,5 +99,10 @@ export interface AvailabilityResponse {
   maxCachedDate: string | null; // same as /catalog: furthest live cached date
   earliest: AvailabilityDate | null; // first `dates` entry with state === "good-block"
   earliestLeadDays: number | null;
+  // #86 fix: earliest stale-but-qualifying date (would be good-block if not stale), with its honest
+  // "as of" timestamp. Computed INDEPENDENTLY of `earliest` — both can be non-null at once (contract
+  // §3.2); null only when no stale date has a qualifying block. Lets the header give an honest
+  // as-of answer instead of a false "no good seats" absence claim when `earliest` is null.
+  earliestStale: AvailabilityDate | null;
   dates: AvailabilityDate[]; // ascending by date, one row per cached date in [today, maxCachedDate]
 }

@@ -50,6 +50,16 @@ interface AvailabilityResponse {
   maxCachedDate: string | null;  // same as /catalog: furthest live (non-tombstoned, future) cached date
   earliest: AvailabilityDate | null;   // first entry in `dates` with state === "good-block"; null if none
   earliestLeadDays: number | null;     // leadDays of `earliest`; null if earliest is null
+  earliestStale: AvailabilityDate | null;  // #86 fix (2026-07-06) — see §3.2; the earliest chronological
+                                            // date that WOULD be good-block if it weren't stale (has a
+                                            // qualifying block, but its freshest session is older than
+                                            // its own tier's staleness threshold). Null when no such date
+                                            // exists. Computed independently of `earliest` — set even
+                                            // when `earliest` is non-null. UNLIKE `dates[]`'s own `stale`
+                                            // rows (which never leak `bestBlockScore`, §3), this field
+                                            // DELIBERATELY carries `bestBlockScore` — it exists to let the
+                                            // client give an honest "as of" answer instead of a false
+                                            // absence claim when `earliest` is null but this isn't.
   dates: AvailabilityDate[];     // ascending by date, one row per cached date in [today, maxCachedDate]
 }
 
@@ -134,12 +144,71 @@ package owns Postgres.
 | `good-block` | At least one session that date has `findAdjacentBlocks(seats, {minScore, size: party}).length > 0` | `bestBlockScore` = best `avgScore` across that date's qualifying sessions |
 | `no-qualifying-block` | ≥1 session cached that date, but none has a `party`-size block ≥ `minScore` | Distinct from `sold-held-now`: this state doesn't require the date to be highly sold — it may have plenty of available seats that just aren't in one contiguous in-zone run of size `party` (e.g. all singles/pairs, no run of 3 for a party of 3) |
 | `sold-held-now` | ≥1 session cached that date, no qualifying block, AND aggregate `soldHeldPct` (§4) for the date is at or above a "highly sold" threshold | Threshold: reuse `TOGETHER_FRESHNESS_STALE_MS`'s sibling-constant pattern — new `AVAILABILITY_SOLD_HELD_THRESHOLD_PCT` env, default **90** (a date where 90%+ of sellable capacity is gone reads as "sold/held now" rather than the more generic "no qualifying block," per the copy discipline in §5). Below the threshold with no qualifying block → falls through to `no-qualifying-block`, not this state. |
-| `stale` | The date's freshest session `fetched_at` is older than `freshnessStaleMs()` (same 2h-default helper `/together`/`/options` use) | Takes priority over `good-block`/`no-qualifying-block`/`sold-held-now` in the state-selection order below — a stale row shouldn't claim `good-block` confidently even if the last-known data had one |
+| `stale` | The date's freshest session `fetched_at` is older than its **tier's** staleness threshold — see §3.2 (#86 fix, 2026-07-06; superseded the original fixed `freshnessStaleMs()` gate) | Takes priority over `good-block`/`no-qualifying-block`/`sold-held-now` in the state-selection order below — a stale row shouldn't claim `good-block` confidently even if the last-known data had one |
 | `not-cached` | Zero sessions cached for this date | Split into two sub-cases by copy, NOT by a 6th state (the locked spec is explicit: states are exhaustive at 5) — see §3.1 |
 
 **State-selection order per date** (first match wins): `not-cached` → `stale` → `sold-held-now` →
 `good-block` → `no-qualifying-block`. (`stale` is checked before the block/sold-held checks so a date
 whose only session data is hours old is never reported as a confident `good-block`.)
+
+### 3.2 Tier-aware staleness gate (#86 fix, 2026-07-06)
+
+**The bug.** `/availability` originally gated every date's `stale` state on one fixed threshold,
+`freshnessStaleMs()` (2h default) — the SAME constant `/together`/`/options` use for their own
+per-request freshness metadata. But the ingester's refresh scheduler (`packages/ingester/src/refresh.ts`,
+#30 P30.1) makes a DIFFERENT, TIER-DEPENDENT promise: a far-out (T2, 8+ days out) date is only
+refreshed on a 24h TTL, not a 2h one. So a T2 date refreshed exactly on the scheduler's own schedule
+(e.g. ~19.5h old — well inside its 24h promise) was reported `stale` by the fixed 2h gate anyway. For
+any movie whose only cached dates were T2 (any far-out release), `dates[].find(state ===
+"good-block")` came back `null` on ~92% of requests, and the header rendered "No good 2-seat block
+found in the next 36 days" — a false absence claim directly contradicted by correct qualifying rows
+in `dates[]` below it. Live evidence: `event:19797` cinema `96`, all dates `state: "stale"` at ~19.5h
+age, `earliest: null`.
+
+**The fix.** The staleness threshold for a date is now keyed by the SAME `RefreshTier` the refresh
+scheduler uses for that date's proximity (`T0`/`T1`/`T2` — today/tomorrow, 2-7 days out, 8+ days out),
+resolved from a **shared** source of truth: `packages/core/src/refresh-tiers.ts` exports
+`tierForDayDiff`, `DEFAULT_TIER_TTL_MS` (T0 1h / T1 6h / T2 24h), and the env var names
+(`REFRESH_TTL_T0_MS`/`_T1_MS`/`_T2_MS`) — the ingester's `baseTtlMs` and the API's
+`resolveStaleMsByTier` (`packages/api/src/index.ts`) both read from this ONE module, so the two
+packages can never silently re-diverge the way the original duplicated-magic-number tables did.
+
+The staleness threshold itself is `margin * tierTtl`, not the raw TTL: the scheduler's TTL is "due for
+refresh by this age," not "refreshed the instant it hits this age" — a real tick has
+selection/budget/backoff latency on top of the TTL, so the gate needs headroom or it flags data the
+scheduler is still well within its own promise for. `margin` defaults to 1.5 (`DEFAULT_STALE_MARGIN`,
+env `AVAILABILITY_STALE_MARGIN`). So the effective thresholds are T0 1.5h / T1 9h / T2 36h by default
+— the live-evidence 19.5h-at-14-days-out case (T2) is comfortably inside 36h and now correctly
+classifies `good-block`.
+
+`freshnessStaleMs()`/`TOGETHER_FRESHNESS_STALE_MS` is UNCHANGED and still governs `/together`'s/
+`/options`'s own freshness metadata — this fix is scoped to `/availability`'s per-date `stale` state
+only; the two concepts (a single request-level freshness signal vs. a per-date, tier-aware state gate)
+were conflated before and are now separated.
+
+**The other half of the fix — `earliestStale` (honest fallback).** Even with tier-aware staleness,
+some dates genuinely fall outside their tier's TTL (a chain backed off, a watch newly added, etc.). For
+those, `earliest` (first `good-block`) can still be `null` while a stale-but-qualifying date exists
+below it in `dates[]`. Before this fix, the header always rendered "No good {party}-seat block found"
+in that case — still a false absence claim, just from a genuinely-stale date instead of a
+misclassified-fresh one. `buildAvailabilityDates` now also returns `earliestStale`: the earliest
+chronological date that WOULD be `good-block` if it weren't stale (has a qualifying block per
+`findAdjacentBlocks`, but its freshest session predates its tier's threshold). The response surfaces
+this as a top-level `earliestStale` field (§1.2) — computed independently of `earliest`, so it's set
+even when a real `earliest` already exists earlier in the horizon.
+
+The web header (`apps/web/src/movies/availabilityPresent.ts`'s `composeHeaderSummary`) now branches
+three ways when `earliest` is `null`:
+1. At least one date in `dates[]` was freshly checked and didn't qualify (`no-qualifying-block` or
+   `sold-held-now` reachable) → the absence claim is true and fresh; keep the original "No good
+   {party}-seat block found in the next {N} days" copy.
+2. No fresh date qualifies, but `earliestStale` is set → surface THAT date with an honest "as of"
+   qualifier (e.g. "Earliest 2 good seats (as of 20h ago): Tue 28 Jul (14 days out)") — never claim
+   absence when a qualifying row exists below, just stale.
+3. Neither of the above (every date is `not-cached`, or stale-and-non-qualifying) → there is truly no
+   data to judge from; say so plainly ("No fresh availability data in the next {N} days") rather than
+   asserting a negative the cache can't back up. Forecast language stays forbidden in all three cases
+   (§6's copy discipline, unchanged).
 
 ### 3.1 `not-cached`: beyond-horizon vs not-yet-ingested
 
@@ -286,9 +355,11 @@ summary** both consume the same `/availability` response — no separate endpoin
     entirely rather than rendering "null% sold/held" or fabricating a number: `"Earliest 2 good
     seats: Tue 16 Jul (14 days out)"` with no trailing sold/held clause. Never show a soldHeldPct the
     API didn't actually send.
-  - When `earliest` is `null` (no `good-block` date in range): header falls back to the honest-state
-    copy already established in Slice 3 ("no great seats" pattern) — e.g. *"No good {party}-seat block
-    found in the next {N} days"* — not a blank header.
+  - When `earliest` is `null` (no `good-block` date in range): header falls back per §3.2's #86-fix
+    three-way branch — a fresh, genuinely-empty horizon still says *"No good {party}-seat block found
+    in the next {N} days"*; a stale-but-qualifying date (`earliestStale`) is surfaced honestly with an
+    "as of" qualifier instead; a truly-no-data horizon says *"No fresh availability data in the next
+    {N} days"*. Never a blank header, and never a false absence claim when a qualifying row exists.
 - **Date strip**: one cell per `dates[]` entry, keyed by `state` for styling (5 exhaustive visual
   states, §3), each cell's tooltip/label showing `leadDays` and, when present, `bestBlockScore`/
   `soldHeldPct`. `not-cached` cells render per §3.1's three sub-cases (beyond-horizon / not-yet-ingested

@@ -40,15 +40,30 @@ export interface HeaderSummaryGroupInfo {
  * "Earliest 2 good seats: Tue 16 Jul (14 days out) · 81% sold/held as of 2h ago"
  *
  * When `earliest.soldHeldPct` is null (pre-backfill row, contract §4.3), the sold/held clause is
- * dropped entirely — never "null% sold/held", never a fabricated 0. When `earliest` itself is null
- * (no good-block date anywhere in the cached horizon), falls back to the Slice 3 honest-state copy
- * rather than a blank header. `now` is injectable for deterministic tests.
+ * dropped entirely — never "null% sold/held", never a fabricated 0. `now` is injectable for
+ * deterministic tests.
  *
  * When `group.variesByDay` is set (group mode, differing per-day headcounts — the response is a
  * MergedAvailability from availabilityGroup.ts, not a single-party /availability response), the
  * single scalar `res.party` no longer describes every day honestly, so the copy drops the "N good
  * seats" claim in favour of naming the actual headcount that produced the earliest date:
  * "Earliest good seats for your group: Tue 8 Jul (6 people, 3 days out) · ...".
+ *
+ * #86 fix: when `earliest` is null, the header used to always assert absence ("No good {party}-seat
+ * block found...") — but that claim is only honest when NO qualifying data exists anywhere in the
+ * horizon, fresh or stale. Three distinct null-`earliest` cases, in priority order:
+ *   1. `res.earliestStale` is set (a stale-but-qualifying date exists) → surface THAT date with an
+ *      honest "as of" qualifier — never claim absence when a qualifying row exists below, just
+ *      stale. This is checked FIRST (PR #87 review BLOCKER): a single freshly-checked-and-
+ *      disqualified date (e.g. today oversold) must not scope an absence claim over the WHOLE
+ *      horizon while a stale-but-qualifying date sits 14 days out — that would be the exact #86
+ *      false-absence bug again through a mixed-freshness combination.
+ *   2. No stale-but-qualifying date, but at least one date was freshly examined and didn't qualify
+ *      (`no-qualifying-block`/`sold-held-now` reachable in `dates[]`) → the absence claim is backed
+ *      by fresh evidence; keep the original "No good {party}-seat block found" copy.
+ *   3. Neither of the above (every date is `not-cached`, or stale-and-non-qualifying) → there is
+ *      truly no data to judge from; say so plainly ("No fresh availability data...") rather than
+ *      asserting a negative the cache can't actually back up.
  */
 export function composeHeaderSummary(
   res: AvailabilityResponse,
@@ -58,9 +73,25 @@ export function composeHeaderSummary(
   const { earliest } = res;
   const variesByDay = group?.variesByDay ?? false;
   if (!earliest) {
+    const stale = res.earliestStale;
+    if (stale) {
+      const leadDays = stale.leadDays;
+      const asOfSuffix = stale.asOf ? ` (as of ${relativeTimeAgo(stale.asOf, now)})` : "";
+      return variesByDay
+        ? `Earliest good seats for your group${asOfSuffix}: ${formatShortDate(stale.date)} (${group?.earliestParty ?? res.party} people, ${pluralDays(leadDays)} out)`
+        : `Earliest ${pluralGoodSeats(res.party)}${asOfSuffix}: ${formatShortDate(stale.date)} (${pluralDays(leadDays)} out)`;
+    }
+    const hasFreshCheckedDate = res.dates.some(
+      (d) => d.state === "no-qualifying-block" || d.state === "sold-held-now",
+    );
+    if (hasFreshCheckedDate) {
+      return variesByDay
+        ? `No good seats found for your group in the next ${pluralDays(res.dates.length)}`
+        : `No good ${res.party}-seat block found in the next ${pluralDays(res.dates.length)}`;
+    }
     return variesByDay
-      ? `No good seats found for your group in the next ${pluralDays(res.dates.length)}`
-      : `No good ${res.party}-seat block found in the next ${pluralDays(res.dates.length)}`;
+      ? `No fresh availability data for your group in the next ${pluralDays(res.dates.length)}`
+      : `No fresh availability data in the next ${pluralDays(res.dates.length)}`;
   }
   const leadDays = res.earliestLeadDays ?? earliest.leadDays;
   const summaryLead = variesByDay

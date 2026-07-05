@@ -72,6 +72,7 @@ const EMPTY_AVAILABILITY: AvailabilityResponse = {
   maxCachedDate: "2026-08-10",
   earliest: null,
   earliestLeadDays: null,
+  earliestStale: null,
   dates: [],
 };
 

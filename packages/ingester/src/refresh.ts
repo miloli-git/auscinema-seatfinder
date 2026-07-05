@@ -9,6 +9,11 @@
  * so the session date is compared by SUBSTRING and never UTC-parsed.
  */
 import type { Chain, SeatPreference, Session } from "@auscinema/core";
+import {
+  resolveTierTtlMs,
+  tierForDayDiff,
+  type RefreshTier as CoreRefreshTier,
+} from "@auscinema/core";
 import type { Pool } from "./db.js";
 import type { AdapterRegistry } from "./registry.js";
 import {
@@ -24,7 +29,9 @@ import type { SessionUpsert, WatchRow } from "./types.js";
 
 // --- C1 tiering --------------------------------------------------------------
 
-export type RefreshTier = "T0" | "T1" | "T2";
+/** Re-exported from packages/core/src/refresh-tiers.ts (#86 fix) — the SHARED tier type, so
+ *  refresh.ts and availability.ts can never drift on what a "tier" is. */
+export type RefreshTier = CoreRefreshTier;
 
 const SYDNEY_TZ = "Australia/Sydney";
 const MS_PER_DAY = 86_400_000;
@@ -61,29 +68,17 @@ export function tierForSessionDate(sessionDate: string, nowInstant: Date): Refre
   const sessionYmd = sessionDate.slice(0, 10);
   const today = sydneyDate(nowInstant);
   const diff = dayDiff(today, sessionYmd);
-  if (diff <= 1) return "T0";
-  if (diff <= 7) return "T1";
-  return "T2";
+  return tierForDayDiff(diff);
 }
 
 // --- TTL config (env-overridable) + bounded jitter ---------------------------
 
-function envMs(name: string, fallback: number): number {
-  const raw = process.env[name];
-  const n = raw === undefined ? NaN : Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-}
-
-/** Base TTL per tier (ms). Defaults T0 1h / T1 6h / T2 24h, each env-overridable. */
+/** Base TTL per tier (ms). Defaults T0 1h / T1 6h / T2 24h (packages/core's DEFAULT_TIER_TTL_MS),
+ *  each env-overridable via the SHARED env var names in packages/core's TIER_TTL_ENV_VAR (#86 fix —
+ *  this used to be a locally-duplicated switch statement; the `/availability` staleness gate must
+ *  read the exact same numbers, so both now delegate to packages/core/src/refresh-tiers.ts). */
 function baseTtlMs(tier: RefreshTier): number {
-  switch (tier) {
-    case "T0":
-      return envMs("REFRESH_TTL_T0_MS", 60 * 60_000);
-    case "T1":
-      return envMs("REFRESH_TTL_T1_MS", 6 * 60 * 60_000);
-    case "T2":
-      return envMs("REFRESH_TTL_T2_MS", 24 * 60 * 60_000);
-  }
+  return resolveTierTtlMs(tier, process.env);
 }
 
 /** Per-chain reserved first-ingest lane size (#60). Env REFRESH_RESERVE_NEW_PER_CHAIN, default 10. */

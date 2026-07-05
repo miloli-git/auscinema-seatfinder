@@ -25,6 +25,7 @@ function response(dates: AvailabilityDate[]): AvailabilityResponse {
     maxCachedDate: "2026-07-30",
     earliest: dates.find((d) => d.state === "good-block") ?? null,
     earliestLeadDays: dates.find((d) => d.state === "good-block")?.leadDays ?? null,
+    earliestStale: null,
     dates,
   };
 }
