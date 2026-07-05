@@ -47,16 +47,19 @@ export function applyLens(options: Option[], lens: Lens): LensResult {
         noQualifying: false,
       };
     case "soonest": {
-      const qualifying = options.filter((o) => o.bestBlockScore !== null);
-      if (qualifying.length === 0) {
-        return {
-          options: [...options].sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
-          noQualifying: true,
-        };
-      }
+      // 47c fix #9: this used to silently DROP non-qualifying rows from the list — a lens is
+      // supposed to be a pure re-rank of the same candidate set (contract §1.6's own framing,
+      // "tradeoff dials over the same candidates"), and "sounds like a sort, behaves like a filter"
+      // was called out as surprising. Now: qualifying rows sort first (soonest first), then
+      // non-qualifying rows follow (also soonest first) — every row from the input is still present,
+      // just re-ordered. `noQualifying` keeps its existing meaning (zero rows qualify anywhere),
+      // which still drives the same honest-state banner as before.
+      const byStartsAt = (a: Option, b: Option): number => a.startsAt.localeCompare(b.startsAt);
+      const qualifying = options.filter((o) => o.bestBlockScore !== null).sort(byStartsAt);
+      const nonQualifying = options.filter((o) => o.bestBlockScore === null).sort(byStartsAt);
       return {
-        options: qualifying.sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
-        noQualifying: false,
+        options: [...qualifying, ...nonQualifying],
+        noQualifying: qualifying.length === 0,
       };
     }
   }

@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { sydneyNow, isUpcoming, formatInstantSydney } from "./format";
+import { sydneyNow, isUpcoming, formatInstantSydney, relativeTimeAgo } from "./format";
+
+describe("relativeTimeAgo (#73 deferred OPTIONAL, folded into 47c)", () => {
+  const now = new Date("2026-07-21T04:00:00.000Z").getTime();
+
+  it("sub-hour reads 'moments ago'", () => {
+    expect(relativeTimeAgo("2026-07-21T03:50:00.000Z", now)).toBe("moments ago");
+  });
+
+  it("hours up to 48 render as 'Nh ago'", () => {
+    expect(relativeTimeAgo("2026-07-21T02:00:00.000Z", now)).toBe("2h ago");
+    expect(relativeTimeAgo("2026-07-19T04:00:00.000Z", now)).toBe("48h ago");
+  });
+
+  it("past 48h renders whole days, not a triple-digit hour count", () => {
+    expect(relativeTimeAgo("2026-07-18T04:00:00.000Z", now)).toBe("3d ago");
+    expect(relativeTimeAgo("2026-07-17T04:00:00.000Z", now)).toBe("4d ago");
+  });
+});
 
 // Sydney is UTC+10 (AEST) in winter and UTC+11 (AEDT) in summer (DST ~ Oct–Apr).
 describe("sydneyNow (UTC instant -> Sydney wall date/time)", () => {

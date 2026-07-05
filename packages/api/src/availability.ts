@@ -186,7 +186,14 @@ export function buildAvailabilityDates(
 
     // §4.3: null (never a fabricated 0) when no session that date has total_seats, or the summed
     // capacity is <= 0 (defensive, mirrors leadtime.ts's own soldPct() contract).
-    const soldHeldPct = haveCapacity && totalSum > 0 ? Math.round((100 * takenSum) / totalSum) : null;
+    // 47c fix #12: clamp to [0, 100] — a live incident showed -3% sold/held (availableSeats can
+    // exceed totalSeats across mixed-freshness rows within the same date, going negative before
+    // clamping; over-100 is symmetrically guarded even though it hasn't been observed live). A
+    // negative/over-100 percentage reads as broken math, not an honest data state.
+    const soldHeldPct =
+      haveCapacity && totalSum > 0
+        ? Math.max(0, Math.min(100, Math.round((100 * takenSum) / totalSum)))
+        : null;
 
     // §3 state-selection order: not-cached (handled above) -> stale -> sold-held-now -> good-block
     // -> no-qualifying-block.

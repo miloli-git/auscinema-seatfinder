@@ -176,6 +176,23 @@ describe("buildAvailabilityDates — threshold boundary exactness", () => {
   });
 });
 
+describe("buildAvailabilityDates — 47c fix #12: soldHeldPct clamps to [0, 100]", () => {
+  test("negative raw pct (availableSeats > totalSeats across mixed rows) clamps to 0, not a negative", () => {
+    // total=100+50=150, taken=(100-120)+(50-10)=-20+40=20 -> would be 13%; force negative instead by
+    // making the over-available row dominate: total=50, taken=(50-80)=-30 -> raw -60%.
+    const sessions: AvailabilitySessionRow[] = [
+      row({ id: "s-over", date: "2026-07-14", totalSeats: 50, availableSeats: 80, fetchedAt: "2026-07-14T01:00:00.000Z" }),
+    ];
+    const seatsBySession = new Map<string, BlockSeat[]>([["s-over", []]]);
+    const dates = buildAvailabilityDates(sessions, seatsBySession, {
+      ...DEFAULT_OPTS,
+      rangeEnd: "2026-07-14",
+      now: Date.parse("2026-07-14T02:00:00.000Z"),
+    });
+    assert.equal(dates[0]!.soldHeldPct, 0);
+  });
+});
+
 describe("buildAvailabilityDates — no sessions at all", () => {
   test("every date in range is not-cached; dates[] still has no gaps", () => {
     const dates = buildAvailabilityDates([], new Map(), {

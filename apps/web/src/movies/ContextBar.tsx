@@ -96,7 +96,7 @@ export function ContextBar({
                 label={d.label}
                 value={d.count}
                 onChange={(n) => onDayCountChange(d.date, n)}
-                min={1}
+                min={2}
                 ariaLabelPrefix={d.label}
               />
             ))}

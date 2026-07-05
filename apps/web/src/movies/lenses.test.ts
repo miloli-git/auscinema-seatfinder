@@ -70,14 +70,16 @@ describe("applyLens: screen", () => {
 });
 
 describe("applyLens: soonest", () => {
-  it("filters to qualifying rows (bestBlockScore !== null), sorts by startsAt asc", () => {
+  it("47c fix #9: is a PURE re-rank, never a filter — qualifying rows sort first (soonest), non-qualifying rows follow (also soonest), all present", () => {
     const options = [
       option({ sessionId: "late-q", bestBlockScore: 80, startsAt: "2026-07-22T20:00:00.000Z" }),
       option({ sessionId: "early-noq", bestBlockScore: null, startsAt: "2026-07-21T10:00:00.000Z" }),
       option({ sessionId: "early-q", bestBlockScore: 75, startsAt: "2026-07-21T19:00:00.000Z" }),
+      option({ sessionId: "late-noq", bestBlockScore: null, startsAt: "2026-07-23T10:00:00.000Z" }),
     ];
     const result = applyLens(options, "soonest");
-    expect(result.options.map((o) => o.sessionId)).toEqual(["early-q", "late-q"]);
+    // qualifying (soonest first), then non-qualifying (soonest first) — nothing dropped.
+    expect(result.options.map((o) => o.sessionId)).toEqual(["early-q", "late-q", "early-noq", "late-noq"]);
     expect(result.noQualifying).toBe(false);
   });
 

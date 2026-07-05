@@ -171,15 +171,19 @@ export function formatShortDate(dateStr: string): string {
 }
 
 /**
- * "as of {relative}" fragment for a true UTC instant, e.g. "2h ago" / "moments ago". Shared by the
- * #47b header summary and date-strip cell labels (contract §6: every sold/held number must carry a
- * relative timestamp, never presented as a bare live fact). `now` is injectable for deterministic
- * tests, same convention as freshnessLabel (movies/present.ts).
+ * "as of {relative}" fragment for a true UTC instant, e.g. "2h ago" / "moments ago" / "3d ago".
+ * Shared by the #47b header summary and date-strip cell labels (contract §6: every sold/held number
+ * must carry a relative timestamp, never presented as a bare live fact). Past 48h, renders whole
+ * days rather than a triple/quadruple-digit hour count (#73 deferred OPTIONAL, folded into 47c) —
+ * "97h ago" reads worse than "4d ago" once staleness stretches past a couple of days. `now` is
+ * injectable for deterministic tests, same convention as freshnessLabel (movies/present.ts).
  */
 export function relativeTimeAgo(iso: string, now: number = Date.now()): string {
   const ms = Math.max(0, now - new Date(iso).getTime());
   const hours = Math.round(ms / 3_600_000);
-  return hours < 1 ? "moments ago" : `${hours}h ago`;
+  if (hours < 1) return "moments ago";
+  if (hours <= 48) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
 }
 
 /**
