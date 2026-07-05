@@ -4,20 +4,20 @@
 // app against (route-mocked at the browser; NOT a real pg). Review THIS file to
 // decide whether a green L4 run actually proves the feature.
 //
-// Designed cells (2 cinemas × 3 contiguous dates, 2026-06-27 .. 2026-06-29):
+// Designed cells (2 cinemas × 3 contiguous dates, 2099-06-27 .. 2099-06-29):
 //
-//                  2026-06-27        2026-06-28        2026-06-29
+//                  2099-06-27        2099-06-28        2099-06-29
 //   IMAX Sydney    SCORE (avg 96) ◀  —  (no session)  SCORE (avg 80)
 //   (cinema "A")   GREAT BLOCK       empty gap         (Standard, 2pm)
 //
 //   Event George   SOLD (2 sessions  SCORE (avg 88)    —  (no session)
 //   St (cinema "B") both block:null)  (IMAX, evening)   empty gap
 //
-//   ⇒ great-block cell = A / 2026-06-27 (avgScore 96, evening IMAX) — drilled in L4.5
-//   ⇒ sold cell        = B / 2026-06-27 (sessions present, every block null = #39)
-//   ⇒ empty gap        = A / 2026-06-28 (no session for that cinema/date)
+//   ⇒ great-block cell = A / 2099-06-27 (avgScore 96, evening IMAX) — drilled in L4.5
+//   ⇒ sold cell        = B / 2099-06-27 (sessions present, every block null = #39)
+//   ⇒ empty gap        = A / 2099-06-28 (no session for that cinema/date)
 //
-// The matrix date axis is contiguous min..max of observed dates, so 2026-06-28
+// The matrix date axis is contiguous min..max of observed dates, so 2099-06-28
 // appears as a column even though cinema A has no session that day → renders "—".
 
 export interface FixtureBlock {
@@ -53,7 +53,7 @@ export interface FixtureResult {
 const CIN_A = { id: "A", name: "IMAX Sydney" };
 const CIN_B = { id: "B", name: "Event George St" };
 const MOVIE = { id: "19796", name: "Supergirl" };
-const FETCHED_AT = "2026-06-25T01:04:22.774Z";
+const FETCHED_AT = "2099-06-25T01:04:22.774Z";
 
 function mkSession(
   over: Partial<FixtureResult["session"]> & { id: string; cinemaId: string; cinemaName: string; startTime: string },
@@ -93,7 +93,7 @@ export const BASE_RESULTS: FixtureResult[] = [
       id: "A-27-imax",
       cinemaId: CIN_A.id,
       cinemaName: CIN_A.name,
-      startTime: "2026-06-27T19:30:00.000Z",
+      startTime: "2099-06-27T19:30:00.000Z",
       format: "IMAX",
       seatsAvailable: 322,
     }),
@@ -107,7 +107,7 @@ export const BASE_RESULTS: FixtureResult[] = [
       id: "A-29-std",
       cinemaId: CIN_A.id,
       cinemaName: CIN_A.name,
-      startTime: "2026-06-29T14:00:00.000Z",
+      startTime: "2099-06-29T14:00:00.000Z",
       format: "Standard",
     }),
     block: mkBlock(["P3", "P4"], 80),
@@ -120,7 +120,7 @@ export const BASE_RESULTS: FixtureResult[] = [
       id: "B-27-std-1",
       cinemaId: CIN_B.id,
       cinemaName: CIN_B.name,
-      startTime: "2026-06-27T18:15:00.000Z",
+      startTime: "2099-06-27T18:15:00.000Z",
       format: "Standard",
     }),
     block: null,
@@ -132,7 +132,7 @@ export const BASE_RESULTS: FixtureResult[] = [
       id: "B-27-std-2",
       cinemaId: CIN_B.id,
       cinemaName: CIN_B.name,
-      startTime: "2026-06-27T20:45:00.000Z",
+      startTime: "2099-06-27T20:45:00.000Z",
       format: "Standard",
     }),
     block: null,
@@ -145,7 +145,7 @@ export const BASE_RESULTS: FixtureResult[] = [
       id: "B-28-imax",
       cinemaId: CIN_B.id,
       cinemaName: CIN_B.name,
-      startTime: "2026-06-28T19:00:00.000Z",
+      startTime: "2099-06-28T19:00:00.000Z",
       format: "IMAX",
     }),
     block: mkBlock(["L7", "L8"], 88),
@@ -163,7 +163,7 @@ export function catalogResponse() {
       { id: CIN_A.id, name: CIN_A.name, chain: "event" },
       { id: CIN_B.id, name: CIN_B.name, chain: "event" },
     ],
-    dates: ["2026-06-27", "2026-06-28", "2026-06-29"],
+    dates: ["2099-06-27", "2099-06-28", "2099-06-29"],
   };
 }
 

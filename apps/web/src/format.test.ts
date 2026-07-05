@@ -50,7 +50,7 @@ describe("isUpcoming (local-wall-time startTime vs Sydney now)", () => {
 describe("formatInstantSydney (true UTC instant -> Sydney clock)", () => {
   it("01:04Z (winter) renders as 11:04 am, not 1:04 am (#44)", () => {
     const out = formatInstantSydney("2026-06-25T01:04:17.672Z");
-    expect(out.replace(/ /g, " ").toLowerCase()).toBe("11:04 am");
+    expect(out.replace(/\u202f/g, " ").toLowerCase()).toBe("11:04 am");
   });
 
   it("invalid input falls back to the raw string", () => {
