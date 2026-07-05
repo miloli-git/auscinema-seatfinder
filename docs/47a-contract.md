@@ -267,23 +267,22 @@ Hoyts row to exercise `approximate`/blank-until-fixed cinemaName, one `split` ro
 size):
 
 **Seed:**
-- `movieKey = "event:555"`, title "Dune: Part Two", party=2, minScore=74.
-- Session A: Event, cinemaId `"12"`, cinemaName `"Event George St"`, format `"IMAX"`, seats scored so a
-  party-of-2 block exists (avgScore 91) → `together`.
-- Session B: Hoyts, cinemaId `"88"`, cinemaName `""` (pre-#67-fix state — see §5), format `""`
-  (standard), seats scored so no party-of-2 block exists but a size-1 in-zone seat run does NOT chain
-  to 2 → actually seed so exactly one qualifying size-1 seat and one isolated in-zone seat two rows away
-  exist (no adjacency of 2) → `split`, `togetherCount = 2` capped from 2 found isolated in-zone seats.
-- Session C: Village, cinemaId `"40"`, cinemaName `"Village Crown"`, format `"Vmax"`, seats scored so a
-  block of exactly 1 (not 2) is the largest run → `nearby`? No — `nearby` requires size ≥ 2 by
-  definition (§1.5 step 2 starts at `party - 1` down to `2`); a largest run of exactly 1 falls through
-  to `split` with `togetherCount = 1`. Use this to seed the `nearby` case at party=3 instead (see below).
+- Movie: title "Dune: Part Two", party=3, minScore=74.
+- Session A: Event (`"event:555"`), cinemaId `"12"`, cinemaName `"Event George St"`, format `"IMAX"`,
+  seats scored so a party-of-3 block exists (avgScore 91) → `together`.
+- Session B: Village (`"village:555"`), cinemaId `"40"`, cinemaName `"Village Crown"`, format `"Vmax"`,
+  seats give a run of exactly 2 in-zone contiguous seats but not 3 → `nearby`, `togetherCount = 2`,
+  `bestBlockSize = 2`.
+- Session C: Hoyts (`"hoyts:555"`), cinemaId `"88"`, cinemaName `""` (pre-#67-fix state — see §5),
+  format `""` (standard), seats scored so no party-of-3 block exists and no run of 2+ → exactly one
+  qualifying size-1 seat and one isolated in-zone seat (no adjacency of 2) → `split`, `togetherCount = 2`
+  capped from 2 found isolated in-zone seats.
 
-**Fixture: `party=3` to get a real `nearby` example** (cleaner than forcing party=2 to skip straight to
-split) — Session C above: Village, seats give a run of exactly 2 in-zone contiguous seats but not 3 →
-`nearby`, `togetherCount = 2`, `bestBlockSize = 2`.
+**Worked examples:** Each chain is queried separately (§3 and §1.1 — `movieKey` encodes the chain;
+a single call returns one chain's options only). The web client merges grouped-title results across
+chains for display (§3). Three separate `/options` requests yield three separate responses:
 
-**Example response** (`GET /options?movieKey=event%3A555&party=3&minScore=74`):
+**Request 1: Event** (`GET /options?movieKey=event%3A555&party=3&minScore=74`):
 
 ```json
 {
@@ -291,7 +290,7 @@ split) — Session C above: Village, seats give a run of exactly 2 in-zone conti
   "movieTitle": "Dune: Part Two",
   "party": 3,
   "minScore": 74,
-  "count": 3,
+  "count": 1,
   "options": [
     {
       "chain": "event",
@@ -310,7 +309,27 @@ split) — Session C above: Village, seats give a run of exactly 2 in-zone conti
       "geometryConfidence": "exact",
       "freshness": { "asOf": "2026-07-21T02:10:00.000Z", "state": "fresh" },
       "bookingUrl": "https://www.eventcinemas.com.au/Ticketing/checkout/evt-9001"
-    },
+    }
+  ],
+  "freshness": {
+    "oldestFetchedAt": "2026-07-21T02:10:00.000Z",
+    "newestFetchedAt": "2026-07-21T02:10:00.000Z",
+    "lastSuccessfulIngestAt": "2026-07-21T02:10:00.000Z",
+    "coverage": { "event": "cached" }
+  }
+}
+```
+
+**Request 2: Village** (`GET /options?movieKey=village%3A555&party=3&minScore=74`):
+
+```json
+{
+  "movieKey": "village:555",
+  "movieTitle": "Dune: Part Two",
+  "party": 3,
+  "minScore": 74,
+  "count": 1,
+  "options": [
     {
       "chain": "village",
       "cinemaId": "40",
@@ -328,7 +347,27 @@ split) — Session C above: Village, seats give a run of exactly 2 in-zone conti
       "geometryConfidence": "exact",
       "freshness": { "asOf": "2026-07-20T23:55:00.000Z", "state": "stale" },
       "bookingUrl": "https://www.villagecinemas.com.au/checkout/vil-4410"
-    },
+    }
+  ],
+  "freshness": {
+    "oldestFetchedAt": "2026-07-20T23:55:00.000Z",
+    "newestFetchedAt": "2026-07-20T23:55:00.000Z",
+    "lastSuccessfulIngestAt": "2026-07-21T02:10:00.000Z",
+    "coverage": { "village": "cached" }
+  }
+}
+```
+
+**Request 3: Hoyts** (`GET /options?movieKey=hoyts%3A555&party=3&minScore=74`):
+
+```json
+{
+  "movieKey": "hoyts:555",
+  "movieTitle": "Dune: Part Two",
+  "party": 3,
+  "minScore": 74,
+  "count": 1,
+  "options": [
     {
       "chain": "hoyts",
       "cinemaId": "88",
@@ -349,10 +388,10 @@ split) — Session C above: Village, seats give a run of exactly 2 in-zone conti
     }
   ],
   "freshness": {
-    "oldestFetchedAt": "2026-07-20T23:55:00.000Z",
-    "newestFetchedAt": "2026-07-21T02:10:00.000Z",
+    "oldestFetchedAt": "2026-07-21T01:00:00.000Z",
+    "newestFetchedAt": "2026-07-21T01:00:00.000Z",
     "lastSuccessfulIngestAt": "2026-07-21T02:10:00.000Z",
-    "coverage": { "event": "cached" }
+    "coverage": { "hoyts": "cached" }
   }
 }
 ```
