@@ -137,6 +137,26 @@ export async function healSessionNames(pool: Pool, heals: readonly NameHeal[]): 
   );
 }
 
+/**
+ * #78 review: persist `wildcard_miss_streak` changes for known sessions whose coarse wildcard-scope
+ * miss count moved this tick (incremented on an unseen-but-wildcard-conclusive tick, or reset to 0
+ * once the session is seen again) but that are NOT also transitioning to tombstoned/resurrected this
+ * tick — those two transitions reset the streak as part of their own UPDATE in refresh.ts. `updates`
+ * maps sessionId -> new streak value; a no-op (empty map) skips the query entirely.
+ */
+export async function updateWildcardMissStreaks(pool: Pool, updates: ReadonlyMap<string, number>): Promise<void> {
+  if (updates.size === 0) return;
+  const ids = [...updates.keys()];
+  const streaks = ids.map((id) => updates.get(id)!);
+  await pool.query(
+    `UPDATE sessions AS s
+        SET wildcard_miss_streak = u.streak
+       FROM UNNEST($1::text[], $2::int[]) AS u(id, streak)
+      WHERE s.id = u.id`,
+    [ids, streaks],
+  );
+}
+
 /** Open an ingest_runs row, returning its id. */
 export async function startIngestRun(pool: Pool): Promise<number> {
   const { rows } = await pool.query<{ id: string | number }>(

@@ -121,3 +121,13 @@ CREATE INDEX IF NOT EXISTS idx_sessions_chain_cinema_fetched
 -- house). NULL for any row ingested before this column existed; the API treats NULL as "not
 -- derivable" (§4.3), never as 0.
 ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS total_seats INTEGER NULL;
+
+-- #78 review follow-up: debounce the #77 wildcard-scope tombstone. The coarse (chain, cinema, date)
+-- scope is conclusive evidence about the CINEMA/DATE listing, not about any one movie's session
+-- specifically - a transient one-tick gap (backend blip, feed hiccup) must not tombstone irreversibly
+-- (the 7-day purge deletes the row for good). A plain miss COUNTER (not a first-missed-at timestamp)
+-- is used: it counts observed ticks directly and is immune to tick-cadence jitter, whereas a
+-- timestamp-elapsed check would under- or over-count a late/delayed tick against a wall-clock window.
+-- Reset to 0 whenever the session is seen again (including on resurrection). Existing rows default to
+-- 0. Re-appliable via IF NOT EXISTS.
+ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS wildcard_miss_streak INTEGER NOT NULL DEFAULT 0;

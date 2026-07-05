@@ -178,6 +178,8 @@ async function insertCachedSession(args: {
   fetchedAt: Date;
   lastSeen?: Date;
   disappearedAt?: Date | null;
+  wildcardMissStreak?: number;
+  seatAllocation?: boolean;
 }): Promise<void> {
   const chain = args.chain ?? "event";
   const cinemaId = args.cinemaId ?? "C1";
@@ -188,8 +190,8 @@ async function insertCachedSession(args: {
     `INSERT INTO sessions
        (id, watch_id, chain, movie_id, movie_name, cinema_id, cinema_name, date,
         start_time, format, screen, seats_available, booking_url, seat_allocation,
-        fetched_at, last_seen, disappeared_at)
-     VALUES ($1,$2,$3,$4,'Test Movie',$5,$6,$7,$8,'STANDARD','3',42,$9,true,$10,$11,$12)`,
+        fetched_at, last_seen, disappeared_at, wildcard_miss_streak)
+     VALUES ($1,$2,$3,$4,'Test Movie',$5,$6,$7,$8,'STANDARD','3',42,$9,$10,$11,$12,$13,$14)`,
     [
       args.id,
       args.watchId,
@@ -200,11 +202,20 @@ async function insertCachedSession(args: {
       date,
       `${date}T19:00:00.000Z`,
       `https://book.example/${args.id}`,
+      args.seatAllocation ?? true,
       args.fetchedAt,
       lastSeen,
       args.disappearedAt ?? null,
+      args.wildcardMissStreak ?? 0,
     ],
   );
+}
+
+async function wildcardMissStreaks(): Promise<Record<string, number>> {
+  const { rows } = await requirePool().query<{ id: string; wildcard_miss_streak: number }>(
+    `SELECT id, wildcard_miss_streak FROM sessions ORDER BY id`,
+  );
+  return Object.fromEntries(rows.map((r) => [r.id, Number(r.wildcard_miss_streak)]));
 }
 
 async function insertSeat(sessionId: string, seatId = `${sessionId}-A1`): Promise<void> {
@@ -444,6 +455,341 @@ test(
     const tombstones = await tombstoneRows();
     assert.equal(tombstones["c1-known"], null, "returned C1 session stays live");
     assert.equal(tombstones["c2-known"], null, "absent C2 session stays live because C2 was not listed conclusively");
+  },
+);
+
+test(
+  "#77/#78 wildcard watch: a session whose movie has been fully delisted tombstones on its 2nd consecutive absent tick, even though its own movieId never reappears",
+  { skip: dbSkip },
+  async () => {
+    await resetToCurrentSchema();
+    // movieId: null mirrors every production watch in deploy/watches.json.
+    const watchId = await insertWatch({
+      chain: "event",
+      cinemaIds: ["C1"],
+      dateFrom: "2026-10-05",
+      dateTo: "2026-10-05",
+      movieId: null,
+    });
+    const t0 = new Date("2026-10-05T00:00:00.000Z");
+    await insertCachedSession({
+      id: "live-movie-a",
+      watchId,
+      movieId: "MA",
+      fetchedAt: beforeInstant(t0, hours(3)),
+    });
+    // "delisted-movie-b" has vanished from the chain's feed entirely — its movieId will never again
+    // be returned by any listing, so the pre-#77 per-movieId conclusive-scope check could never fire.
+    await insertCachedSession({
+      id: "delisted-movie-b",
+      watchId,
+      movieId: "MB",
+      fetchedAt: beforeInstant(t0, hours(3)),
+    });
+
+    // The wildcard listing for C1/2026-10-05 returns every movie STILL showing — movie A only, on
+    // both ticks below (a real delisting, not a one-tick blip). Both known sessions have a map so
+    // tick 1's seatmap fetch (delisted-movie-b is still LIVE and due at that point — it only tombstones
+    // on tick 2) doesn't spuriously error.
+    const maps = { "live-movie-a": mapFor("event", "live-movie-a"), "delisted-movie-b": mapFor("event", "delisted-movie-b") };
+    const registryFor = (captures: { seatMapCalls: string[] }): AdapterRegistry => ({
+      event: stubAdapter(
+        "event",
+        [session("live-movie-a", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
+        maps,
+        captures,
+      ),
+    });
+
+    // Tick 1 (#78 debounce): the FIRST absent tick must not tombstone yet — it's the coarse wildcard
+    // scope's evidence, not the exact per-movieId evidence, so it needs a 2nd consecutive miss.
+    // delisted-movie-b is still live/due at this point, so both known sessions get seatmap-refreshed.
+    const captures1 = { seatMapCalls: [] as string[] };
+    const row1 = await runRefreshTick({ pool: requirePool(), registry: registryFor(captures1), nowInstant: t0, budgetPerChain: 30 });
+    assert.equal(row1.outcome, "ok");
+    assert.equal(row1.sessions_disappeared, 0, "1st consecutive miss (of 2 required) must not tombstone yet");
+    assert.deepEqual([...captures1.seatMapCalls].sort(), ["delisted-movie-b", "live-movie-a"]);
+    assert.equal((await tombstoneRows())["delisted-movie-b"], null);
+
+    // Tick 2: the SECOND consecutive absent tick reaches the default WILDCARD_TOMBSTONE_MISSES=2.
+    const t1 = new Date(t0.getTime() + hours(1));
+    const captures2 = { seatMapCalls: [] as string[] };
+    const row = await runRefreshTick({ pool: requirePool(), registry: registryFor(captures2), nowInstant: t1, budgetPerChain: 30 });
+
+    assert.equal(row.outcome, "ok");
+    assert.equal(row.sessions_disappeared, 1, "the delisted movie's cached session is tombstoned");
+    assert.equal(row.sessions_due, 1, "the tombstoned session is not part of the due set");
+    assert.equal(row.sessions_refreshed, 1);
+    assert.equal(row.errors, 0);
+    assert.equal(row.sessions_skipped_budget, 0);
+    assert.equal(row.sessions_due, row.sessions_refreshed + row.errors + row.sessions_skipped_budget);
+    assert.deepEqual(captures2.seatMapCalls, ["live-movie-a"], "the newly-tombstoned session is not seatmap-refreshed");
+
+    const tombstones = await tombstoneRows();
+    assert.equal(tombstones["live-movie-a"], null, "the still-listed movie stays live");
+    assert.equal(
+      tombstones["delisted-movie-b"],
+      t1.toISOString(),
+      "a session whose movie vanished from the wildcard listing tombstones on the cinema/date scope, not its own movieId",
+    );
+  },
+);
+
+test(
+  "#77/#78 wildcard watch multi-cinema: absence of ANY returned session for a cinema still keeps its cached sessions live (endpoint-hiccup safety net preserved), and the conclusively-listed cinema's absentee tombstones only on its 2nd consecutive miss",
+  { skip: dbSkip },
+  async () => {
+    await resetToCurrentSchema();
+    const watchId = await insertWatch({
+      chain: "event",
+      cinemaIds: ["C1", "C2"],
+      dateFrom: "2026-10-05",
+      dateTo: "2026-10-05",
+      movieId: null,
+    });
+    const t0 = new Date("2026-10-05T00:00:00.000Z");
+    await insertCachedSession({
+      id: "c1-delisted-movie",
+      watchId,
+      cinemaId: "C1",
+      movieId: "MB",
+      fetchedAt: beforeInstant(t0, hours(3)),
+    });
+    await insertCachedSession({
+      id: "c2-known",
+      watchId,
+      cinemaId: "C2",
+      movieId: "MA",
+      fetchedAt: beforeInstant(t0, hours(3)),
+    });
+    await insertCachedSession({
+      id: "c1-live-movie",
+      watchId,
+      cinemaId: "C1",
+      movieId: "MA",
+      fetchedAt: beforeInstant(t0, hours(3)),
+    });
+
+    // Merged response only ever carries a C1 session (movie A, still showing) — C2 never appears
+    // in ANY returned session, so C2 must stay inconclusive exactly as it did pre-#77, on every tick.
+    // c1-delisted-movie has a map too: it's still LIVE and due on tick 1 (it only tombstones on tick 2),
+    // so its seatmap fetch must not spuriously error.
+    const maps = {
+      "c1-live-movie": mapFor("event", "c1-live-movie"),
+      "c2-known": mapFor("event", "c2-known"),
+      "c1-delisted-movie": mapFor("event", "c1-delisted-movie"),
+    };
+    const registryFor = (captures: { seatMapCalls: string[] }): AdapterRegistry => ({
+      event: stubAdapter(
+        "event",
+        [session("c1-live-movie", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
+        maps,
+        captures,
+      ),
+    });
+
+    // Tick 1 (#78 debounce): C1 is conclusively listed (c1-live-movie returned), so c1-delisted-movie
+    // accrues its FIRST miss — must not tombstone yet. C2 was never conclusively listed either way.
+    const captures1 = { seatMapCalls: [] as string[] };
+    const row1 = await runRefreshTick({ pool: requirePool(), registry: registryFor(captures1), nowInstant: t0, budgetPerChain: 30 });
+    assert.equal(row1.sessions_disappeared, 0, "1st consecutive miss (of 2 required) must not tombstone yet");
+    let tombstones = await tombstoneRows();
+    assert.equal(tombstones["c1-delisted-movie"], null);
+    assert.equal(tombstones["c2-known"], null);
+
+    // Tick 2: c1-delisted-movie's 2nd consecutive miss reaches the default WILDCARD_TOMBSTONE_MISSES=2.
+    const t1 = new Date(t0.getTime() + hours(1));
+    const captures2 = { seatMapCalls: [] as string[] };
+    const row = await runRefreshTick({ pool: requirePool(), registry: registryFor(captures2), nowInstant: t1, budgetPerChain: 30 });
+
+    assert.equal(row.outcome, "ok");
+    assert.equal(
+      row.sessions_disappeared,
+      1,
+      "only c1-delisted-movie tombstones: C1 was conclusively listed (a session for it was returned), C2 was not",
+    );
+
+    tombstones = await tombstoneRows();
+    assert.equal(tombstones["c1-live-movie"], null);
+    assert.equal(tombstones["c1-delisted-movie"], t1.toISOString());
+    assert.equal(
+      tombstones["c2-known"],
+      null,
+      "c2-known stays live: no session for C2 was ever returned in either tick, so C2 is not conclusively listed",
+    );
+  },
+);
+
+test(
+  "#78 wildcard-scope tombstone debounce: a session missing one otherwise-successful tick survives intact, and a session missing two consecutive ticks tombstones",
+  { skip: dbSkip },
+  async () => {
+    await resetToCurrentSchema();
+    const watchId = await insertWatch({
+      chain: "event",
+      cinemaIds: ["C1"],
+      dateFrom: "2026-10-05",
+      dateTo: "2026-10-05",
+      movieId: null,
+    });
+    const t0 = new Date("2026-10-05T00:00:00.000Z");
+    // "anchor" is always returned so C1/2026-10-05's wildcard scope stays conclusively listed on
+    // every tick — isolating the debounce behaviour from the "scope not listed at all" safety net.
+    await insertCachedSession({ id: "anchor", watchId, movieId: "M-ANCHOR", fetchedAt: beforeInstant(t0, hours(3)) });
+    await insertCachedSession({ id: "flicker", watchId, movieId: "MB", fetchedAt: beforeInstant(t0, hours(3)) });
+
+    const anchorSession = session("anchor", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "M-ANCHOR" });
+    const flickerSession = session("flicker", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MB" });
+    const maps = { anchor: mapFor("event", "anchor"), flicker: mapFor("event", "flicker") };
+
+    // Tick 1 (t0+1h): "flicker" is transiently absent (a backend blip / one-tick feed gap). Under the
+    // pre-#78 coarse scope this tombstoned immediately and irreversibly (7-day purge); it must not.
+    const t1 = new Date(t0.getTime() + hours(1));
+    const row1 = await runRefreshTick({
+      pool: requirePool(),
+      registry: { event: stubAdapter("event", [anchorSession], maps) },
+      nowInstant: t1,
+      budgetPerChain: 30,
+    });
+    assert.equal(row1.sessions_disappeared, 0, "a single miss must not tombstone (debounce)");
+    assert.equal((await tombstoneRows()).flicker, null, "flicker survives its first missing tick");
+    assert.equal((await wildcardMissStreaks()).flicker, 1, "the miss is counted");
+
+    // Tick 2 (t0+2h): "flicker" reappears. The streak must reset to 0 so a LATER isolated miss can't
+    // combine with this stale one to tombstone prematurely.
+    const t2 = new Date(t1.getTime() + hours(1));
+    const row2 = await runRefreshTick({
+      pool: requirePool(),
+      registry: { event: stubAdapter("event", [anchorSession, flickerSession], maps) },
+      nowInstant: t2,
+      budgetPerChain: 30,
+    });
+    assert.equal(row2.sessions_disappeared, 0);
+    assert.equal((await tombstoneRows()).flicker, null, "flicker is intact after reappearing");
+    assert.equal((await wildcardMissStreaks()).flicker, 0, "presence resets the miss streak");
+
+    // Ticks 3 and 4 (t0+3h, t0+4h): a genuine zombie — "flicker" is absent for TWO CONSECUTIVE ticks.
+    const t3 = new Date(t2.getTime() + hours(1));
+    const row3 = await runRefreshTick({
+      pool: requirePool(),
+      registry: { event: stubAdapter("event", [anchorSession], maps) },
+      nowInstant: t3,
+      budgetPerChain: 30,
+    });
+    assert.equal(row3.sessions_disappeared, 0, "the first of the two required consecutive misses must not tombstone yet");
+    assert.equal((await tombstoneRows()).flicker, null);
+    assert.equal((await wildcardMissStreaks()).flicker, 1);
+
+    const t4 = new Date(t3.getTime() + hours(1));
+    const row4 = await runRefreshTick({
+      pool: requirePool(),
+      registry: { event: stubAdapter("event", [anchorSession], maps) },
+      nowInstant: t4,
+      budgetPerChain: 30,
+    });
+    assert.equal(row4.sessions_disappeared, 1, "the second consecutive miss (default WILDCARD_TOMBSTONE_MISSES=2) tombstones");
+    assert.equal((await tombstoneRows()).flicker, t4.toISOString());
+  },
+);
+
+test(
+  "#78 village wildcard watch does NOT get coarse-scope conclusiveness (no adapter truncation guard)",
+  { skip: dbSkip },
+  async () => {
+    await resetToCurrentSchema();
+    const watchId = await insertWatch({
+      chain: "village",
+      cinemaIds: ["C1"],
+      dateFrom: "2026-10-05",
+      dateTo: "2026-10-05",
+      movieId: null,
+    });
+    const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+    // "still-showing" is returned every tick; "delisted" never is — exactly the #77 zombie shape,
+    // except the chain is village.
+    await insertCachedSession({
+      id: "still-showing",
+      watchId,
+      chain: "village",
+      movieId: "MA",
+      fetchedAt: beforeInstant(nowInstant, hours(3)),
+    });
+    await insertCachedSession({
+      id: "delisted",
+      watchId,
+      chain: "village",
+      movieId: "MB",
+      fetchedAt: beforeInstant(nowInstant, hours(3)),
+    });
+
+    const registry: AdapterRegistry = {
+      village: stubAdapter(
+        "village",
+        [session("still-showing", "village", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
+        { "still-showing": mapFor("village", "still-showing") },
+      ),
+    };
+
+    const row = await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+    assert.equal(
+      row.sessions_disappeared,
+      0,
+      "village's wildcard listing must not confer coarse-scope conclusiveness (no truncation guard)",
+    );
+    const tombstones = await tombstoneRows();
+    assert.equal(tombstones["still-showing"], null);
+    assert.equal(
+      tombstones.delisted,
+      null,
+      "'delisted' stays live: village is excluded from the wildcard-scope-conclusive adapter allowlist",
+    );
+    assert.equal(
+      (await wildcardMissStreaks()).delisted,
+      0,
+      "no miss is even counted for village — it never becomes wildcard-only-conclusive",
+    );
+  },
+);
+
+test(
+  "#78 a seatAllocation=false session returned in a wildcard listing stays alive (seenIds captured before the seatAllocation filter)",
+  { skip: dbSkip },
+  async () => {
+    await resetToCurrentSchema();
+    const watchId = await insertWatch({
+      chain: "event",
+      cinemaIds: ["C1"],
+      dateFrom: "2026-10-05",
+      dateTo: "2026-10-05",
+      movieId: null,
+    });
+    const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+    await insertCachedSession({
+      id: "no-seatmap",
+      watchId,
+      movieId: "MA",
+      fetchedAt: beforeInstant(nowInstant, hours(3)),
+      seatAllocation: false,
+    });
+
+    const registry: AdapterRegistry = {
+      event: stubAdapter(
+        "event",
+        [session("no-seatmap", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA", seatAllocation: false })],
+        { "no-seatmap": mapFor("event", "no-seatmap") },
+      ),
+    };
+
+    const row = await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+    assert.equal(
+      row.sessions_disappeared,
+      0,
+      "a returned session (even seatAllocation=false) still counts as seen before the discovery filter",
+    );
+    const tombstones = await tombstoneRows();
+    assert.equal(tombstones["no-seatmap"], null, "session stays alive under the coarse wildcard scope");
   },
 );
 
