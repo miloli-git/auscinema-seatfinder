@@ -454,10 +454,29 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   // age out via the past-date filter instead. Every returned id is "seen this tick"; a known session
   // whose own scope was conclusively listed but is absent from `seenIds` is tombstoned. A failed
   // listing yields no returned sessions, so an outage never mass-tombstones.
+  //
+  // #77: the per-movieId scope above can never be marked conclusive for a movie that has been fully
+  // delisted upstream — no returned session will ever again carry that exact movieId, so absence of
+  // evidence for it can never itself become evidence of absence. For a WILDCARD watch (`movieId:
+  // null` — what every production watch in deploy/watches.json uses), the underlying listing already
+  // returns every movie currently showing at that cinema/date; seeing ANY session for a given
+  // cinemaId/date is proof the whole scope was listed, which is conclusive for every movieId in it,
+  // not just the ones that happened to still have sessions. This is safe against the same "endpoint
+  // hiccup" concern the per-movieId key protects against for multi-cinema listings: every chain
+  // adapter (event/hoyts/reading) issues ONE upstream request PER cinemaId and a failure on any of
+  // them fails the whole listSessions() call (see e.g. packages/adapters/event/src/index.ts's C8
+  // comment) — so a returned session for cinemaId C is already proof C's listing for that date fully
+  // succeeded, per-cinemaId, regardless of how many cinemaIds were requested together. A
+  // movie-specific watch's response is pre-filtered to one movieId and can't attest to other movies
+  // at that cinema/date, so it keeps the original narrower key.
   const seenIds = new Set<string>();
   const conclusiveScopes = new Set<string>();
   const scopeKey = (chain: string, cinemaId: string, date: string, movieId: string): string =>
     `${chain}|${cinemaId}|${date}|${movieId}`;
+  /** #77 wildcard-widened scope: (chain, cinemaId, date) only, conclusive for every movieId. */
+  const conclusiveWildcardScopes = new Set<string>();
+  const wildcardScopeKey = (chain: string, cinemaId: string, date: string): string =>
+    `${chain}|${cinemaId}|${date}`;
 
   const discovered = new Map<string, { session: Session; watch: WatchRow }>();
   for (const w of watches) {
@@ -470,8 +489,15 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
         const sessions = await adapter.listSessions(watchToQuery(w, date));
         for (const s of sessions) {
           seenIds.add(s.id);
+          const sessionDate = s.startTime.slice(0, 10);
           // The cinema/date/movie of each returned session is conclusively listed this tick.
-          conclusiveScopes.add(scopeKey(s.chain, s.cinemaId, s.startTime.slice(0, 10), s.movieId));
+          conclusiveScopes.add(scopeKey(s.chain, s.cinemaId, sessionDate, s.movieId));
+          // #77: a wildcard watch's response is the FULL multi-movie listing for this cinema/date —
+          // any session returned for it conclusively lists every movieId in that scope, delisted ones
+          // included.
+          if (w.movieId === null) {
+            conclusiveWildcardScopes.add(wildcardScopeKey(s.chain, s.cinemaId, sessionDate));
+          }
           if (!s.startTime.startsWith(date)) continue;
           if (!s.seatAllocation) continue;
           if (!discovered.has(s.id)) discovered.set(s.id, { session: s, watch: w });
@@ -484,7 +510,8 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
 
   /** True iff a known session's own (chain,cinema,date,movie) scope was conclusively listed this tick. */
   const inListedScope = (chain: Chain, cinemaId: string, date: string, movieId: string): boolean =>
-    conclusiveScopes.has(scopeKey(chain, cinemaId, date, movieId));
+    conclusiveScopes.has(scopeKey(chain, cinemaId, date, movieId)) ||
+    conclusiveWildcardScopes.has(wildcardScopeKey(chain, cinemaId, date));
 
   /** Null/empty (post-trim) counts as blank — the #67/#72 stale-cache symptom. */
   const isBlank = (v: string | null | undefined): boolean => v == null || v.trim() === "";
