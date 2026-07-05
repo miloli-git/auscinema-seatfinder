@@ -61,12 +61,15 @@ export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
   const orderedRows = [...rows.entries()].sort((a, b) => a[0] - b[0]);
   const areaName = (areaId: string) => map.areas.find((a) => a.id === areaId)?.name ?? "";
 
+  const approximate = map.geometryConfidence === "approximate";
+
   return (
     <>
-      {map.geometryConfidence === "approximate" && (
+      {approximate && (
         <span
           className="confidence-chip"
           title="Hoyts doesn't publish seat coordinates; positions are inferred from order."
+          aria-label="Seat positions approximate: Hoyts doesn't publish seat coordinates; positions are inferred from order."
         >
           Seat positions approximate
         </span>
@@ -79,7 +82,10 @@ export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
         <div
           className="grid"
           role="img"
-          aria-label="Auditorium seat map. Best available seats are outlined; colour shows seat quality from green (best) to dim (poor)."
+          aria-label={
+            "Auditorium seat map. Best available seats are outlined; colour shows seat quality from green (best) to dim (poor)." +
+            (approximate ? " Seat positions are approximate, inferred from listing order." : "")
+          }
         >
           {orderedRows.map(([r, arr]) => {
             const label = arr.find((s) => s)?.rowLabel ?? "";

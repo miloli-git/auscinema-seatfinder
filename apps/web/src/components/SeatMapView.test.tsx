@@ -42,12 +42,21 @@ describe("SeatMapView geometry confidence chip (#52)", () => {
     expect(chip.getAttribute("title")).toEqual(
       "Hoyts doesn't publish seat coordinates; positions are inferred from order.",
     );
+    expect(chip.getAttribute("aria-label")).toEqual(
+      "Seat positions approximate: Hoyts doesn't publish seat coordinates; positions are inferred from order.",
+    );
     expect(container.querySelectorAll(".confidence-chip")).toHaveLength(1);
+    expect(container.querySelector(".grid")?.getAttribute("aria-label")).toContain(
+      "Seat positions are approximate",
+    );
   });
 
   it("renders no chip when confidence is 'exact'", () => {
     const { container } = render(<SeatMapView map={map()} topN={3} />);
     expect(container.querySelectorAll(".confidence-chip")).toHaveLength(0);
+    expect(container.querySelector(".grid")?.getAttribute("aria-label")).not.toContain(
+      "approximate",
+    );
   });
 });
 
