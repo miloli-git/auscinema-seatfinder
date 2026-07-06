@@ -238,7 +238,6 @@ since it's pure UI and doesn't affect the API contract).
 - No RSVP / roster / must-have-people layer.
 - No per-day/day-varying party ranking (§1.2).
 - No 5th "lead time" lens and no date-availability module — that's #47b, a separate contract.
-- No poster/image field (§2 — data doesn't exist in the cache).
 
 ## 5. Blocking dependency: `cinemaName` for Hoyts/Reading (#67)
 

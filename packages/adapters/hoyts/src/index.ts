@@ -9,7 +9,7 @@ import type {
   SeatStatus,
   ScreenFormat,
 } from "@auscinema/core";
-import { UpstreamError, isAbortError } from "@auscinema/core";
+import { UpstreamError, isAbortError, safePosterUrl } from "@auscinema/core";
 
 /** Injectable HTTP-JSON fetcher so parsing can run against fixtures without network. */
 export type FetchJson = (url: string) => Promise<unknown>;
@@ -436,7 +436,7 @@ function parseMovieMeta(raw: unknown): Map<string, MovieMeta> {
     if (!vistaId || !name) continue;
     // Not every movies-list entry carries artwork; treat as optional (see class doc, #72 section).
     const posterImage = str(node.posterImage);
-    const posterUrl = posterImage ? `${HOYTS_IMGIX_BASE}${posterImage}` : undefined;
+    const posterUrl = safePosterUrl(posterImage ? `${HOYTS_IMGIX_BASE}${posterImage}` : undefined);
     const meta: MovieMeta = { name, ...(posterUrl ? { posterUrl } : {}) };
     // Live-verified (2026-07-05, cf. Hoyts issue investigation for the 571-session blank-title
     // cluster): `vistaId` is sometimes a COMMA-JOINED list of Vista ids sharing one marketing

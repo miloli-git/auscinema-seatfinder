@@ -9,7 +9,7 @@ import type {
   SeatStatus,
   ScreenFormat,
 } from "@auscinema/core";
-import { UpstreamError, isAbortError } from "@auscinema/core";
+import { UpstreamError, isAbortError, safePosterUrl } from "@auscinema/core";
 
 /**
  * Injectable HTTP-JSON fetcher so parsing can run against fixtures without network.
@@ -209,7 +209,7 @@ function parseSessions(raw: unknown, query: SessionQuery, base: string): Session
     // Algolia hit carries the movie's poster as a nested Contentful asset; absolute ctfassets URL.
     const poster = isObj(movie.poster) ? movie.poster : {};
     const posterImage = isObj(poster.image) ? poster.image : {};
-    const posterUrl = str(posterImage.url);
+    const posterUrl = safePosterUrl(str(posterImage.url));
 
     out.push({
       chain: "village",

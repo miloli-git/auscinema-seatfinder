@@ -148,3 +148,10 @@ ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS poster_url TEXT NULL;
 -- Reset to 0 whenever the session is seen again (including on resurrection). Existing rows default to
 -- 0. Re-appliable via IF NOT EXISTS.
 ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS wildcard_miss_streak INTEGER NOT NULL DEFAULT 0;
+
+-- #89 review follow-up: /catalog's poster self-heal correlated subquery (same correlated-subquery
+-- shape as the movie_name heal, #88 precedent) has no supporting index. Partial so it only carries
+-- poster-bearing rows.
+CREATE INDEX IF NOT EXISTS idx_sessions_chain_movie_poster_fetched
+  ON sessions (chain, movie_id, fetched_at DESC)
+  WHERE poster_url IS NOT NULL AND poster_url <> '';

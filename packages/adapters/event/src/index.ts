@@ -9,7 +9,7 @@ import type {
   SeatStatus,
   ScreenFormat,
 } from "@auscinema/core";
-import { UpstreamError, isAbortError } from "@auscinema/core";
+import { UpstreamError, isAbortError, safePosterUrl } from "@auscinema/core";
 import { readFileSync } from "node:fs";
 
 /** Injectable HTTP-JSON fetcher so parsing can run against fixtures without network. */
@@ -171,7 +171,7 @@ function parseSessions(raw: unknown): Session[] {
     if (!isObj(movie)) continue;
     const movieId = String(num(movie.Id) ?? str(movie.Id) ?? "");
     const movieName = str(movie.Name) ?? "";
-    const posterUrl = str(movie.PosterUrl) || str(movie.LargePosterUrl) || undefined;
+    const posterUrl = safePosterUrl(str(movie.PosterUrl) || str(movie.LargePosterUrl));
     for (const cm of arr(movie.CinemaModels)) {
       if (!isObj(cm)) continue;
       const cinemaId = String(num(cm.Id) ?? str(cm.Id) ?? "");
