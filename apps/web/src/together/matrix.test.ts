@@ -156,7 +156,7 @@ describe("buildMatrix (L2c)", () => {
   });
 
   it("filters: out-of-filter sessions drop from axes and cells", () => {
-    const m = buildMatrix(fixture(), { formats: ["vmax"], timePreset: "any", minScore: 74 });
+    const m = buildMatrix(fixture(), { formats: [{ kind: "vmax", raw: null }], timePreset: "any", minScore: 74 });
     expect(m.cinemas).toEqual([]);
     expect(m.dates).toEqual([]);
     expect(m.cells.size).toBe(0);

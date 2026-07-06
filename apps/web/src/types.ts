@@ -54,6 +54,7 @@ export type AreaKind =
   | "goldclass"
   | "daybed"
   | "companion"
+  | "frontsection"
   | "other";
 
 export interface SeatArea {

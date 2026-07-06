@@ -101,6 +101,14 @@ export function scoreBand(score: number): "elite" | "great" | "good" {
 }
 
 /**
+ * #91: score floor for best-pick outlines - shared so a "best pick" can never be worse than the
+ * heatmap's own "good" band (SeatMapView, OptionSeatMapPanel, TogetherDrillIn all outline top-N
+ * seats; without this floor, a near-sellout's top-N includes seats a human wouldn't call good,
+ * e.g. #90's front-section seats).
+ */
+export const BEST_PICK_MIN_SCORE = 58;
+
+/**
  * Seat-quality bucket for the heatmap. Five discrete steps read far better than a continuous
  * blue->green lerp (the v0 problem: every available seat looked the same green). Maps to the
  * --q-* tokens via a `data-q` attribute.
@@ -108,7 +116,7 @@ export function scoreBand(score: number): "elite" | "great" | "good" {
 export function seatQuality(score: number): "elite" | "great" | "good" | "ok" | "weak" {
   if (score >= 88) return "elite";
   if (score >= 74) return "great";
-  if (score >= 58) return "good";
+  if (score >= BEST_PICK_MIN_SCORE) return "good";
   if (score >= 40) return "ok";
   return "weak";
 }

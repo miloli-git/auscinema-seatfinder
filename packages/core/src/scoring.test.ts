@@ -113,6 +113,38 @@ test("scoreAvailableSeats keeps gated available seats with score 0", () => {
   assert.equal(display.some(({ seat, score }) => seat.id === "r4c4" && score > 0), true);
 });
 
+test("#90: frontsection seats are capped below the good band even at the geometric best position", () => {
+  const map = makeMap();
+  map.areas.push({ id: "front", name: "Front Section View", kind: "frontsection" });
+  // Give the geometrically-best seat (centre, target depth) the frontsection area - it would
+  // otherwise be the single highest score in the map.
+  const best = map.seats.find((s) => s.id === "r3c2")!;
+  best.areaId = "front";
+  const uncapped = scoreSeat({ ...best, areaId: "main" }, map);
+  assert.ok(uncapped > 45, `expected the geometric best to exceed 45 uncapped, got ${uncapped}`);
+  assert.ok(scoreSeat(best, map) <= 45, "frontsection seat must be capped at 45");
+});
+
+test("#90: frontsection cap flows through scoreAvailableSeats/rankSeats without special-casing", () => {
+  const map = makeMap();
+  map.areas.push({ id: "front", name: "Front Section View", kind: "frontsection" });
+  const best = map.seats.find((s) => s.id === "r3c2")!;
+  best.areaId = "front";
+
+  const ranked = rankSeats(map);
+  const frontRanked = ranked.find(({ seat }) => seat.id === "r3c2");
+  assert.ok(frontRanked, "frontsection seat still ranked (not zeroed)");
+  assert.ok(frontRanked.score <= 45);
+
+  const display = scoreAvailableSeats(map);
+  const frontDisplay = display.find(({ seat }) => seat.id === "r3c2");
+  assert.ok(frontDisplay && frontDisplay.score <= 45);
+
+  // A standard mid-house seat should now rank ahead of the capped front-section seat.
+  const standardTop = ranked.find(({ seat }) => seat.id !== "r3c2");
+  assert.ok(standardTop && standardTop.score > frontRanked.score);
+});
+
 test("bestSeatScore is 0 when no seats available", () => {
   const map = makeMap();
   for (const s of map.seats) s.status = "sold";

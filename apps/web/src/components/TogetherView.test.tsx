@@ -80,6 +80,16 @@ function resultFor(over: {
   };
 }
 
+/** A result for a given cinema with an explicit chain-raw format label (#92 chip tests). */
+function resultWithFormat(cinemaId: string, cinemaName: string, format: string, chain: Chain = "event"): TogetherResult {
+  return {
+    session: session({ id: `${cinemaId}-s1`, chain, cinemaId, cinemaName, format }),
+    block: block(90),
+    approximateAdjacency: false,
+    fetchedAt: "2026-06-25T01:04:00.000Z",
+  };
+}
+
 /** A TogetherResponse carrying a single cinema's result. */
 function respFor(cinema: {
   cinemaId: string;
@@ -390,6 +400,92 @@ describe("TogetherView movie picker acceptance", () => {
       await resolveDeferred(pending[0]!, respFor({ cinemaId: "stale", cinemaName: "STALE", movieId: "19796" }));
       expect(view.queryByText(/STALE/)).not.toBeInTheDocument();
       expect(await view.findByText(/LATEST/)).toBeInTheDocument();
+    });
+  });
+
+  describe("format chips derive from scan results (#92)", () => {
+    it("no chips render before any scan has run", async () => {
+      const view = setup();
+      await readyMovieSelect(view);
+      expect(view.container.querySelectorAll(".chip")).toHaveLength(0);
+    });
+
+    it("Hoyts-shaped scan yields exactly Xtremescreen/LUX/Standard chips, each isolating its own sessions", async () => {
+      const results: TogetherResult[] = [
+        resultWithFormat("h-xtreme", "Hoyts Xtreme Cinema", "Xtremescreen", "hoyts"),
+        resultWithFormat("h-lux", "Hoyts LUX Cinema", "LUX", "hoyts"),
+        resultWithFormat("h-std", "Hoyts Standard Cinema", "Standard", "hoyts"),
+      ];
+      mockFetchCatalog.mockResolvedValue(catalog([{ id: "H-1", name: "Hoyts Movie", chain: "hoyts" }]));
+      mockGetTogether.mockResolvedValueOnce({ party: 2, minScore: 74, count: results.length, results });
+
+      const view = setup();
+      fireEvent.change(view.chainSelect(), { target: { value: "hoyts" } });
+      const select = await readyMovieSelect(view);
+      fireEvent.change(select, { target: { value: "H-1" } });
+      fireEvent.click(view.scanBtn());
+      await waitFor(() => expect(mockGetTogether).toHaveBeenCalledTimes(1));
+      await view.findByText(/Hoyts Xtreme Cinema/);
+
+      const chips = () => [...view.container.querySelectorAll(".chip")];
+      expect(chips().map((el) => el.textContent).sort()).toEqual(["LUX", "Standard", "Xtremescreen"]);
+      // No dead Event-only chips (IMAX/V-Max/Gold Class) on a Hoyts scan.
+      expect(chips().some((el) => /IMAX|V-Max|Gold Class/.test(el.textContent ?? ""))).toBe(false);
+
+      const xtremeChip = chips().find((el) => el.textContent === "Xtremescreen")!;
+      fireEvent.click(xtremeChip);
+      expect(view.queryByText(/Hoyts Xtreme Cinema/)).toBeInTheDocument();
+      expect(view.queryByText(/Hoyts LUX Cinema/)).not.toBeInTheDocument();
+      expect(view.queryByText(/Hoyts Standard Cinema/)).not.toBeInTheDocument();
+    });
+
+    it("Event-shaped scan yields IMAX/V-Max/Gold Class/Standard chips correctly", async () => {
+      const results: TogetherResult[] = [
+        resultWithFormat("e-imax", "IMAX Sydney", "IMAX", "event"),
+        resultWithFormat("e-vmax", "Event V-Max", "V-Max", "event"),
+        resultWithFormat("e-gold", "Event Gold Class", "Gold Class", "event"),
+        resultWithFormat("e-std", "Event Standard", "Standard", "event"),
+      ];
+      mockGetTogether.mockResolvedValueOnce({ party: 2, minScore: 74, count: results.length, results });
+
+      const view = setup();
+      const select = await readyMovieSelect(view);
+      fireEvent.change(select, { target: { value: "19796" } });
+      fireEvent.click(view.scanBtn());
+      await waitFor(() => expect(mockGetTogether).toHaveBeenCalledTimes(1));
+      await view.findByText(/IMAX Sydney/);
+
+      const chips = [...view.container.querySelectorAll(".chip")].map((el) => el.textContent);
+      expect(chips.sort()).toEqual(["Gold Class", "IMAX", "Standard", "V-Max"]);
+    });
+
+    it("a previously-selected chip is dropped when its format disappears from a new scan", async () => {
+      const imaxOnly: TogetherResult[] = [resultWithFormat("e-imax", "IMAX Sydney", "IMAX", "event")];
+      const standardOnly: TogetherResult[] = [resultWithFormat("e-std", "Event Standard", "Standard", "event")];
+      mockGetTogether.mockResolvedValueOnce({ party: 2, minScore: 74, count: 1, results: imaxOnly });
+
+      const view = setup();
+      const select = await readyMovieSelect(view);
+      fireEvent.change(select, { target: { value: "19796" } });
+      fireEvent.click(view.scanBtn());
+      await waitFor(() => expect(mockGetTogether).toHaveBeenCalledTimes(1));
+      await view.findByText(/IMAX Sydney/);
+
+      const imaxChip = [...view.container.querySelectorAll(".chip")].find((el) => el.textContent === "IMAX")!;
+      fireEvent.click(imaxChip);
+      expect(imaxChip.className).toContain("chip--on");
+
+      // Re-scan with a movie whose only session is Standard - the IMAX chip (and its filter) must vanish.
+      mockGetTogether.mockResolvedValueOnce({ party: 2, minScore: 74, count: 1, results: standardOnly });
+      fireEvent.change(select, { target: { value: "19797" } });
+      fireEvent.click(view.scanBtn());
+      await waitFor(() => expect(mockGetTogether).toHaveBeenCalledTimes(2));
+      await view.findByText(/Event Standard/);
+
+      const chipTexts = [...view.container.querySelectorAll(".chip")].map((el) => el.textContent);
+      expect(chipTexts).toEqual(["Standard"]);
+      // Dropped filter means the Standard session is visible (not filtered out by a stale IMAX-only selection).
+      expect(view.queryByText(/Event Standard/)).toBeInTheDocument();
     });
   });
 });

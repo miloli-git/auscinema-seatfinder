@@ -1,0 +1,51 @@
+// #92 — derive "together" format chips from the scanned session set instead of a hardcoded,
+// chain-agnostic list (the old FORMAT_KINDS showed IMAX/V-Max/Gold Class on Hoyts, where they
+// never match anything, and had no chip at all for `premium` - the LUX-unfilterable bug).
+import type { ScreenFormat, Session } from "../types";
+
+/** One renderable format chip. `raw` mirrors `FormatSelector` (filters.ts) so a chip can be
+ *  turned straight into a filter selector: `{ kind: chip.kind, raw: chip.raw }`. */
+export interface FormatChip {
+  kind: ScreenFormat["kind"];
+  raw: string | null;
+  label: string;
+}
+
+/** Fixed labels: one chip per kind, regardless of the chain's own raw label variations. */
+const FIXED_LABEL: Partial<Record<ScreenFormat["kind"], string>> = {
+  imax: "IMAX",
+  vmax: "V-Max",
+  goldclass: "Gold Class",
+  standard: "Standard",
+};
+
+/** Display/sort priority for chip kinds; premium/other chips beyond this sort alphabetically by label. */
+const KIND_ORDER: ScreenFormat["kind"][] = ["imax", "vmax", "goldclass", "premium", "standard", "other"];
+
+function chipKey(kind: ScreenFormat["kind"], raw: string | null): string {
+  return `${kind}\0${raw ?? ""}`;
+}
+
+/**
+ * One chip per distinct format actually present in `sessions`. Fixed-label kinds
+ * (imax/vmax/goldclass/standard) collapse to a single chip. `premium` and `other` get one chip
+ * PER DISTINCT raw label present (e.g. "LUX", "Xtremescreen"), falling back to the kind's generic
+ * label ("Premium"/"Other") when the raw label is blank.
+ */
+export function deriveFormatChips(sessions: Session[]): FormatChip[] {
+  const seen = new Map<string, FormatChip>();
+  for (const s of sessions) {
+    const kind = s.format.kind;
+    const fixed = FIXED_LABEL[kind];
+    const raw = fixed ? null : s.format.raw?.trim() || "";
+    const label = fixed ?? (raw || (kind === "premium" ? "Premium" : "Other"));
+    const key = chipKey(kind, raw);
+    if (!seen.has(key)) seen.set(key, { kind, raw, label });
+  }
+  return [...seen.values()].sort((a, b) => {
+    const ai = KIND_ORDER.indexOf(a.kind);
+    const bi = KIND_ORDER.indexOf(b.kind);
+    if (ai !== bi) return ai - bi;
+    return a.label.localeCompare(b.label);
+  });
+}

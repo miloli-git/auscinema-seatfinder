@@ -1,5 +1,5 @@
-import { matchesFormat, matchesTime, isEvening, isWeekend } from "./filters";
-import type { ScreenFormat, Session } from "../types";
+import { matchesFormat, matchesTime, isEvening, isWeekend, type FormatSelector } from "./filters";
+import type { Session } from "../types";
 
 function session(over: Partial<Session> = {}): Session {
   return {
@@ -22,15 +22,33 @@ describe("matchesFormat (L2b.1)", () => {
     expect(matchesFormat(session({ format: { kind: "vmax", raw: "V-Max" } }), [])).toBe(true);
   });
 
-  it("passes when the session kind is selected", () => {
-    const kinds: ScreenFormat["kind"][] = ["imax", "vmax"];
-    expect(matchesFormat(session({ format: { kind: "imax", raw: "IMAX" } }), kinds)).toBe(true);
+  it("passes when the session kind is selected (raw: null = kind-only match)", () => {
+    const selected: FormatSelector[] = [{ kind: "imax", raw: null }, { kind: "vmax", raw: null }];
+    expect(matchesFormat(session({ format: { kind: "imax", raw: "IMAX" } }), selected)).toBe(true);
   });
 
   it("fails when the session kind is not selected", () => {
-    expect(matchesFormat(session({ format: { kind: "standard", raw: "Standard" } }), ["imax"])).toBe(
-      false,
-    );
+    expect(
+      matchesFormat(session({ format: { kind: "standard", raw: "Standard" } }), [
+        { kind: "imax", raw: null },
+      ]),
+    ).toBe(false);
+  });
+
+  it("#92: an other/premium chip matches on kind+raw-label pair, not kind alone", () => {
+    const xtreme = session({ format: { kind: "other", raw: "Xtremescreen" } });
+    const dbox = session({ format: { kind: "other", raw: "D-BOX" } });
+    const selected: FormatSelector[] = [{ kind: "other", raw: "Xtremescreen" }];
+    expect(matchesFormat(xtreme, selected)).toBe(true);
+    expect(matchesFormat(dbox, selected)).toBe(false);
+  });
+
+  it("#92: the blank-raw 'other'/'premium' fallback bucket (raw: '') matches only label-less sessions", () => {
+    const labelless = session({ format: { kind: "other", raw: "" } });
+    const labelled = session({ format: { kind: "other", raw: "Xtremescreen" } });
+    const selected: FormatSelector[] = [{ kind: "other", raw: "" }];
+    expect(matchesFormat(labelless, selected)).toBe(true);
+    expect(matchesFormat(labelled, selected)).toBe(false);
   });
 });
 

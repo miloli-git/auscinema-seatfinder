@@ -10,13 +10,26 @@ import type { ScreenFormat, Session } from "../types";
 
 export type TimePreset = "any" | "evenings" | "weekends";
 
+/**
+ * #92: a selected format chip. `raw: null` matches by `kind` alone (the fixed-label kinds -
+ * imax/vmax/goldclass/standard - where every session of that kind gets the same chip regardless
+ * of its raw label). `raw: string` matches `kind` AND the session's trimmed raw label exactly
+ * (premium/other chips, e.g. "LUX" or "Xtremescreen" - `raw: ""` is the label-less fallback
+ * bucket, distinct from "match any raw").
+ */
+export interface FormatSelector {
+  kind: ScreenFormat["kind"];
+  raw: string | null;
+}
+
 /** Format multi-select. Empty selection = no filter (all pass). */
-export function matchesFormat(
-  session: Session,
-  selectedKinds: ScreenFormat["kind"][],
-): boolean {
-  if (selectedKinds.length === 0) return true;
-  return selectedKinds.includes(session.format.kind);
+export function matchesFormat(session: Session, selected: FormatSelector[]): boolean {
+  if (selected.length === 0) return true;
+  return selected.some((sel) => {
+    if (sel.kind !== session.format.kind) return false;
+    if (sel.raw === null) return true;
+    return (session.format.raw?.trim() ?? "") === sel.raw;
+  });
 }
 
 /** Wall-clock hour (0-23) read straight off the ISO string, no TZ conversion. */

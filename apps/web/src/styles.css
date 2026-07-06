@@ -1073,9 +1073,11 @@ input[type="checkbox"] {
   font-size: var(--t-xs);
 }
 
+/* #91: inset (negative offset) so a seat that is both a "together" highlight and a best-pick
+   outline shows two concentric rings, not one outline stomping the other. */
 .seat--hi {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
 /* ── Movie-first entry (#47a) ──────────────────────────────────────────── */

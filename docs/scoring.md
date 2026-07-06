@@ -18,6 +18,12 @@ computed from auditorium geometry + the user's preference. Higher is better.
    `halfWidth = (maxCol-minCol)/2`. `centralityPenalty = |col - centre| / halfWidth` (0..1).
 4. **Combine.** Normalise weights, `penalty = depthWeight*depthPenalty + centralityWeight*centralityPenalty`.
    `score = round(100 * (1 - penalty))`, clamped 0..100.
+5. **Class cap (#90).** Applied after geometry, on the geometric score. `frontsection` areas
+   (view-compromised: sold by the chain as a distinct, cheaper class regardless of how centred/deep
+   the seat sits) are capped at 45 — below the web "good" band (`seatQuality` in `format.ts`: >=58
+   good, >=74 great) — so pure geometry can never crown a front-section seat a best pick. No other
+   kind is modified; premium-kind bonuses (recliner/goldclass/premium uplift) are deferred, not yet
+   implemented.
 
 ## Notes
 - Compute row/col extents from real seats only (drop `spacer`).

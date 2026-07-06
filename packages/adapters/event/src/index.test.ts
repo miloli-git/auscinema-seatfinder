@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { UpstreamError } from "@auscinema/core";
+import { UpstreamError, scoreSeat } from "@auscinema/core";
 import { EventCinemasAdapter, type FetchJson } from "./index.js";
 
 // Compiled test lives in dist/; fixtures are committed at ../fixtures relative to the package root.
@@ -127,6 +127,44 @@ test("getSeatMap: decodes seats, areas and preserves spacers", async () => {
   assert.ok(c5);
   assert.equal(c5.status, "special");
   assert.equal(c5.accessible, true);
+});
+
+// #90: IMAX Sydney (cinema 96) front section/box/couples areas - live-captured 2026-07-06,
+// session 15428913, front-section (StandardFront) row A-D seats. Burwood fixture has no front
+// section, which is why this class of bug (#90) went uncaught by the existing tests.
+test("getSeatMap: IMAX front-section/box/couples areas map to frontsection/premium, not other", async () => {
+  const adapter = adapterReturning(loadFixture("getseating.imax-frontsection.json"));
+  const map = await adapter.getSeatMap("15428913");
+
+  assert.ok(map.seats.length > 0, "expected seats");
+
+  const byCode = new Map(map.areas.map((a) => [a.code, a]));
+  assert.equal(byCode.get("StandardFront")?.kind, "frontsection");
+  assert.equal(byCode.get("boxpod")?.kind, "premium");
+  assert.equal(byCode.get("doublerec")?.kind, "premium");
+  assert.equal(byCode.get("standard")?.kind, "standard");
+  assert.equal(byCode.get("club")?.kind, "recliner");
+
+  const frontsectionAreaId = byCode.get("StandardFront")?.id;
+  assert.ok(frontsectionAreaId, "StandardFront area present");
+  const frontSeats = map.seats.filter((s) => s.areaId === frontsectionAreaId && s.status === "available");
+  assert.ok(frontSeats.length > 0, "expected available front-section seats");
+
+  // #90: front-section seats never score into the web "good" band (>=58), regardless of geometry.
+  for (const seat of frontSeats) {
+    const score = scoreSeat(seat, map);
+    assert.ok(score <= 45, `front-section seat ${seat.name} scored ${score}, expected <=45`);
+  }
+
+  // A mid-house standard seat should comfortably outrank a front-section seat.
+  const standardAreaId = byCode.get("standard")?.id;
+  const midStandard = map.seats.find(
+    (s) => s.areaId === standardAreaId && s.status === "available" && s.rowLabel === "F",
+  );
+  assert.ok(midStandard, "expected an available mid-house standard seat for contrast");
+  const midScore = scoreSeat(midStandard, map);
+  const frontScore = scoreSeat(frontSeats[0]!, map);
+  assert.ok(midScore > frontScore, `expected mid-house ${midScore} > front-section ${frontScore}`);
 });
 
 test("listSessions: maps cinema 58 sessions with ids, times and format", async () => {
