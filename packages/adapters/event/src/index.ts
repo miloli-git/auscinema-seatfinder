@@ -209,6 +209,13 @@ function mapAreaKind(code: unknown, name: unknown): SeatArea["kind"] {
   const n = (str(name) ?? "").toLowerCase();
   if (c.includes("club") || n.includes("recliner")) return "recliner";
   if (c.includes("suite") || n.includes("daybed")) return "daybed";
+  // #90: StandardFront ("Front Section View") is view-compromised, not premium - own kind so the
+  // scorer can cap it below the "good" band instead of falling through to "other" (invisible to scoring).
+  if (c.includes("standardfront") || n.includes("front section")) return "frontsection";
+  // #90: boxpod ("Coca-Cola Private Box") and doublerec ("Couples") were previously silent "other" -
+  // both are premium seating classes.
+  if (c.includes("boxpod") || n.includes("private box")) return "premium";
+  if (c.includes("doublerec") || n.includes("couples")) return "premium";
   if (n.includes("platinum")) return "premium";
   if (n.includes("gold")) return "goldclass";
   if (n.includes("companion")) return "companion";

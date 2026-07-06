@@ -69,7 +69,7 @@ export interface SeatArea {
   /** Chain's short code, e.g. "club", "suite". */
   code?: string;
   /** Normalised class bucket used by scoring/filtering. */
-  kind: "standard" | "recliner" | "premium" | "goldclass" | "daybed" | "companion" | "other";
+  kind: "standard" | "recliner" | "premium" | "goldclass" | "daybed" | "companion" | "frontsection" | "other";
 }
 
 /** A single seat with its normalised physical grid position. */

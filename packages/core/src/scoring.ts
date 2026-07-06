@@ -85,7 +85,16 @@ export function scoreSeat(seat: Seat, map: SeatMap, pref?: SeatPreference): numb
 
   const penalty = depthWeight * depthPenalty + centralityWeight * centralityPenalty;
   const score = Math.round(100 * (1 - penalty));
-  return Math.max(0, Math.min(100, score));
+  const geometricScore = Math.max(0, Math.min(100, score));
+
+  // #90: per-kind class modifier, applied after geometry. Front-section-view seats are
+  // view-compromised regardless of how centred/deep they sit, so cap them below the web
+  // "good" band (seatQuality in format.ts: >=58 good, >=74 great) rather than let pure
+  // geometry crown them best picks. No bonus for premium kinds yet - class-quality bonuses
+  // (recliner/goldclass/premium uplift) are deferred; only the view-compromise cap ships now.
+  const kind = areaKind(map, seat.areaId);
+  if (kind === "frontsection") return Math.min(geometricScore, 45);
+  return geometricScore;
 }
 
 /** Resolve a seat's normalised area kind via the map's area list. */

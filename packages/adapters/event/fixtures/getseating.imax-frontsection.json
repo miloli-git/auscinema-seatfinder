@@ -1,0 +1,2262 @@
+{
+  "Success": true,
+  "Data": {
+    "Seats": {
+      "Rows": [
+        {
+          "RowName": "A",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|33"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|32"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|31"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|30"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|29"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|27"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|26"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|25",
+              "SeatName": "A1"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|24",
+              "SeatName": "A2"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|23",
+              "SeatName": "A3"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|22",
+              "SeatName": "A4"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|21",
+              "SeatName": "A5"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|20",
+              "SeatName": "A6"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|19",
+              "SeatName": "A7"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|18",
+              "SeatName": "A8"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|17",
+              "SeatName": "A9"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|16",
+              "SeatName": "A10"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|15",
+              "SeatName": "A11"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|14",
+              "SeatName": "A12"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|13",
+              "SeatName": "A13"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|12",
+              "SeatName": "A14"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|11",
+              "SeatName": "A15"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|10",
+              "SeatName": "A16"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|18|9",
+              "SeatName": "A17"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|8"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|7"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|6"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|5"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|18|1"
+            }
+          ]
+        },
+        {
+          "RowName": "B",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|33"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|32"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|31"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|30"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|29"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|27"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|26",
+              "SeatName": "B1"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|25",
+              "SeatName": "B2"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|24",
+              "SeatName": "B3"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|23",
+              "SeatName": "B4"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|22",
+              "SeatName": "B5"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|21",
+              "SeatName": "B6"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|20",
+              "SeatName": "B7"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|19",
+              "SeatName": "B8"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|18",
+              "SeatName": "B9"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|17",
+              "SeatName": "B10"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|16",
+              "SeatName": "B11"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|15",
+              "SeatName": "B12"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|14",
+              "SeatName": "B13"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|13",
+              "SeatName": "B14"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|12",
+              "SeatName": "B15"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|11",
+              "SeatName": "B16"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|10",
+              "SeatName": "B17"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|9",
+              "SeatName": "B18"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|17|8",
+              "SeatName": "B19"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|7"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|6"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|5"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|17|1"
+            }
+          ]
+        },
+        {
+          "RowName": "C",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|33"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|32"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|31"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|30"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|29"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|28"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|27",
+              "SeatName": "C1"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|26",
+              "SeatName": "C2"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|25",
+              "SeatName": "C3"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|24",
+              "SeatName": "C4"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|23",
+              "SeatName": "C5"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|22",
+              "SeatName": "C6"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|21",
+              "SeatName": "C7"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|20",
+              "SeatName": "C8"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|19",
+              "SeatName": "C9"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|18",
+              "SeatName": "C10"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|17",
+              "SeatName": "C11"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|16",
+              "SeatName": "C12"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|15",
+              "SeatName": "C13"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|14",
+              "SeatName": "C14"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|13",
+              "SeatName": "C15"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|12",
+              "SeatName": "C16"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|11",
+              "SeatName": "C17"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|10",
+              "SeatName": "C18"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|9",
+              "SeatName": "C19"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|8",
+              "SeatName": "C20"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Available",
+              "SeatId": "0000000010|5|16|7",
+              "SeatName": "C21"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|6"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|5"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|16|1"
+            }
+          ]
+        },
+        {
+          "RowName": "D",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|33"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|32"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|31"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Companion",
+              "SeatId": "0000000010|5|15|30",
+              "SeatName": "D1"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Companion",
+              "SeatId": "0000000010|5|15|29",
+              "SeatName": "D2"
+            },
+            {
+              "Wheelchair": true,
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Special",
+              "SeatId": "0000000010|5|15|28",
+              "SeatName": "D3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|27"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|26"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|25"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|24"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|23"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D5"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|22",
+              "SeatName": "D4"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D4"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|21",
+              "SeatName": "D5"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D7"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|20",
+              "SeatName": "D6"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D6"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|19",
+              "SeatName": "D7"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D9"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|18",
+              "SeatName": "D8"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D8"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|17",
+              "SeatName": "D9"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D11"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|16",
+              "SeatName": "D10"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D10"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|15",
+              "SeatName": "D11"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D13"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|14",
+              "SeatName": "D12"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D12"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|13",
+              "SeatName": "D13"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D15"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|12",
+              "SeatName": "D14"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 15,
+              "RelatedSeats": [
+                "D14"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000002|3|15|11",
+              "SeatName": "D15"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|10"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|9"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|8"
+            },
+            {
+              "Wheelchair": true,
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Special",
+              "SeatId": "0000000010|5|15|7",
+              "SeatName": "D16"
+            },
+            {
+              "Wheelchair": true,
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Special",
+              "SeatId": "0000000010|5|15|6",
+              "SeatName": "D17"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Companion",
+              "SeatId": "0000000010|5|15|5",
+              "SeatName": "D18"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 20,
+              "Status": "Companion",
+              "SeatId": "0000000010|5|15|4",
+              "SeatName": "D19"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|15|1"
+            }
+          ]
+        },
+        {
+          "RowName": "E",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|33"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|32"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|31"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|30"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|29"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|27"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|26"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|25"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|24",
+              "SeatName": "E7"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|23",
+              "SeatName": "E8"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|22",
+              "SeatName": "E9"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|21",
+              "SeatName": "E10"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|20",
+              "SeatName": "E11"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|19",
+              "SeatName": "E12"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Booked",
+              "SeatId": "0000000000|1|13|18",
+              "SeatName": "E13"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Booked",
+              "SeatId": "0000000000|1|13|17",
+              "SeatName": "E14"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|16",
+              "SeatName": "E15"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|15",
+              "SeatName": "E16"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|14",
+              "SeatName": "E17"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|13",
+              "SeatName": "E18"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|12",
+              "SeatName": "E19"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|11",
+              "SeatName": "E20"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|13|10",
+              "SeatName": "E21"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|9"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|8"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|7"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|6"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|5"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|13|1"
+            }
+          ]
+        },
+        {
+          "RowName": "F",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|33"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|32",
+              "SeatName": "F3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|31",
+              "SeatName": "F4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|30",
+              "SeatName": "F5"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|29",
+              "SeatName": "F6"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|27"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|26"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|25",
+              "SeatName": "F7"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|24",
+              "SeatName": "F8"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|23",
+              "SeatName": "F9"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|22",
+              "SeatName": "F10"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|21",
+              "SeatName": "F11"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|20",
+              "SeatName": "F12"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|19",
+              "SeatName": "F13"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|18",
+              "SeatName": "F14"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|17",
+              "SeatName": "F15"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|16",
+              "SeatName": "F16"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|15",
+              "SeatName": "F17"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|14",
+              "SeatName": "F18"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|13",
+              "SeatName": "F19"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|12",
+              "SeatName": "F20"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|11",
+              "SeatName": "F21"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|10",
+              "SeatName": "F22"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|9"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|8"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|7"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|6",
+              "SeatName": "F26"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|5",
+              "SeatName": "F27"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|4",
+              "SeatName": "F28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|12|3",
+              "SeatName": "F29"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|12|1"
+            }
+          ]
+        },
+        {
+          "RowName": "M",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|6|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|33",
+              "SeatName": "M2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|32",
+              "SeatName": "M3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|31",
+              "SeatName": "M4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|30",
+              "SeatName": "M5"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|29",
+              "SeatName": "M6"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|6|28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|6|27"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|26",
+              "SeatName": "M7"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|6|25",
+              "SeatName": "M8"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|6|24",
+              "SeatName": "M9"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|6|23",
+              "SeatName": "M10"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|22",
+              "SeatName": "M11"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|21",
+              "SeatName": "M12"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|20",
+              "SeatName": "M13"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|19",
+              "SeatName": "M14"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|18",
+              "SeatName": "M15"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|17",
+              "SeatName": "M16"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|16",
+              "SeatName": "M17"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|6|15",
+              "SeatName": "M18"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|6|14",
+              "SeatName": "M19"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|13",
+              "SeatName": "M20"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|12",
+              "SeatName": "M21"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|11",
+              "SeatName": "M22"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|10",
+              "SeatName": "M23"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|6|9",
+              "SeatName": "M24"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|6|8"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|6|7"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|6",
+              "SeatName": "M26"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|5",
+              "SeatName": "M27"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|4",
+              "SeatName": "M28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|3",
+              "SeatName": "M29"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|6|2",
+              "SeatName": "M30"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|6|1"
+            }
+          ]
+        },
+        {
+          "RowName": "P",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|4|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|4|33"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|4|32",
+              "SeatName": "P3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|4|31",
+              "SeatName": "P4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|4|30",
+              "SeatName": "P5"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|4|29",
+              "SeatName": "P6"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|4|28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|4|27"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|26",
+              "SeatName": "P7"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|25",
+              "SeatName": "P8"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|24",
+              "SeatName": "P9"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|23",
+              "SeatName": "P10"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|22",
+              "SeatName": "P11"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|21",
+              "SeatName": "P12"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|4|20",
+              "SeatName": "P13"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|4|19",
+              "SeatName": "P14"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|4|18",
+              "SeatName": "P15"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|4|17",
+              "SeatName": "P16"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|4|16",
+              "SeatName": "P17"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Booked",
+              "SeatId": "0000000001|2|4|15",
+              "SeatName": "P18"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|14",
+              "SeatName": "P19"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|13",
+              "SeatName": "P20"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|12",
+              "SeatName": "P21"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|11",
+              "SeatName": "P22"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|10",
+              "SeatName": "P23"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|9",
+              "SeatName": "P24"
+            },
+            {
+              "IsPlatinum": true,
+              "AreaId": 6,
+              "Status": "Available",
+              "SeatId": "0000000001|2|4|8",
+              "SeatName": "P25"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|4|7"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|4|6",
+              "SeatName": "P26"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|4|5",
+              "SeatName": "P27"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|4|4",
+              "SeatName": "P28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|4|3",
+              "SeatName": "P29"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|4|2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|4|1"
+            }
+          ]
+        },
+        {
+          "RowName": "Q",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|33"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Booked",
+              "SeatId": "0000000000|1|3|32",
+              "SeatName": "Q3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Booked",
+              "SeatId": "0000000000|1|3|31",
+              "SeatName": "Q4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|3|30",
+              "SeatName": "Q5"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|3|29",
+              "SeatName": "Q6"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|27"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|26"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|25"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|24"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|23"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|22"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|21"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|20"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|19"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|18"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|17"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|16"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|15"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|14"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|13"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|12"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|11"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|10"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|9"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|8"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|7"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|3|6",
+              "SeatName": "Q26"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|3|5",
+              "SeatName": "Q27"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|3|4",
+              "SeatName": "Q28"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Available",
+              "SeatId": "0000000000|1|3|3",
+              "SeatName": "Q29"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|3|1"
+            }
+          ]
+        },
+        {
+          "RowName": "R",
+          "Seats": [
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|34"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|33"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|32"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|31"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|30"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 16,
+              "RelatedSeats": [
+                "R4",
+                "R3",
+                "R2"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000003|4|1|29",
+              "SeatName": "R1",
+              "AttributeIds": [
+                169
+              ],
+              "Attributes": [
+                "Delivery"
+              ]
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 16,
+              "RelatedSeats": [
+                "R4",
+                "R3",
+                "R1"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000003|4|1|28",
+              "SeatName": "R2"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 16,
+              "RelatedSeats": [
+                "R4",
+                "R2",
+                "R1"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000003|4|1|27",
+              "SeatName": "R3"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 16,
+              "RelatedSeats": [
+                "R3",
+                "R2",
+                "R1"
+              ],
+              "Status": "Available",
+              "SeatId": "0000000003|4|1|26",
+              "SeatName": "R4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|25"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|24"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|23"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|22"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|21"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|20"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|19"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|18"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|17"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|16"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|15"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|14"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|13"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|12"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|11"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|10"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|9"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 16,
+              "RelatedSeats": [
+                "R8",
+                "R7",
+                "R6"
+              ],
+              "Status": "Booked",
+              "SeatId": "0000000003|4|1|8",
+              "SeatName": "R5",
+              "AttributeIds": [
+                169
+              ],
+              "Attributes": [
+                "Delivery"
+              ]
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 16,
+              "RelatedSeats": [
+                "R8",
+                "R7",
+                "R5"
+              ],
+              "Status": "Booked",
+              "SeatId": "0000000003|4|1|7",
+              "SeatName": "R6"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 16,
+              "RelatedSeats": [
+                "R8",
+                "R6",
+                "R5"
+              ],
+              "Status": "Booked",
+              "SeatId": "0000000003|4|1|6",
+              "SeatName": "R7"
+            },
+            {
+              "CoupleSeat": true,
+              "IsPlatinum": true,
+              "AreaId": 16,
+              "RelatedSeats": [
+                "R7",
+                "R6",
+                "R5"
+              ],
+              "Status": "Booked",
+              "SeatId": "0000000003|4|1|5",
+              "SeatName": "R8"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|4"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|3"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|2"
+            },
+            {
+              "AreaId": 1,
+              "Status": "Spacer",
+              "SeatId": "|0|1|1"
+            }
+          ]
+        }
+      ],
+      "SelectedSeats": [],
+      "SessionId": 15428913,
+      "SessionCode": 7684,
+      "HasWheelChairs": true,
+      "HasCompanions": true,
+      "AttributeIds": [
+        169
+      ]
+    },
+    "Areas": [
+      {
+        "Id": 16,
+        "Name": "Coca-Cola Private Box",
+        "Code": "boxpod",
+        "DescriptionHtml": "<h3>\r\n  <strong>Upgrade to your own Coca-Cola Private Box&nbsp;at IMAX Sydney</strong>\r\n</h3>\r\n<p>\r\n  Your experience will include\r\n</p>\r\n<ul style=\"padding-left: 20px\">\r\n  <li>Reserved seating in the IMAX Sydney Bar before the movie</li>\r\n  <li>Elevated back section of the cinema for up to 4 guests</li>\r\n  <li>Our biggest luxury leather recliners</li>\r\n  <li>A choice of beverage per guest, from our Bar</li>\r\n  <li>Self-serve unlimited classic salted popcorn&nbsp;</li>\r\n  <li>Self-serve from the Coca-Cola minibar</li>\r\n</ul>\r\n<p>\r\n  Before you arrive, you can also pre-purchase from our Coca-Cola Private Box&nbsp;chef-curated menu to enjoy during your movie.\r\n</p>\r\n<p>\r\n  Sit back, relax, and let us show you the ultimate IMAX experience.&nbsp;\r\n</p>\r\n",
+        "ImageUrl": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/16.jpg",
+        "SeatColour": "#dfdfdf",
+        "SeatImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/16_seat.svg",
+        "SelectedSeatImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/16_seat-selected.svg",
+        "ExperienceImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/16_experience.jpg",
+        "SortOrder": 6,
+        "TreatRelatedAsPackage": true,
+        "IsDoubleHeight": true,
+        "ExperienceHtml": "<p><span style=\"font-size:18px;\"> <strong>Upgrade to your own Coca-Cola Private Box* at IMAX Sydney</strong></span></p>\r\n\r\n<p><br />\r\nYour experience will include:<br />\r\n&nbsp;</p>\r\n\r\n<ul class=\"indented mobile-left-aligned\">\r\n\t<li>Reserved seating in the IMAX Sydney Bar before the movie</li>\r\n\t<li>Elevated back section of the cinema for up to 4 guests</li>\r\n\t<li>Our biggest luxury leather recliners</li>\r\n\t<li>A choice of beverage per guest, from our Bar</li>\r\n\t<li>Self-serve unlimited classic salted popcorn</li>\r\n\t<li>Self-serve from the Coca-Cola minibar</li>\r\n</ul>\r\n\r\n<p>&nbsp;</p>\r\n\r\n<p>Before you arrive, you can also pre-purchase from our Coca-Cola Private Box* chef-curated menu to enjoy during your movie.</p>\r\n\r\n<p>&nbsp;</p>\r\n\r\n<p>Sit back, relax, and let us show you the ultimate IMAX experience.</p>\r\n\r\n<p>&nbsp;</p>\r\n\r\n<p>*Exclusive to IMAX Sydney</p>\r\n",
+        "PackageSeatsCount": 4,
+        "Tags": [
+          "allareas"
+        ]
+      },
+      {
+        "Id": 6,
+        "Name": "Full Recliner",
+        "Code": "club",
+        "ImageUrl": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/6.jpg",
+        "SeatColour": "#dfdfdf",
+        "SeatImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/6_seat.svg",
+        "SelectedSeatImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/6_seat-selected.svg",
+        "ExperienceImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/6_experience.jpg",
+        "SortOrder": 8,
+        "ExperienceHtml": "<p><span style=\"font-size: 18px;\"><b>A luxurious reclining seat for the ultimate relaxation, in premium locations</b></span></p>\r\n\r\n<p>&nbsp;</p>\r\n\r\n<p>Fully relax and immerse yourself in the movie from the comfort of a Full Recliner. Featuring fully reclining seats with dual controls for your back and legs that allow you to choose your own level of comfort, located in a premium position at the rear of the cinema.</p>\r\n",
+        "Tags": [
+          "allareas"
+        ]
+      },
+      {
+        "Id": 15,
+        "Name": "Couples Seat",
+        "Code": "doublerec",
+        "DescriptionHtml": "<p><strong> Elevate your date night experience in our Couples Seat</strong></p>\r\n\r\n<p><br />\r\nPerfect for pairs, the double seating option provides a cozy and intimate setting for couples and friends, complete with motorised back recline.</p>\r\n",
+        "ImageUrl": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/15.jpg",
+        "SeatColour": "#dfdfdf",
+        "SeatImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/15_seat.svg",
+        "SelectedSeatImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/15_seat-selected.svg",
+        "ExperienceImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/15_experience.jpg",
+        "SortOrder": 11,
+        "TreatRelatedAsPackage": true,
+        "ExperienceHtml": "<p><span style=\"font-size: 18px;\"><b>Elevate your date night experience at IMAX Sydney</b></span></p>\r\n\r\n<p><br />\r\nPerfect for pairs, the double seating option provides a cozy and intimate setting for couples and friends, complete with motorised back recline.<br />\r\n<br />\r\n*Exclusive to IMAX Sydney</p>\r\n",
+        "Tags": [
+          "allareas"
+        ]
+      },
+      {
+        "Id": 1,
+        "Name": "Standard",
+        "Code": "standard",
+        "ExperienceImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/1_experience.jpg",
+        "SortOrder": 17,
+        "ExperienceHtml": "<p><span style=\"font-size: 18px;\"><b>Our biggest fixed-back cinema seat with leather look and feel</b></span></p>\r\n\r\n<p>&nbsp;</p>\r\n\r\n<p>No matter which seat you have at IMAX Sydney, every seat is designed for your viewing comfort, and expertly positioned to allow you to fully immerse in the experience. Sit back, look up and take it all in.</p>\r\n",
+        "Tags": [
+          "allareas"
+        ]
+      },
+      {
+        "Id": 20,
+        "Name": "Front Section View",
+        "Code": "StandardFront",
+        "SeatImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/20_seat.svg",
+        "SelectedSeatImage": "https://cdn.eventcinemas.com.au/cdn/resources/areas_v2/20_seat-selected.svg",
+        "SortOrder": 21,
+        "Tags": [
+          "allareas"
+        ]
+      }
+    ],
+    "TicketingRecognitionsInterval": 5000,
+    "TicketingRecognitionsMaxTries": 10
+  }
+}
