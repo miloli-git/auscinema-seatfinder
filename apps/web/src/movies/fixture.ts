@@ -129,10 +129,22 @@ export const OPTIONS_FIXTURE: OptionsResponse = EVENT_OPTIONS_FIXTURE;
  * title (search/browse, no-good-seats honest state has nothing to do with this movie).
  */
 export const CATALOG_TITLES_FIXTURE: CatalogTitle[] = [
-  { movieKey: "event:555", chain: "event", title: "Dune: Part Two", sessionCount: 12 },
-  { movieKey: "village:555", chain: "village", title: "Dune: Part Two", sessionCount: 4 },
-  { movieKey: "hoyts:900", chain: "hoyts", title: "The Odyssey", sessionCount: 6 },
-  { movieKey: "reading:12", chain: "reading", title: "No Great Seats Tonight", sessionCount: 1 },
+  {
+    movieKey: "event:555",
+    chain: "event",
+    title: "Dune: Part Two",
+    sessionCount: 12,
+    posterUrl: "https://cdn.eventcinemas.com.au/cdn/resources/movies/19797/images/largeposter.jpg",
+  },
+  { movieKey: "village:555", chain: "village", title: "Dune: Part Two", sessionCount: 4, posterUrl: null },
+  { movieKey: "hoyts:900", chain: "hoyts", title: "The Odyssey", sessionCount: 6, posterUrl: null },
+  {
+    movieKey: "reading:12",
+    chain: "reading",
+    title: "No Great Seats Tonight",
+    sessionCount: 1,
+    posterUrl: null,
+  },
 ];
 
 /** Options fixture for the "no qualifying block anywhere" honest state — every row is `split`. */

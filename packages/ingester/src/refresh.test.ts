@@ -947,3 +947,71 @@ test("#75 name heal is decoupled from seat-refresh: a getSeatMap failure does no
   // write is a genuinely separate path, not a side effect of the seat upsert.
   assert.equal(rows[0]!.total_seats, null, "seat-refresh never completed, so total_seats is untouched");
 });
+
+// --- movielist-posters-sort: poster_url rides the same self-heal + upsert-thread path ----------
+
+test("poster self-heal: a KNOWN session with a blank cached poster_url heals from fresh discovery data", { skip: dbSkip }, async () => {
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["C1"], dateFrom: "2026-10-05", dateTo: "2026-10-05" });
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  await insertCachedSession({
+    id: "S-poster-blank",
+    watchId,
+    fetchedAt: beforeInstant(nowInstant, hours(3)),
+  });
+  // insertCachedSession never sets poster_url — the column defaults NULL, same starting state as
+  // a pre-#92 row.
+
+  const fresh = session("S-poster-blank", "event", "C1", "2026-10-05T19:00:00.000Z", {
+    posterUrl: "https://cdn.eventcinemas.com.au/poster.jpg",
+  });
+  const registry: AdapterRegistry = {
+    event: stubAdapter("event", [fresh], { "S-poster-blank": mapFor("event", "S-poster-blank") }),
+  };
+
+  await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+  const { rows } = await requirePool().query<{ poster_url: string | null }>(
+    "SELECT poster_url FROM sessions WHERE id = $1",
+    ["S-poster-blank"],
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.poster_url, "https://cdn.eventcinemas.com.au/poster.jpg");
+});
+
+test("#92 regression: a stored poster_url is NOT NULLed out by a refresh tick whose discovery returned no poster", { skip: dbSkip }, async () => {
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["C1"], dateFrom: "2026-10-05", dateTo: "2026-10-05" });
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  await insertCachedSession({
+    id: "S-poster-keep",
+    watchId,
+    fetchedAt: beforeInstant(nowInstant, hours(3)),
+  });
+  await requirePool().query("UPDATE sessions SET poster_url = $2 WHERE id = $1", [
+    "S-poster-keep",
+    "https://cdn.eventcinemas.com.au/already-cached-poster.jpg",
+  ]);
+
+  // This tick's discovery returns the session again but with NO posterUrl (e.g. a chain listing
+  // that doesn't carry artwork this tick, or Event's own PosterUrl field momentarily absent) —
+  // upsertSessionWithSeats writes every column from EXCLUDED on this session's due-refresh write,
+  // so if the known-row rebuild in refresh.ts didn't thread the DB's existing poster_url through,
+  // this write would silently NULL it out.
+  const fresh = session("S-poster-keep", "event", "C1", "2026-10-05T19:00:00.000Z", {});
+  delete (fresh as { posterUrl?: string }).posterUrl;
+  const registry: AdapterRegistry = {
+    event: stubAdapter("event", [fresh], { "S-poster-keep": mapFor("event", "S-poster-keep") }),
+  };
+
+  await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+
+  const { rows } = await requirePool().query<{ poster_url: string | null }>(
+    "SELECT poster_url FROM sessions WHERE id = $1",
+    ["S-poster-keep"],
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(
+    rows[0]!.poster_url,
+    "https://cdn.eventcinemas.com.au/already-cached-poster.jpg",
+    "the session's own due-refresh upsert must not NULL out a poster the DB already had",
+  );
+});

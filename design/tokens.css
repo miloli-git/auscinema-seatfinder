@@ -53,6 +53,18 @@
   --sw-great-bg: #c23f3f; --sw-great-fg: #ffffff; /* darkened from Glossier's "warm rose" for AA white-text contrast */
   --sw-elite-bg: #a8133a; --sw-elite-fg: #ffffff;
 
+  /* SOH poster-card caption palette (movielist-posters-sort) — one saturated block colour per
+   * card, cycled deterministically (see apps/web/src/movies/palette.ts). White text on all except
+   * mustard (ink text — design/iterations/extractions/soh-DESIGN.md's explicit exception). */
+  --block-crimson: #c82d2d;
+  --block-navy: #1a3059;
+  --block-purple: #3d1d53;
+  --block-teal: #1f6f78;
+  --block-orange: #b4471c;
+  --block-pink: #dc6281;
+  --block-magenta: #852146;
+  --block-mustard: #c9971a;
+
   /* Status */
   --error:    #c0392b;
   --error-bg: rgba(192, 57, 43, 0.08);

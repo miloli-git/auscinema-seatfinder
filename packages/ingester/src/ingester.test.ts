@@ -487,6 +487,23 @@ test("#47b runSweep writes total_seats (available+sold+unavailable) from the FUL
   assert.equal(rows[0]!.total_seats, 3);
 });
 
+test("runSweep persists a session's posterUrl to poster_url", { skip: dbSkip }, async () => {
+  await insertWatch();
+  const s = session("S-poster", "2026-07-21T18:30", true, {
+    posterUrl: "https://cdn.eventcinemas.com.au/poster.jpg",
+  });
+  const map = mapWith([seat("p1", "A1", 1, 1, "available")], { sessionId: "S-poster" });
+  const registry: AdapterRegistry = { event: stubAdapter([s], { "S-poster": map }) };
+
+  await runSweep({ pool: requirePool(), registry });
+
+  const { rows } = await requirePool().query<{ poster_url: string | null }>(
+    "SELECT poster_url FROM sessions WHERE id = $1",
+    ["S-poster"],
+  );
+  assert.equal(rows[0]!.poster_url, "https://cdn.eventcinemas.com.au/poster.jpg");
+});
+
 test("runSweep isolates a mid-sweep getSeatMap failure", { skip: dbSkip }, async () => {
   await insertWatch();
   const sessions = [session("Sbad", "2026-07-21T18:30"), session("Sgood", "2026-07-21T20:30")];

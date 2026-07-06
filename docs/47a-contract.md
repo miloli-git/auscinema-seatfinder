@@ -190,8 +190,9 @@ interface CatalogTitle {
   chain: "event" | "hoyts" | "reading" | "village";
   title: string;            // movie_name; "" if genuinely null in cache (rare — do not coalesce to movieId)
   sessionCount: number;     // count of live (non-tombstoned, non-past) sessions for this (chain, movieId)
-  // No poster field: cache has no poster/image column anywhere in the schema. Not a 47a gap to fix —
-  // genuinely not available data. Omit; do not stub a placeholder URL.
+  posterUrl: string | null; // movie-level poster art (SOH poster-card design brief); null when the
+                             // chain/cache never carried artwork for this (chain, movieId) — the web
+                             // client renders a colour-block placeholder in that case, never a broken img.
 }
 ```
 
@@ -199,7 +200,9 @@ interface CatalogTitle {
 NULL AND date >= today`) that `/together` already applies, NOT the existing unfiltered `movies` query
 (which has no liveness filter and predates this need) — Screen 0 must not show a title with zero
 bookable sessions left. `sessionCount` is a `COUNT(*) ... GROUP BY chain, movie_id` over that same
-liveness-filtered set.
+liveness-filtered set. `posterUrl` self-heals the same way `title` does: a correlated subquery picks
+the most recently fetched non-blank `sessions.poster_url` cached anywhere for the (chain, movie_id),
+so one un-postered or stale row never hides artwork the cache already holds elsewhere.
 
 `chain` param on `/catalog` behaves as today (optional filter); when supplied, `titles` is scoped to it
 same as `movies`/`cinemas` are.

@@ -171,6 +171,7 @@ function parseSessions(raw: unknown): Session[] {
     if (!isObj(movie)) continue;
     const movieId = String(num(movie.Id) ?? str(movie.Id) ?? "");
     const movieName = str(movie.Name) ?? "";
+    const posterUrl = str(movie.PosterUrl) || str(movie.LargePosterUrl) || undefined;
     for (const cm of arr(movie.CinemaModels)) {
       if (!isObj(cm)) continue;
       const cinemaId = String(num(cm.Id) ?? str(cm.Id) ?? "");
@@ -195,6 +196,7 @@ function parseSessions(raw: unknown): Session[] {
           seatAllocation: s.SeatAllocation === true,
           bookingUrl: str(s.BookingUrl) ?? "",
           attributes,
+          ...(posterUrl ? { posterUrl } : {}),
         });
       }
     }

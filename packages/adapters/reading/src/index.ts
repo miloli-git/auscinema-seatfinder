@@ -310,6 +310,8 @@ function parseSessions(
   for (const movie of movies) {
     if (!isObj(movie)) continue;
     const movieName = str(movie.name) ?? "";
+    // Movie-level artwork, medium falling back to large; not every entry carries either.
+    const posterUrl = str(movie.film_image_medium_size) || str(movie.film_image_large_size);
     for (const sd of arr(movie.showdates)) {
       if (!isObj(sd)) continue;
       const date = str(sd.date) ?? "";
@@ -353,6 +355,7 @@ function parseSessions(
             attributes: arr(stype.amenities)
               .map((a) => str(a))
               .filter((a): a is string => !!a),
+            ...(posterUrl ? { posterUrl } : {}),
           });
         }
       }

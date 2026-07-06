@@ -66,6 +66,10 @@ export interface CatalogTitle {
   chain: Chain;
   title: string; // "" if genuinely null in cache; never coalesced to movieId
   sessionCount: number;
+  /** Movie-level poster art (contract §2, SOH poster-card design brief). null when the chain/cache
+   *  never carried artwork for this (chain, movieId) — the card renders a colour-block placeholder
+   *  in that case, never a broken <img>. */
+  posterUrl: string | null;
 }
 
 // --- #47b GET /availability (docs/47b-contract.md §1.2) ---------------------------------------

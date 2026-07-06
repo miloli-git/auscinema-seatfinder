@@ -8,6 +8,7 @@ function title(overrides: Partial<CatalogTitle>): CatalogTitle {
     chain: "event",
     title: "Dune: Part Two",
     sessionCount: 1,
+    posterUrl: null,
     ...overrides,
   };
 }

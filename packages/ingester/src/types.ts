@@ -42,6 +42,8 @@ export interface SessionUpsert {
   /** Sellable capacity (#47b) — available+sold+unavailable seats from the full seat map, per the
    *  shared core `isSeatable` predicate. Undefined when the caller didn't compute it this write. */
   totalSeats?: number;
+  /** Movie-level poster artwork, carried per session (same convention as movieName). */
+  posterUrl?: string;
 }
 
 /** A `session_seats` row to upsert — AVAILABLE + scored seats only. */

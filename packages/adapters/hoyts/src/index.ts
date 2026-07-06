@@ -14,6 +14,9 @@ import { UpstreamError, isAbortError } from "@auscinema/core";
 /** Injectable HTTP-JSON fetcher so parsing can run against fixtures without network. */
 export type FetchJson = (url: string) => Promise<unknown>;
 
+/** Per-vistaId join data from the movies list: title (#72) + optional poster artwork. */
+export type MovieMeta = { name: string; posterUrl?: string };
+
 /**
  * Hoyts Cinemas adapter - reverse-engineered, open JSON API (no auth/subscription key).
  *
@@ -33,8 +36,10 @@ export type FetchJson = (url: string) => Promise<unknown>;
  *     #72: joined into sessions by `vistaId` to resolve the title the sessions feed omits.
  *     `vistaId` is occasionally comma-joined ("HO00010000,HO00011219") when one marketing entry
  *     covers two Vista ids (live-verified: 13 concurrent examples, e.g. "Spider-Man: Brand New
- *     Day", "Moana", "Toy Story 5" - all real major current releases); parseMovieNames() splits
- *     it so every id in the list resolves, not just the joined string as a whole.
+ *     Day", "Moana", "Toy Story 5" - all real major current releases); parseMovieMeta() splits
+ *     it so every id in the list resolves, not just the joined string as a whole. Entries also
+ *     carry a relative `posterImage` (e.g. "mx/posters/au/moana-2026-f3e28c64.jpg"), not every
+ *     movie has one - resolved to an absolute imgix URL by parseMovieMeta().
  *   - GET cinemaapi/sessions/{cinemaId}?partnerId=ALL
  *       -> [ { id, cinemaId, movieId:"HO00008574"(=vistaId), date(local), utcDate, typeId,
  *              originalTags:[...], allocatedSeating, screenName, link } ]
@@ -76,9 +81,9 @@ export class HoytsAdapter implements ChainAdapter {
   // cinemaapi-au-live/api/movies`, live-verified: entries carry `vistaId` matching Session.movieId
   // and `name`), memoized the same way as cachedCinemas() so repeated/concurrent listSessions calls
   // within the TTL window collapse to one upstream fetch. `vistaId` can itself be a comma-joined
-  // list of ids sharing one entry - see parseMovieNames() for why that must be split.
+  // list of ids sharing one entry - see parseMovieMeta() for why that must be split.
   private readonly movieListTtlMs: number;
-  private movieListCache?: { expiresAt: number; promise: Promise<Map<string, string>> };
+  private movieListCache?: { expiresAt: number; promise: Promise<Map<string, MovieMeta>> };
 
   constructor(opts?: { fetchJson?: FetchJson; cinemaListTtlMs?: number; movieListTtlMs?: number }) {
     this.fetchJson = opts?.fetchJson ?? defaultFetchJson;
@@ -93,8 +98,16 @@ export class HoytsAdapter implements ChainAdapter {
 
   /** `vistaId -> name` map from the chain's movies list, for #72 title resolution. */
   async listMovieNames(): Promise<Map<string, string>> {
+    const meta = await this.listMovieMeta();
+    return new Map([...meta].map(([id, m]) => [id, m.name]));
+  }
+
+  /** `vistaId -> {name, posterUrl}` map from the chain's movies list. The sessions feed carries
+   *  neither a title (#72) nor artwork; both come from this one movies-list call. Poster paths are
+   *  relative (`mx/posters/au/...`) and served via the chain's imgix host. */
+  async listMovieMeta(): Promise<Map<string, MovieMeta>> {
     const raw = await this.fetchJson(`${this.webBase}/movies`);
-    return parseMovieNames(raw);
+    return parseMovieMeta(raw);
   }
 
   /** Cached wrapper around listCinemas() for internal cinemaName resolution (see field comment). */
@@ -112,13 +125,13 @@ export class HoytsAdapter implements ChainAdapter {
     return promise;
   }
 
-  /** Cached wrapper around listMovieNames() for internal movieName resolution (#72, see field comment). */
-  private cachedMovieNames(): Promise<Map<string, string>> {
+  /** Cached wrapper around listMovieMeta() for internal movieName/poster resolution (#72, see field comment). */
+  private cachedMovieMeta(): Promise<Map<string, MovieMeta>> {
     const now = Date.now();
     if (this.movieListCache && now < this.movieListCache.expiresAt) {
       return this.movieListCache.promise;
     }
-    const promise = this.listMovieNames();
+    const promise = this.listMovieMeta();
     this.movieListCache = { expiresAt: now + this.movieListTtlMs, promise };
     // Don't cache a rejection - clear it so the next call retries against fresh state.
     promise.catch(() => {
@@ -135,9 +148,9 @@ export class HoytsAdapter implements ChainAdapter {
     // the whole Promise.all and abort listSessions entirely, even though title resolution is a
     // best-effort join and session/seat discovery has nothing to do with it. Degrade to an empty Map
     // instead - movieName resolves to "" for this call, sessions/seats still flow.
-    const [cinemas, movieNameById] = await Promise.all([
+    const [cinemas, movieMetaById] = await Promise.all([
       this.cachedCinemas(),
-      this.cachedMovieNames().catch(() => new Map<string, string>()),
+      this.cachedMovieMeta().catch(() => new Map<string, MovieMeta>()),
     ]);
     const cinemaNameById = new Map(cinemas.map((c) => [c.id, c.name]));
 
@@ -146,7 +159,7 @@ export class HoytsAdapter implements ChainAdapter {
       const url = `${this.webBase}/sessions/${encodeURIComponent(cinemaId)}?partnerId=ALL`;
       const raw = await this.fetchJson(url);
       out.push(
-        ...parseSessions(raw, query, this.siteBase, cinemaNameById.get(cinemaId) ?? "", movieNameById),
+        ...parseSessions(raw, query, this.siteBase, cinemaNameById.get(cinemaId) ?? "", movieMetaById),
       );
     }
     return out;
@@ -247,7 +260,7 @@ function parseSessions(
   query: SessionQuery,
   siteBase: string,
   cinemaName: string,
-  movieNameById: Map<string, string>,
+  movieMetaById: Map<string, MovieMeta>,
 ): Session[] {
   const out: Session[] = [];
   for (const s of arr(raw)) {
@@ -260,6 +273,7 @@ function parseSessions(
     const cinemaId = str(s.cinemaId) ?? "";
     const id = idStr(s.id);
     const link = str(s.link) ?? `/orders/tickets?cinemaId=${cinemaId}&sessionId=${id}`;
+    const posterUrl = movieMetaById.get(movieId)?.posterUrl;
     out.push({
       chain: "hoyts",
       // Composite so getSeatMap can recover the cinemaId the seat route needs.
@@ -267,7 +281,7 @@ function parseSessions(
       movieId,
       // #72: sessions feed carries no title — resolved from the movies list by `vistaId` (falls
       // back to "" when a movieId isn't in the current movies list, e.g. a stale/delisted title).
-      movieName: movieNameById.get(movieId) ?? "",
+      movieName: movieMetaById.get(movieId)?.name ?? "",
       cinemaId,
       // #67: resolved from listCinemas() by the caller (mirrors Event's `cm.Name` / Village's
       // `cinema.name`, which both come embedded in-payload — Hoyts' sessions feed has no name, so we
@@ -282,6 +296,7 @@ function parseSessions(
       attributes: arr(s.originalTags)
         .map((t) => str(t))
         .filter((t): t is string => !!t),
+      ...(posterUrl ? { posterUrl } : {}),
     });
   }
   return out;
@@ -408,14 +423,21 @@ function parseSeatMap(sessionId: string, raw: unknown): SeatMap {
   };
 }
 
-/** #72: `vistaId -> name` map from the movies list (`GET cinemaapi-au-live/api/movies`). */
-function parseMovieNames(raw: unknown): Map<string, string> {
-  const out = new Map<string, string>();
+/** Movies-list artwork host: `posterImage` is a relative path, served absolute from here. */
+const HOYTS_IMGIX_BASE = "https://imgix.hoyts.com.au/";
+
+/** #72: `vistaId -> {name, posterUrl}` map from the movies list (`GET cinemaapi-au-live/api/movies`). */
+function parseMovieMeta(raw: unknown): Map<string, MovieMeta> {
+  const out = new Map<string, MovieMeta>();
   for (const node of arr(raw)) {
     if (!isObj(node)) continue;
     const vistaId = str(node.vistaId);
     const name = str(node.name);
     if (!vistaId || !name) continue;
+    // Not every movies-list entry carries artwork; treat as optional (see class doc, #72 section).
+    const posterImage = str(node.posterImage);
+    const posterUrl = posterImage ? `${HOYTS_IMGIX_BASE}${posterImage}` : undefined;
+    const meta: MovieMeta = { name, ...(posterUrl ? { posterUrl } : {}) };
     // Live-verified (2026-07-05, cf. Hoyts issue investigation for the 571-session blank-title
     // cluster): `vistaId` is sometimes a COMMA-JOINED list of Vista ids sharing one marketing
     // entry, e.g. `"HO00010000,HO00011219"` for "Spider-Man: Brand New Day" (13 movies observed
@@ -425,10 +447,10 @@ function parseMovieNames(raw: unknown): Map<string, string> {
     // the raw joined string as one map key meant NEITHER id ever matched - the join silently
     // produced "" for every session of these movies, and #75's cache-heal had nothing to heal
     // from since fresh discovery data was blank too. Split on comma and index each id to the same
-    // name; harmless no-op for the common single-id case.
+    // meta; harmless no-op for the common single-id case.
     for (const id of vistaId.split(",")) {
       const trimmed = id.trim();
-      if (trimmed) out.set(trimmed, name);
+      if (trimmed) out.set(trimmed, meta);
     }
   }
   return out;

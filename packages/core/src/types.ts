@@ -47,6 +47,10 @@ export interface Session {
   bookingUrl: string;
   /** Raw chain attribute codes (e.g. "NFT", "Recliner"). */
   attributes?: string[];
+  /** Absolute URL of the movie's poster art, when the chain's listing exposes one. Movie-level
+   *  data carried per session (same convention as movieName) so the cache can resolve a poster
+   *  per (chain, movieId) without a separate movies feed. */
+  posterUrl?: string;
 }
 
 export type SeatStatus =

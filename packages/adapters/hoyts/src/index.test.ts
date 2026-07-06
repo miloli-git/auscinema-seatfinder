@@ -195,6 +195,26 @@ test("listSessions: #72 resolves real movieName from the movies list, never blan
   for (const s of sessions) assert.equal(s.movieName, "Example Movie Title");
 });
 
+test("listSessions: resolves posterUrl from the movies list's relative posterImage to an absolute imgix URL", async () => {
+  const fetchJson: FetchJson = async (url) => {
+    if (url.includes("/cinemas")) return loadFixture("cinemas.json");
+    if (url.includes("/movies")) return loadFixture("movies.json");
+    if (url.includes("/sessions/")) return loadFixture("sessions.midcin.json");
+    throw new Error(`no fixture for url: ${url}`);
+  };
+  const adapter = new HoytsAdapter({ fetchJson });
+  const sessions = await adapter.listSessions({
+    movieId: "HO00008574",
+    cinemaIds: ["MIDCIN"],
+    date: "2026-06-24",
+  });
+
+  assert.ok(sessions.length > 0);
+  for (const s of sessions) {
+    assert.equal(s.posterUrl, "https://imgix.hoyts.com.au/mx/posters/au/example-movie-2026-abc123.jpg");
+  }
+});
+
 test("listSessions: #72 falls back to '' for a movieId absent from the movies list", async () => {
   const fetchJson: FetchJson = async (url) => {
     if (url.includes("/cinemas")) return loadFixture("cinemas.json");
