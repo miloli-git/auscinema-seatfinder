@@ -7,23 +7,16 @@ import { chainLabel } from "../format";
 import { displayMovieTitle } from "../movies/present";
 import { buildMatrix, type TogetherResult } from "../together/matrix";
 import { normalizeTogetherSession } from "../together/normalize";
-import { matchesFormat, matchesTime, type TimePreset } from "../together/filters";
+import { matchesFormat, matchesTime, type FormatSelector, type TimePreset } from "../together/filters";
+import { deriveFormatChips, type FormatChip } from "../together/chips";
 import { isUpcoming, sydneyNow } from "../format";
-import type { Chain, ScreenFormat } from "../types";
+import type { Chain } from "../types";
 
 const CHAINS: { value: Chain; label: string }[] = [
   { value: "event", label: "Event Cinemas" },
   { value: "hoyts", label: "Hoyts" },
   { value: "reading", label: "Reading" },
   { value: "village", label: "Village" },
-];
-
-const FORMAT_KINDS: { value: ScreenFormat["kind"]; label: string }[] = [
-  { value: "imax", label: "IMAX" },
-  { value: "vmax", label: "V-Max" },
-  { value: "goldclass", label: "Gold Class" },
-  { value: "standard", label: "Standard" },
-  { value: "other", label: "Other" },
 ];
 
 const TIME_PRESETS: { value: TimePreset; label: string }[] = [
@@ -94,7 +87,7 @@ export function TogetherView() {
   const [party, setParty] = useState(2);
   const [minScore, setMinScore] = useState(74);
 
-  const [formats, setFormats] = useState<ScreenFormat["kind"][]>([]);
+  const [formats, setFormats] = useState<FormatSelector[]>([]);
   const [timePreset, setTimePreset] = useState<TimePreset>("any");
 
   const [results, setResults] = useState<TogetherResult[] | null>(null);
@@ -209,6 +202,23 @@ export function TogetherView() {
     return (results ?? []).filter((r) => isUpcoming(r.session.startTime, cutoff));
   }, [results, nowMs]);
 
+  // #92: chips are derived from the scanned session set, not a hardcoded chain-agnostic list -
+  // a chain only shows chips for formats it actually has (no dead IMAX chip on Hoyts), and
+  // `premium` (LUX etc.) is a first-class chip now that it's produced by deriveFormatChips.
+  const formatChips = useMemo(
+    () => deriveFormatChips(upcoming.map((r) => normalizeTogetherSession(r.session))),
+    [upcoming],
+  );
+
+  // If a previously-selected chip's format vanishes from a new scan (chain switch, or the
+  // last session of that format ages out of `upcoming`), drop it rather than leave a stale,
+  // now-invisible filter silently active.
+  useEffect(() => {
+    setFormats((current) =>
+      current.filter((sel) => formatChips.some((c) => c.kind === sel.kind && c.raw === sel.raw)),
+    );
+  }, [formatChips]);
+
   const model = useMemo(
     () => buildMatrix(upcoming, { formats, timePreset, minScore }),
     [upcoming, formats, timePreset, minScore],
@@ -226,8 +236,12 @@ export function TogetherView() {
     });
   }, [drill, upcoming, formats, timePreset]);
 
-  const toggleFormat = (k: ScreenFormat["kind"]) =>
-    setFormats((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
+  const toggleFormat = (chip: FormatChip) =>
+    setFormats((current) => {
+      const idx = current.findIndex((sel) => sel.kind === chip.kind && sel.raw === chip.raw);
+      if (idx >= 0) return current.filter((_, i) => i !== idx);
+      return [...current, { kind: chip.kind, raw: chip.raw }];
+    });
 
   return (
     <div className="together">
@@ -285,16 +299,19 @@ export function TogetherView() {
 
       <div className="together__filters">
         <div className="chips">
-          {FORMAT_KINDS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              className={`chip${formats.includes(f.value) ? " chip--on" : ""}`}
-              onClick={() => toggleFormat(f.value)}
-            >
-              {f.label}
-            </button>
-          ))}
+          {formatChips.map((chip) => {
+            const on = formats.some((sel) => sel.kind === chip.kind && sel.raw === chip.raw);
+            return (
+              <button
+                key={`${chip.kind} ${chip.raw ?? ""}`}
+                type="button"
+                className={`chip${on ? " chip--on" : ""}`}
+                onClick={() => toggleFormat(chip)}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
         </div>
         <select value={timePreset} onChange={(e) => setTimePreset(e.target.value as TimePreset)}>
           {TIME_PRESETS.map((t) => (

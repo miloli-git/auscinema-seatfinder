@@ -26,13 +26,19 @@ export interface TogetherSession {
   seatAllocation: boolean;
 }
 
-/** Replicated event-adapter mapFormat rules: lowercase, strip spaces/hyphens, match kind. */
+/**
+ * Replicated mapFormat rules: lowercase, strip spaces/hyphens, match kind. Originally only
+ * replicated the Event adapter's vmax/goldclass/imax/standard/other rules (docs/ST-4-tdd-plan.md
+ * L2a.1); #92 adds the premium branch (Hoyts lux/platinum, Reading premium/titanluxe, Village
+ * vpremium/premium/suite) so LUX etc. surface as `premium` client-side too, not just server-side.
+ */
 function mapFormat(raw: string): ScreenFormat {
   const k = raw.toLowerCase().replace(/[\s-]/g, "");
   let kind: ScreenFormat["kind"];
   if (k.includes("vmax")) kind = "vmax";
   else if (k.includes("goldclass")) kind = "goldclass";
   else if (k.includes("imax")) kind = "imax";
+  else if (k.includes("lux") || k.includes("platinum") || k.includes("titanluxe") || k.includes("vpremium") || k.includes("premium") || k.includes("suite")) kind = "premium";
   else if (k.includes("standard")) kind = "standard";
   else kind = "other";
   return { kind, raw };

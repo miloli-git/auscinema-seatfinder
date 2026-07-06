@@ -42,6 +42,19 @@ describe("normalizeTogetherSession (L2a)", () => {
     }
   });
 
+  it("#92 maps Hoyts/Reading/Village premium format strings -> {kind:'premium', raw}", () => {
+    const cases: Array<[string, string]> = [
+      ["LUX", "premium"],
+      ["Platinum", "premium"],
+      ["Titan LUXE", "premium"],
+      ["V-Premium", "premium"],
+      ["Suite", "premium"],
+    ];
+    for (const [raw, kind] of cases) {
+      expect(normalizeTogetherSession(rawSession({ format: raw })).format).toEqual({ kind, raw });
+    }
+  });
+
   it("L2a.2 maps format null -> {kind:'other', raw:''}", () => {
     expect(normalizeTogetherSession(rawSession({ format: null })).format).toEqual({
       kind: "other",

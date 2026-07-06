@@ -71,6 +71,12 @@ Files: `apps/web/src/together/{normalize,filters,matrix}.ts` + co-located `*.tes
 **L2a Fork-1 normaliser** — `normalizeTogetherSession(raw): Session`
 - `L2a.1 maps format string "IMAX" → {kind:"imax", raw:"IMAX"}` (reuse the kind mapping from the event
   adapter's `mapFormat` rules: vmax/goldclass/imax/standard/other; case+space-insensitive)
+  - **#92 update:** the original rule set above was missing `premium` entirely (Hoyts
+    lux/platinum, Reading premium/titanluxe, Village vpremium/premium/suite), so LUX-style
+    sessions silently fell through to `other` client-side even though the adapters themselves
+    already classify them as `premium` server-side. `mapFormat` now also matches
+    lux/platinum/titanluxe/vpremium/premium/suite → `premium`, checked before the `standard`/`other`
+    fallback.
 - `L2a.2 maps format null → {kind:"other", raw:""}`
 - `L2a.3 maps screen→screenName; null screen → screenName undefined`
 - `L2a.4 preserves id, cinemaId, cinemaName, startTime, seatsAvailable, bookingUrl, seatAllocation`
@@ -78,9 +84,22 @@ Files: `apps/web/src/together/{normalize,filters,matrix}.ts` + co-located `*.tes
 
 **L2b filters** (client-side, over the cache)
 - `L2b.1 format predicate: multi-select; empty selection = all`
+  - **#92 update:** the predicate's selection unit changed from `ScreenFormat["kind"][]` to
+    `FormatSelector[]` (`together/filters.ts`) — `{ kind, raw: null }` still matches by kind alone
+    (fixed-label chips: imax/vmax/goldclass/standard); `{ kind, raw: string }` additionally requires
+    the session's trimmed raw label to match exactly, so an `other`/`premium` chip (e.g.
+    "Xtremescreen", "LUX") isolates only its own raw label, not every session of that kind.
+    `together/matrix.ts`'s `BuildMatrixOpts.formats` follows the same type.
 - `L2b.2 time-of-day: Any | Evenings(≥17:00 local) | Weekends(Sat/Sun)` — pin the tz handling: derive
   hour/day from `startTime`; document the UTC-vs-local caveat (cache start_time is approximate, v1 ok)
 - `L2b.3 day+time presets compose (Evenings ∩ Weekends)`
+- **#92: format chips are now derived, not hardcoded.** `TogetherView.tsx`'s old static
+  `FORMAT_KINDS` list (imax/vmax/goldclass/standard/other) is replaced by
+  `together/chips.ts`'s `deriveFormatChips(sessions)`, computed from the current scan's `upcoming`
+  set: one chip per kind for the fixed-label kinds, one chip per distinct raw label for
+  `premium`/`other` (blank raw falls back to "Premium"/"Other"). A chain only ever shows chips for
+  formats it actually returned; a selected chip whose format disappears from a new scan is dropped
+  from the active filter selection.
 
 **L2c `buildMatrix(results, {formats,timePreset,minScore}) → { cinemas[], dates[], cells }`**
 - `L2c.1 cell = best available block among that (cinema,date)'s sessions in the filter → {kind:"score", avgScore, sessionCount}`
