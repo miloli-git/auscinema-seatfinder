@@ -11,7 +11,7 @@ fields will differ on recapture; geometry (SeatId row/col, areas) is stable.
 ## #90: IMAX Sydney front-section fixture
 
 `getseating.imax-frontsection.json` - `/Ticketing/Order/GetSeating?sessionId=15428913`, IMAX
-Sydney (cinema 96), captured 2026-07-08 (Moana [Live Action] was the live movie playing there at
+Sydney (cinema 96), captured 2026-07-06 (Moana [Live Action] was the live movie playing there at
 capture time; the area/geometry structure is what matters, not the movie). The Burwood fixture
 above has no front-section/box/couples areas, which is why #90 (front-section seats scoring as
 "good") went uncaught by the existing tests.

@@ -25,7 +25,9 @@ Pure functions, geometry from the `SeatMap` (real seats only; spacers dropped):
 - `scoreSeat(seat, map, pref?) → number` — 0–100 for one seat. Gate on availability + allowed area
   kinds, then weighted depth penalty (`|depth − targetDepth|`) + centrality penalty (distance from
   row centre). `SeatPreference` defaults: `targetDepth 0.65`, `depthWeight 0.5`,
-  `centralityWeight 0.5`.
+  `centralityWeight 0.5`. Post-geometry, a per-kind class cap is applied (#90): `frontsection`
+  areas are capped at 45 (below the web "good" band) since the view is compromised regardless of
+  geometry; no other kind is modified yet — premium-kind bonuses are deferred.
 - `isSeatEligible(seat, map, pref?) → boolean` — the gate alone.
 - `rankSeats(map, pref?) → ScoredSeat[]` — eligible seats, best-first.
 - `scoreAvailableSeats(map, pref?) → ScoredSeat[]` — all available seats scored, best-first (used

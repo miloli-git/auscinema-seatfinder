@@ -129,7 +129,7 @@ test("getSeatMap: decodes seats, areas and preserves spacers", async () => {
   assert.equal(c5.accessible, true);
 });
 
-// #90: IMAX Sydney (cinema 96) front section/box/couples areas - live-captured 2026-07-08,
+// #90: IMAX Sydney (cinema 96) front section/box/couples areas - live-captured 2026-07-06,
 // session 15428913, front-section (StandardFront) row A-D seats. Burwood fixture has no front
 // section, which is why this class of bug (#90) went uncaught by the existing tests.
 test("getSeatMap: IMAX front-section/box/couples areas map to frontsection/premium, not other", async () => {

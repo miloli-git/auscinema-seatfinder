@@ -47,6 +47,7 @@ const AREA_LABEL: Record<AreaKind, string> = {
   goldclass: "Gold Class",
   daybed: "Daybed",
   companion: "Companion",
+  frontsection: "Front Section",
   other: "Other",
 };
 

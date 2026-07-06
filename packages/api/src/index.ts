@@ -168,6 +168,7 @@ const AREA_KINDS: SeatPreference["allowedAreaKinds"] = [
   "goldclass",
   "daybed",
   "companion",
+  "frontsection",
   "other",
 ];
 
