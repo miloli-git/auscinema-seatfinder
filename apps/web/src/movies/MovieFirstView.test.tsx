@@ -62,7 +62,7 @@ const AVAILABILITY_RESPONSE: AvailabilityResponse = {
 };
 
 const TITLES: CatalogTitle[] = [
-  { movieKey: "event:555", chain: "event", title: "Dune: Part Two", sessionCount: 12 },
+  { movieKey: "event:555", chain: "event", title: "Dune: Part Two", sessionCount: 12, posterUrl: null },
 ];
 
 function option(overrides: Partial<Option>): Option {
@@ -134,7 +134,7 @@ describe("MovieFirstView", () => {
   // (e.g. "hoyts:HO00010001") — must degrade to an honest, chain-scoped label instead.
   it("#84: a blank movieTitle never renders the raw movieKey as the heading", async () => {
     const hoytsTitles: CatalogTitle[] = [
-      { movieKey: "hoyts:HO00010001", chain: "hoyts", title: "", sessionCount: 3 },
+      { movieKey: "hoyts:HO00010001", chain: "hoyts", title: "", sessionCount: 3, posterUrl: null },
     ];
     mockFetchCatalogTitles.mockResolvedValue(hoytsTitles);
     mockFetchOptions.mockResolvedValue({

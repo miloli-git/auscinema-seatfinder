@@ -84,6 +84,7 @@ export function sessionToUpsert(session: Session, watchId: number, totalSeats?: 
     bookingUrl: session.bookingUrl,
     seatAllocation: session.seatAllocation,
     ...(totalSeats !== undefined ? { totalSeats } : {}),
+    ...(session.posterUrl !== undefined ? { posterUrl: session.posterUrl } : {}),
   };
 }
 

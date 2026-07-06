@@ -29,8 +29,8 @@ export async function upsertSessionWithSeats(
       `INSERT INTO sessions
          (id, watch_id, chain, movie_id, movie_name, cinema_id, cinema_name, date,
           start_time, format, screen, seats_available, booking_url, seat_allocation,
-          total_seats, fetched_at, last_seen)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now(), now())
+          total_seats, poster_url, fetched_at, last_seen)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, now(), now())
        ON CONFLICT (id) DO UPDATE SET
           watch_id        = EXCLUDED.watch_id,
           chain           = EXCLUDED.chain,
@@ -46,6 +46,7 @@ export async function upsertSessionWithSeats(
           booking_url     = EXCLUDED.booking_url,
           seat_allocation = EXCLUDED.seat_allocation,
           total_seats     = EXCLUDED.total_seats,
+          poster_url      = EXCLUDED.poster_url,
           fetched_at      = now(),
           last_seen       = now()`,
       [
@@ -64,6 +65,7 @@ export async function upsertSessionWithSeats(
         session.bookingUrl ?? null,
         session.seatAllocation ?? null,
         session.totalSeats ?? null,
+        session.posterUrl ?? null,
       ],
     );
 
@@ -114,6 +116,8 @@ export interface NameHeal {
   id: string;
   movieName: string | null;
   cinemaName: string | null;
+  /** Poster artwork, healed the same fresh-fills-blank way as movieName/cinemaName. */
+  posterUrl: string | null;
 }
 
 /**
@@ -123,17 +127,25 @@ export interface NameHeal {
  * not-due row, a budget-skipped row, or a seatmap failure/429 all blocked the name heal even though
  * discovery had already returned the real name. This batched UPDATE runs once per tick for EVERY
  * discovered known row with a computed heal, regardless of due/budget/seatmap outcome. The existing
- * upsert path is unchanged; this is purely additive.
+ * upsert path is unchanged; this is purely additive. Poster artwork rides the same heal (same
+ * movie-level, fresh-fills-blank convention) so a poster discovered outside the seat-refresh budget
+ * still lands without waiting for that session's next full upsert.
  */
 export async function healSessionNames(pool: Pool, heals: readonly NameHeal[]): Promise<void> {
   if (heals.length === 0) return;
   await pool.query(
     `UPDATE sessions AS s
         SET movie_name  = h.movie_name,
-            cinema_name = h.cinema_name
-       FROM UNNEST($1::text[], $2::text[], $3::text[]) AS h(id, movie_name, cinema_name)
+            cinema_name = h.cinema_name,
+            poster_url  = h.poster_url
+       FROM UNNEST($1::text[], $2::text[], $3::text[], $4::text[]) AS h(id, movie_name, cinema_name, poster_url)
       WHERE s.id = h.id`,
-    [heals.map((h) => h.id), heals.map((h) => h.movieName), heals.map((h) => h.cinemaName)],
+    [
+      heals.map((h) => h.id),
+      heals.map((h) => h.movieName),
+      heals.map((h) => h.cinemaName),
+      heals.map((h) => h.posterUrl),
+    ],
   );
 }
 

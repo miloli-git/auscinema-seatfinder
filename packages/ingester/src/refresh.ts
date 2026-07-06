@@ -392,6 +392,7 @@ interface KnownDbRow {
   seats_available: number | null;
   booking_url: string | null;
   seat_allocation: boolean | null;
+  poster_url: string | null;
   fetched_at: string | Date;
   disappeared_at: string | Date | null;
   wildcard_miss_streak: number;
@@ -613,8 +614,8 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   const knownRows = (
     await pool.query<KnownDbRow>(
       `SELECT id, watch_id, chain, movie_id, movie_name, cinema_id, cinema_name, date,
-              start_time, format, screen, seats_available, booking_url, seat_allocation, fetched_at,
-              disappeared_at, wildcard_miss_streak
+              start_time, format, screen, seats_available, booking_url, seat_allocation, poster_url,
+              fetched_at, disappeared_at, wildcard_miss_streak
          FROM sessions`,
     )
   ).rows;
@@ -697,8 +698,11 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
     const freshSession = discovered.get(r.id)?.session;
     const movieName = healedName(r.movie_name, freshSession?.movieName);
     const cinemaName = healedName(r.cinema_name, freshSession?.cinemaName);
-    if (movieName !== r.movie_name || cinemaName !== r.cinema_name) {
-      nameHeals.push({ id: r.id, movieName, cinemaName });
+    // Poster artwork rides the same fresh-fills-blank policy as movieName/cinemaName (#72
+    // convention) — a session's poster is movie-level data, sourced the same way.
+    const posterUrl = healedName(r.poster_url, freshSession?.posterUrl);
+    if (movieName !== r.movie_name || cinemaName !== r.cinema_name || posterUrl !== r.poster_url) {
+      nameHeals.push({ id: r.id, movieName, cinemaName, posterUrl });
     }
     const upsert: SessionUpsert = {
       id: r.id,
@@ -715,6 +719,10 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
       ...(r.seats_available != null ? { seatsAvailable: r.seats_available } : {}),
       ...(r.booking_url != null ? { bookingUrl: r.booking_url } : {}),
       ...(r.seat_allocation != null ? { seatAllocation: r.seat_allocation } : {}),
+      // #92: CRITICAL — upsertSessionWithSeats writes poster_url from EXCLUDED on every refresh
+      // write, so omitting this here would NULL out a stored poster on the session's next refresh
+      // tick even though healSessionNames() above already healed the DB row correctly.
+      ...(posterUrl != null ? { posterUrl } : {}),
     };
     targets.set(r.id, { upsert, chain: r.chain, pref: watch?.scoring ?? undefined, isNew: false });
   }

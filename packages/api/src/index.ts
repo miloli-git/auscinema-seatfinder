@@ -899,7 +899,13 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     // rows outside the current watch coverage / seatAllocation=false / tombstoned / past-date. This
     // covers the picker-visible symptom (Screen 0's movie list showing a blank title) even for a row
     // that can never itself be name-healed by refresh.ts (out of scope, so never rediscovered).
-    const titlesRes = await db.query<{ movieKey: string; chain: string; title: string | null; sessionCount: number }>(
+    const titlesRes = await db.query<{
+      movieKey: string;
+      chain: string;
+      title: string | null;
+      sessionCount: number;
+      posterUrl: string | null;
+    }>(
       `WITH live AS (
          SELECT chain, movie_id, movie_name FROM sessions WHERE ${titlesWhere.join(" AND ")}
        ),
@@ -910,7 +916,16 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
                    WHERE s2.chain = live.chain AND s2.movie_id = live.movie_id
                      AND s2.movie_name IS NOT NULL AND s2.movie_name <> ''
                    ORDER BY s2.fetched_at DESC LIMIT 1
-                )) AS title
+                )) AS title,
+                -- Poster art: same self-heal convention as title — most recently fetched non-blank
+                -- poster_url cached anywhere for this (chain, movie_id), so one un-postered/stale row
+                -- never hides artwork the cache already has elsewhere (SOH poster-card design brief).
+                (
+                  SELECT s3.poster_url FROM sessions s3
+                   WHERE s3.chain = live.chain AND s3.movie_id = live.movie_id
+                     AND s3.poster_url IS NOT NULL AND s3.poster_url <> ''
+                   ORDER BY s3.fetched_at DESC LIMIT 1
+                ) AS poster_url
            FROM live
           ORDER BY chain, movie_id, movie_name NULLS LAST
        ),
@@ -918,7 +933,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
          SELECT chain, movie_id, COUNT(*)::int AS session_count FROM live GROUP BY chain, movie_id
        )
        SELECT (n.chain || ':' || n.movie_id) AS "movieKey", n.chain, n.title,
-              c.session_count AS "sessionCount"
+              c.session_count AS "sessionCount", n.poster_url AS "posterUrl"
          FROM names n JOIN counts c USING (chain, movie_id)
         ORDER BY n.title NULLS LAST, n.movie_id`,
       titlesParams,
@@ -929,6 +944,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       chain: r.chain,
       title: r.title ?? "",
       sessionCount: r.sessionCount,
+      posterUrl: r.posterUrl && r.posterUrl.trim() !== "" ? r.posterUrl : null,
     }));
 
     return {

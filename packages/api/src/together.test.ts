@@ -55,6 +55,7 @@ type SessionSeed = {
   bookingUrl?: string | null;
   seatAllocation?: boolean | null;
   fetchedAt?: string;
+  posterUrl?: string | null;
 };
 
 type InsertedSession = Required<SessionSeed>;
@@ -107,7 +108,13 @@ type CatalogResponse = {
   dates: string[];
   horizonDate: string;
   maxCachedDate: string | null;
-  titles: Array<{ movieKey: string; chain: string; title: string; sessionCount: number }>;
+  titles: Array<{
+    movieKey: string;
+    chain: string;
+    title: string;
+    sessionCount: number;
+    posterUrl: string | null;
+  }>;
 };
 
 const MS_PER_DAY = 86_400_000;
@@ -164,15 +171,16 @@ async function insertSession(overrides: SessionSeed = {}): Promise<InsertedSessi
     bookingUrl: `https://example.test/book?sid=${id}`,
     seatAllocation: true,
     fetchedAt: "2099-06-24T09:00:00.000Z",
+    posterUrl: null,
     ...overrides,
   };
 
   await requirePool().query(
     `INSERT INTO sessions
        (id, chain, movie_id, movie_name, cinema_id, cinema_name, date, start_time,
-        format, screen, seats_available, booking_url, seat_allocation, fetched_at)
+        format, screen, seats_available, booking_url, seat_allocation, fetched_at, poster_url)
      VALUES
-       ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+       ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
     [
       session.id,
       session.chain,
@@ -188,6 +196,7 @@ async function insertSession(overrides: SessionSeed = {}): Promise<InsertedSessi
       session.bookingUrl,
       session.seatAllocation,
       session.fetchedAt,
+      session.posterUrl,
     ],
   );
   return session;
@@ -270,7 +279,7 @@ function assertCatalogShape(body: CatalogResponse): void {
   for (const movie of body.movies) assert.deepEqual(Object.keys(movie).sort(), ["chain", "id", "name"]);
   for (const cinema of body.cinemas) assert.deepEqual(Object.keys(cinema).sort(), ["chain", "id", "name"]);
   for (const title of body.titles) {
-    assert.deepEqual(Object.keys(title).sort(), ["chain", "movieKey", "sessionCount", "title"]);
+    assert.deepEqual(Object.keys(title).sort(), ["chain", "movieKey", "posterUrl", "sessionCount", "title"]);
   }
 }
 
@@ -616,9 +625,9 @@ test("/catalog returns distinct sorted movies, cinemas, and dates", { skip: dbSk
     horizonDate: expectedCatalogHorizonDate(),
     maxCachedDate: "2099-06-27",
     titles: [
-      { movieKey: "event:M-A", chain: "event", title: "Alpha", sessionCount: 1 },
-      { movieKey: "hoyts:M-B", chain: "hoyts", title: "Beta", sessionCount: 1 },
-      { movieKey: "event:M-Z", chain: "event", title: "Zed", sessionCount: 2 },
+      { movieKey: "event:M-A", chain: "event", title: "Alpha", sessionCount: 1, posterUrl: null },
+      { movieKey: "hoyts:M-B", chain: "hoyts", title: "Beta", sessionCount: 1, posterUrl: null },
+      { movieKey: "event:M-Z", chain: "event", title: "Zed", sessionCount: 2, posterUrl: null },
     ],
   });
 });
@@ -652,7 +661,9 @@ test("/catalog?chain=event scopes movies, cinemas, and dates to that chain", { s
     dates: ["2099-06-25"],
     horizonDate: expectedCatalogHorizonDate(),
     maxCachedDate: "2099-06-25",
-    titles: [{ movieKey: "event:M-event", chain: "event", title: "Event Movie", sessionCount: 1 }],
+    titles: [
+      { movieKey: "event:M-event", chain: "event", title: "Event Movie", sessionCount: 1, posterUrl: null },
+    ],
   });
 });
 
@@ -688,6 +699,61 @@ test("/catalog titles fallback: a blank live movie_name self-heals from an older
   assert.ok(row, "movieKey present in titles");
   assert.equal(row!.title, "Real Fallback Title", "blank live title self-heals from an older cached row");
   assert.equal(row!.sessionCount, 1, "sessionCount still reflects only the liveness-filtered rows");
+});
+
+test("/catalog titles: posterUrl self-heals from an older cached row for the same movie (same convention as title)", { skip: dbSkip }, async () => {
+  await insertSession({
+    id: "catalog-poster-old",
+    chain: "event",
+    movieId: "M-POSTER",
+    movieName: "Poster Movie",
+    cinemaId: "C-POSTER",
+    cinemaName: "Poster Cinema",
+    date: "2020-01-01",
+    startTime: "2020-01-01T19:30:00.000Z",
+    fetchedAt: "2020-01-01T09:00:00.000Z",
+    posterUrl: "https://cdn.eventcinemas.com.au/poster.jpg",
+  });
+  await insertSession({
+    id: "catalog-poster-live",
+    chain: "event",
+    movieId: "M-POSTER",
+    movieName: "Poster Movie",
+    cinemaId: "C-POSTER",
+    cinemaName: "Poster Cinema",
+    date: "2099-06-25",
+    startTime: "2099-06-25T19:30:00.000Z",
+    fetchedAt: "2099-06-24T09:00:00.000Z",
+    posterUrl: null, // live row never carried artwork (e.g. ingested before the poster fields landed)
+  });
+
+  const body = await getCatalog();
+
+  const row = body.titles.find((t) => t.movieKey === "event:M-POSTER");
+  assert.ok(row, "movieKey present in titles");
+  assert.equal(
+    row!.posterUrl,
+    "https://cdn.eventcinemas.com.au/poster.jpg",
+    "a blank live posterUrl self-heals from an older cached row for the same (chain, movieId)",
+  );
+});
+
+test("/catalog titles: posterUrl is null when no cached row anywhere has one (never fabricated)", { skip: dbSkip }, async () => {
+  await insertSession({
+    id: "catalog-poster-cold",
+    chain: "event",
+    movieId: "M-POSTER-COLD",
+    movieName: "No Poster Movie",
+    cinemaId: "C-POSTER-COLD",
+    cinemaName: "Cold Cinema",
+    date: "2099-06-25",
+  });
+
+  const body = await getCatalog();
+
+  const row = body.titles.find((t) => t.movieKey === "event:M-POSTER-COLD");
+  assert.ok(row, "movieKey present in titles");
+  assert.equal(row!.posterUrl, null, "no cached row anywhere has a poster - stays null, never a fabricated URL");
 });
 
 test("/catalog titles: stays blank when no cached row anywhere has a name for that movie (known transitional gap)", { skip: dbSkip }, async () => {

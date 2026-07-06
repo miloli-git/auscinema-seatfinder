@@ -59,6 +59,10 @@ test("listSessions: parses Algolia hits, composites the id, normalises time + al
     s.bookingUrl,
     "https://villagecinemas.com.au/order/tickets?cinemaId=272&sessionId=402548",
   );
+  assert.equal(
+    s.posterUrl,
+    "https://images.ctfassets.net/0scfp84lysj4/5uxR5fXg3uKnTy7Ro5D04R/4e0963b3f362d3d93931621121459be7/1bsw36t_BACKROOMS_Digi_1-Sheet_2025x3000_Renate_W6_FIN04_ANZ_500px.jpg",
+  );
 
   // An allocated-seating session from the other cinema carries its own composite id.
   const alloc = sessions.find((x) => x.id === "027|400853");

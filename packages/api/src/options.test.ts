@@ -53,7 +53,13 @@ type CatalogResponse = {
   dates: string[];
   horizonDate: string;
   maxCachedDate: string | null;
-  titles: Array<{ movieKey: string; chain: string; title: string; sessionCount: number }>;
+  titles: Array<{
+    movieKey: string;
+    chain: string;
+    title: string;
+    sessionCount: number;
+    posterUrl: string | null;
+  }>;
 };
 
 function requirePool(): Pool {

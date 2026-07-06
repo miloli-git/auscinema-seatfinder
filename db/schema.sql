@@ -133,6 +133,12 @@ CREATE INDEX IF NOT EXISTS idx_sessions_chain_movie_fetched
 -- derivable" (§4.3), never as 0.
 ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS total_seats INTEGER NULL;
 
+-- SOH poster-card design brief: movie-level artwork carried per session (same convention as
+-- movie_name), self-healed the same way via the refresh known-row upsert. NULL for rows from a
+-- chain/date whose discovery didn't carry a poster, or ingested before this column existed; the
+-- API/web treat NULL as "no artwork" and fall back to a colour-block placeholder.
+ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS poster_url TEXT NULL;
+
 -- #78 review follow-up: debounce the #77 wildcard-scope tombstone. The coarse (chain, cinema, date)
 -- scope is conclusive evidence about the CINEMA/DATE listing, not about any one movie's session
 -- specifically - a transient one-tick gap (backend blip, feed hiccup) must not tombstone irreversibly
@@ -142,3 +148,10 @@ ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS total_seats INTEGER NULL
 -- Reset to 0 whenever the session is seen again (including on resurrection). Existing rows default to
 -- 0. Re-appliable via IF NOT EXISTS.
 ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS wildcard_miss_streak INTEGER NOT NULL DEFAULT 0;
+
+-- #89 review follow-up: /catalog's poster self-heal correlated subquery (same correlated-subquery
+-- shape as the movie_name heal, #88 precedent) has no supporting index. Partial so it only carries
+-- poster-bearing rows.
+CREATE INDEX IF NOT EXISTS idx_sessions_chain_movie_poster_fetched
+  ON sessions (chain, movie_id, fetched_at DESC)
+  WHERE poster_url IS NOT NULL AND poster_url <> '';

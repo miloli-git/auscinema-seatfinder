@@ -205,6 +205,8 @@ test("listSessions: filters per-cinema feed by movieId(ScheduledFilmId) + date, 
     first.bookingUrl,
     "https://readingcinemas.com.au/cinemas/belmont/sessions/190222/HO00004380",
   );
+  // Movie-level artwork, medium size preferred; carried onto every one of this movie's showtimes.
+  assert.equal(first.posterUrl, "https://d2apwscfoijj3f.cloudfront.net/wpdata/images/113077-m.jpg");
 
   // Gold showtime normalises to the "goldclass" bucket and carries its own composite id.
   const gold = sessions.find((s) => s.format.raw === "Gold");

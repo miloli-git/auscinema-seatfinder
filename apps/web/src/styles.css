@@ -71,6 +71,18 @@
   --sw-elite-bg: var(--berry);
   --sw-elite-fg: #ffffff;
 
+  /* SOH poster-card caption palette (movielist-posters-sort) — one saturated block colour per
+   * card, cycled deterministically (see movies/palette.ts). White text on all except mustard
+   * (ink text — design/iterations/extractions/soh-DESIGN.md's explicit exception). */
+  --block-crimson: #c82d2d;
+  --block-navy: #1a3059;
+  --block-purple: #3d1d53;
+  --block-teal: #1f6f78;
+  --block-orange: #b4471c;
+  --block-pink: #dc6281;
+  --block-magenta: #852146;
+  --block-mustard: #c9971a;
+
   /* Status */
   --error: #c0392b;
   --error-bg: rgba(192, 57, 43, 0.08);
@@ -1080,43 +1092,137 @@ input[type="checkbox"] {
   font-weight: 700;
   color: var(--ink);
 }
+.movielist__sort {
+  display: flex;
+  gap: var(--sp-2);
+}
+.movielist__sortbtn {
+  font: inherit;
+  font-family: var(--geo);
+  font-weight: 700;
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  background: var(--cloud);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: var(--sp-2) var(--sp-4);
+  cursor: pointer;
+  transition: border-color 0.14s var(--ease), background 0.14s var(--ease), color 0.14s var(--ease);
+}
+.movielist__sortbtn:hover {
+  border-color: var(--berry);
+}
+.movielist__sortbtn.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+
+/* SOH poster-card grid (movielist-posters-sort): 3-4 cols desktop, 2 tablet, 1-2 mobile, even
+ * gutters — "Spacing and section rhythm" in the design brief. */
 .movielist__grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--sp-2);
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-5);
 }
-.movielist__item,
-.movielist__group {
+@media (max-width: 980px) {
+  .movielist__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .movielist__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-3);
+  }
+}
+.movielist__row {
+  min-width: 0;
+}
+
+/* Poster card = image on top, solid colour-block caption underneath, radius 0, no shadows — gutters
+ * (grid gap above) separate cards, not borders (design brief "Cards and surfaces"). */
+.postercard {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-1);
   width: 100%;
+  border-radius: 0;
+  overflow: hidden;
+  background: none;
+  border: none;
+  padding: 0;
   text-align: left;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: var(--sp-3) var(--sp-4);
 }
-.movielist__item {
+.postercard--button {
   cursor: pointer;
   color: inherit;
   font: inherit;
-  transition: border-color 0.14s var(--ease), background 0.14s var(--ease);
+  transition: transform 0.14s var(--ease);
 }
-.movielist__item:hover {
-  border-color: var(--berry);
-  background: var(--blush);
+.postercard--button:hover {
+  transform: translateY(-2px);
 }
-.movielist__title {
+.postercard__art {
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--cloud);
+}
+.postercard__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* One saturated block colour per card (cycled deterministically, see movies/palette.ts). White
+ * text on every block except mustard (dark ink — design brief's explicit exception). Fills the
+ * whole card when there's no poster art. */
+.postercard__caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  color: #ffffff;
+  flex: 1;
+}
+.postercard__caption--ink {
+  color: var(--ink);
+}
+.postercard__caption--crimson {
+  background: var(--block-crimson);
+}
+.postercard__caption--navy {
+  background: var(--block-navy);
+}
+.postercard__caption--purple {
+  background: var(--block-purple);
+}
+.postercard__caption--teal {
+  background: var(--block-teal);
+}
+.postercard__caption--orange {
+  background: var(--block-orange);
+}
+.postercard__caption--pink {
+  background: var(--block-pink);
+}
+.postercard__caption--magenta {
+  background: var(--block-magenta);
+}
+.postercard__caption--mustard {
+  background: var(--block-mustard);
+}
+.postercard__title {
   font-family: var(--geo);
-  font-size: var(--t-base);
-  font-weight: 700;
+  font-size: var(--t-md);
+  font-weight: 800;
+  line-height: 1.2;
 }
-.movielist__sub {
-  color: var(--muted);
+.postercard__meta {
   font-size: var(--t-xs);
+  opacity: 0.85;
 }
 .movielist__chainpicker {
   display: flex;

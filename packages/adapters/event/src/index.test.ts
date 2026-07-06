@@ -165,6 +165,10 @@ test("listSessions: maps cinema 58 sessions with ids, times and format", async (
   assert.equal(first.seatAllocation, true);
   assert.equal(first.bookingUrl, "https://www.eventcinemas.com.au/Orders/Tickets#sessionId=15433720");
   assert.ok(first.attributes?.includes("NFT"));
+  assert.equal(
+    first.posterUrl,
+    "https://cdn.eventcinemas.com.au/cdn/resources/movies/19797/images/largeposter.jpg",
+  );
 });
 
 // --- default HTTP path: failures normalise to typed UpstreamError -----------
