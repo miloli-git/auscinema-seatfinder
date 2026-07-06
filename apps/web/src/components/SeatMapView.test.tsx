@@ -60,6 +60,37 @@ describe("SeatMapView geometry confidence chip (#52)", () => {
   });
 });
 
+describe("SeatMapView best-pick score floor (#91)", () => {
+  it("near-sellout: all available seats score below 58 -> zero best-pick outlines", () => {
+    const m: ScoredSeatMap = {
+      ...map(),
+      scored: [
+        { seat: map().seats[0]!, score: 45 },
+        { seat: map().seats[1]!, score: 30 },
+        { seat: map().seats[2]!, score: 20 },
+      ],
+    };
+    const { container } = render(<SeatMapView map={m} topN={3} />);
+    expect(container.querySelectorAll("[data-best]")).toHaveLength(0);
+  });
+
+  it("mixed: only seats scoring >=58 get the best-pick outline, even within top-N", () => {
+    const m: ScoredSeatMap = {
+      ...map(),
+      scored: [
+        { seat: map().seats[0]!, score: 90 },
+        { seat: map().seats[1]!, score: 57 }, // just under the floor - excluded
+        { seat: map().seats[2]!, score: 20 },
+      ],
+    };
+    const { container } = render(<SeatMapView map={m} topN={3} />);
+    const outlined = [...container.querySelectorAll("[data-best]")].map((el) =>
+      el.getAttribute("data-seat-id"),
+    );
+    expect(outlined).toEqual(["A1"]);
+  });
+});
+
 describe("SeatMapView highlightSeatIds (L3.4 / #36)", () => {
   it("L3.4 applies the highlight class to exactly the seats in highlightSeatIds", () => {
     const { container } = render(<SeatMapView map={map()} topN={3} highlightSeatIds={["A2", "A3"]} />);

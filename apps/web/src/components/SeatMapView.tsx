@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { AreaKind, ScoredSeatMap, Seat } from "../types";
-import { seatQuality } from "../format";
+import { seatQuality, BEST_PICK_MIN_SCORE } from "../format";
 
 interface Props {
   map: ScoredSeatMap;
@@ -33,9 +33,14 @@ export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
     return m;
   }, [map.scored]);
 
+  // #91: best-pick outlines are top-N AND score-floored - a near-sellout with no seat scoring
+  // >=58 ("good") correctly renders zero outlines, rather than crowning whatever's left, however
+  // low it scores (e.g. #90's capped front-section seats).
   const topIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const s of map.scored.slice(0, topN)) ids.add(s.seat.id);
+    for (const s of map.scored.slice(0, topN)) {
+      if (s.score >= BEST_PICK_MIN_SCORE) ids.add(s.seat.id);
+    }
     return ids;
   }, [map.scored, topN]);
 
