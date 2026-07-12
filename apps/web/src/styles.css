@@ -42,16 +42,23 @@
   --pit-muted: #9aa1a8;
   --pit-line: rgba(255, 255, 255, 0.14);
 
-  /* Seat-quality ramp — cinematic glow (SOH-cinematic green), used ONLY on the literal seat tiles
-   * against the dark pit. Driven by the live scorer's data-q attribute (SeatMapView), never
-   * re-derived client-side. */
-  --q-elite: #e6ff4d;
-  --q-great: #c2e24f;
-  --q-good: #8fb24a;
-  --q-ok: #5d6b3c;
-  /* PR #83 review: weak is BOOKABLE and the only tier with no glow — lifted from the mock's #2f3a36
-   * (1.53:1 vs pit, near-invisible) to a desaturated sage at 2.68:1 vs pit and 2.13:1 vs sold. */
-  --q-weak: #4a6152;
+  /* Seat-quality ramp — warm "marquee" glow (deep maroon → ember → coral → amber → gold), used
+   * ONLY on the literal seat tiles against the dark pit. Driven by the live scorer's data-q
+   * attribute (SeatMapView), never re-derived client-side. Replaced the SOH-green ramp (#99): all
+   * four AU chains brand in red (Event #d61023, Hoyts #cd242c, Village #eb1a22 — from their own
+   * CSS), so a warm incandescent ladder matches every chain's handoff page at once and unifies
+   * with the light-page rose swatch ramp below; green read as alien to both. Red-for-quality is
+   * safe here because sold is a neutral grey hatch (non-colour cue), never red. Luminance rungs
+   * reproduce the green ladder's audited contrast (vs pit: 13.7/8.8/4.8/3.1/2.7 ≈ old
+   * 16.1/12.2/7.4/3.1/2.7). */
+  --q-elite: #ffdf66;
+  --q-great: #ff9e4d;
+  --q-good: #d95f3b;
+  --q-ok: #9c5030;
+  /* PR #83 invariant: weak is BOOKABLE and the only tier with no glow — must hold ≥2.68:1 vs pit
+   * and ≥2.13:1 vs sold. #755551 = 2.72:1 / 2.16:1; desaturated rose-brown so hue+sat (not just
+   * luminance) separate it from the saturated ember "ok" one rung up. */
+  --q-weak: #755551;
   --q-sold: #262b2f;
   /* PR #83 review: sold also carries a diagonal hatch (non-color cue) so weak-available and sold
    * can never be confused — see .seat[data-q="sold"]. */
@@ -82,6 +89,15 @@
   --block-pink: #dc6281;
   --block-magenta: #852146;
   --block-mustard: #c9971a;
+
+  /* Chain brand reds (#99) — each chain's primary, lifted from its own site CSS, applied to the
+   * seat-map hero band + Book CTA (the frame is chain-branded; the quality ramp is universal).
+   * Reading's site is Cloudflare-gated to non-browser fetches; #e03131 approximates its logo red
+   * until verified the same way. All four pass ≥4.4:1 with white text. */
+  --chain-event: #d61023;
+  --chain-hoyts: #cd242c;
+  --chain-reading: #e03131;
+  --chain-village: #eb1a22;
 
   /* Status */
   --error: #c0392b;
@@ -657,6 +673,46 @@ input[type="checkbox"] {
   }
 }
 
+/* Chain-branded hero frame (#99): when the hero knows its session's chain, the header band takes
+ * that chain's brand red (the same red the Book CTA hands off to) with white text, and the CTA
+ * inverts to white-on-band with chain-red text. A hero with no session selected has no data-chain
+ * and keeps the blush band. */
+.hero[data-chain="event"] {
+  --chain: var(--chain-event);
+}
+.hero[data-chain="hoyts"] {
+  --chain: var(--chain-hoyts);
+}
+.hero[data-chain="reading"] {
+  --chain: var(--chain-reading);
+}
+.hero[data-chain="village"] {
+  --chain: var(--chain-village);
+}
+.hero[data-chain] .hero__head {
+  background: var(--chain);
+}
+.hero[data-chain] .hero__title {
+  color: #ffffff;
+}
+.hero[data-chain] .hero__title small {
+  color: rgba(255, 255, 255, 0.85);
+}
+.hero[data-chain] .hero__book {
+  background: #ffffff;
+  color: var(--chain);
+  border-color: #ffffff;
+}
+.hero[data-chain] .hero__head .btn--ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
+}
+.hero[data-chain] .hero__head .btn--ghost:hover {
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
 /* the cinematic pit: screen + map + legend share one continuous dark surface */
 .screen,
 .mapscroll,
@@ -733,15 +789,15 @@ input[type="checkbox"] {
 }
 .seat[data-q="elite"] {
   background: var(--q-elite);
-  box-shadow: 0 0 16px 3px rgba(230, 255, 77, 0.75);
+  box-shadow: 0 0 16px 3px rgba(255, 223, 102, 0.75);
 }
 .seat[data-q="great"] {
   background: var(--q-great);
-  box-shadow: 0 0 11px 2px rgba(194, 226, 79, 0.65);
+  box-shadow: 0 0 11px 2px rgba(255, 158, 77, 0.65);
 }
 .seat[data-q="good"] {
   background: var(--q-good);
-  box-shadow: 0 0 7px 1px rgba(143, 178, 74, 0.5);
+  box-shadow: 0 0 7px 1px rgba(217, 95, 59, 0.5);
 }
 .seat[data-q="ok"] {
   background: var(--q-ok);
@@ -766,7 +822,7 @@ input[type="checkbox"] {
 .seat[data-best] {
   outline: 2px solid #ffffff;
   outline-offset: 1px;
-  box-shadow: 0 0 20px 5px rgba(230, 255, 77, 0.85);
+  box-shadow: 0 0 20px 5px rgba(255, 223, 102, 0.85);
   z-index: 2;
   position: relative;
 }

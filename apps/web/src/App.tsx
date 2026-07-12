@@ -269,7 +269,7 @@ export function App() {
             )}
           </section>
 
-          <section className="hero" aria-label="Seat map">
+          <section className="hero" data-chain={sel?.chain} aria-label="Seat map">
             {sel ? (
               <>
                 <div className="hero__head">

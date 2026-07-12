@@ -32,18 +32,28 @@
   --pit-muted: #9aa1a8;
   --pit-line:  rgba(255, 255, 255, 0.14);
 
-  /* Seat-quality ramp — cinematic glow, green, used ONLY on literal seat tiles against the pit.
-   * Driven by the live scorer's data-q attribute — never re-derived client-side. */
-  --q-elite: #e6ff4d;
-  --q-great: #c2e24f;
-  --q-good:  #8fb24a;
-  --q-ok:    #5d6b3c;
-  /* PR #83 review: weak is BOOKABLE and the only tier with no glow — lifted from the mock's
-   * #2f3a36 (1.53:1 vs pit) to a desaturated sage at 2.68:1 vs pit / 2.13:1 vs sold. Sold also
-   * carries a diagonal hatch (repeating 45deg --q-sold/--q-sold-hatch stripes) as a non-color cue. */
-  --q-weak:  #4a6152;
+  /* Seat-quality ramp — warm "marquee" glow (maroon → ember → coral → amber → gold), used ONLY on
+   * literal seat tiles against the pit. Driven by the live scorer's data-q attribute — never
+   * re-derived client-side. Replaced the green ramp (#99): all four AU chains brand in red, so the
+   * warm ladder matches every chain's booking handoff; luminance rungs reproduce the green
+   * ladder's audited contrast vs pit (13.7/8.8/4.8/3.1/2.7). */
+  --q-elite: #ffdf66;
+  --q-great: #ff9e4d;
+  --q-good:  #d95f3b;
+  --q-ok:    #9c5030;
+  /* PR #83 invariant: weak is BOOKABLE and the only tier with no glow — must hold ≥2.68:1 vs pit
+   * and ≥2.13:1 vs sold (#755551 = 2.72 / 2.16). Sold also carries a diagonal hatch (repeating
+   * 45deg --q-sold/--q-sold-hatch stripes) as a non-color cue. */
+  --q-weak:  #755551;
   --q-sold:  #262b2f;
   --q-sold-hatch: #363d43;
+
+  /* Chain brand reds (#99) — from each chain's own site CSS; hero band + Book CTA only (the frame
+   * is chain-branded, the quality ramp is universal). Reading approximated pending verification. */
+  --chain-event:   #d61023;
+  --chain-hoyts:   #cd242c;
+  --chain-reading: #e03131;
+  --chain-village: #eb1a22;
 
   /* Same 5-step signal restyled as a Glossier "cosmetics swatch" ramp for compact chips on the
    * light page (rail score pill, Together matrix) — the green cinematic ramp reads as mud on white. */

@@ -145,7 +145,7 @@ export function OptionSeatMapPanel({
   }, [movieKey, option.cinemaId, party, groupMode, dayCounts, minScore, fetchAvailability]);
 
   return (
-    <section className="hero optionseatmap" aria-label="Seat map">
+    <section className="hero optionseatmap" data-chain={option.chain} aria-label="Seat map">
       <div className="hero__head">
         <h3 className="hero__title">
           {/* 47c fix #4: the booking handoff must show the full selected session identity — the
