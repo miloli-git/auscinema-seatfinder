@@ -77,6 +77,17 @@ describe("fitTierLabel", () => {
       fitTierLabel(option({ fitTier: "nearby", togetherCount: 2, effectiveParty: 7 }), 3),
     ).toBe("2 together, not all 7");
   });
+
+  it("#99: solo 'together' fit returns null (no chip) — 'All 1 together' is a tautology", () => {
+    expect(fitTierLabel(option({ fitTier: "together", togetherCount: 1 }), 1)).toBeNull();
+    // effectiveParty wins in both directions, same precedence as the labels above.
+    expect(
+      fitTierLabel(option({ fitTier: "together", togetherCount: 1, effectiveParty: 1 }), 7),
+    ).toBeNull();
+    expect(
+      fitTierLabel(option({ fitTier: "together", togetherCount: 2, effectiveParty: 2 }), 1),
+    ).toBe("All 2 together");
+  });
 });
 
 describe("displayCinemaName", () => {

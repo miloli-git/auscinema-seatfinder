@@ -31,10 +31,16 @@ line-height; numerals tabular in score pills. Plain-language control labels ("Ho
 ## 4. Color
 Tokens in `tokens.css`. Surfaces ramp #0a0c10 → #1b2030; text #eef2f8 / #aeb7c6 / #818b9c (AA on bg).
 Accents: amber `--accent #f5b941` (actions, brand), blue `--info #5aa9ff` (focus, screen).
-**Seat-quality ramp (the core signal):** weak `#4a566b` → ok `#f08a4b` → good `#f5b941` →
-great `#8fd14a` → elite `#2fd27a`; sold `#1c2330`; best-pick = white outline. Five discrete steps,
-applied via a `data-q` attribute, so "good vs meh" reads instantly (v0's continuous blue→green lerp
-made every available seat look the same green).
+**Seat-quality ramp (the core signal):** warm "marquee" ladder — weak `#755551` → ok `#9c5030` →
+good `#d95f3b` → great `#ff9e4d` → elite `#ffdf66`; sold = neutral grey + diagonal hatch (never
+red); best-pick = white outline + gold glow. Five discrete steps via `data-q`, so "good vs meh"
+reads instantly (v0's continuous lerp made every available seat look the same). Rationale (#99,
+2026-07-12): all four AU chains brand in red (Event `#d61023`, Hoyts `#cd242c`, Village `#eb1a22`,
+from their own CSS; Reading CF-gated, logo red), so per-chain quality ramps would be
+indistinguishable and a literal red-for-good ramp only works because sold is hatched grey. One warm
+incandescent ramp matches every chain's handoff page and the light-page rose swatch ramp at once.
+Chain identity lives on the **frame**: the seat-map hero's header band + Book CTA take the session
+chain's brand red (`.hero[data-chain]`, tokens `--chain-*`).
 
 ## 5. Components
 - **Score pill** (rail): tabular number + "best" caption, banded elite/great/good.

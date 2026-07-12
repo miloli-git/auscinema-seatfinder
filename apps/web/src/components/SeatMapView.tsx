@@ -99,7 +99,7 @@ export function SeatMapView({ map, topN, highlightSeatIds }: Props) {
           className="grid"
           role="img"
           aria-label={
-            "Auditorium seat map. Best available seats are outlined; colour shows seat quality from green (best) to dim (poor)." +
+            "Auditorium seat map. Best available seats are outlined; colour shows seat quality from bright gold (best) to dim (poor)." +
             (approximate ? " Seat positions are approximate, inferred from listing order." : "")
           }
         >

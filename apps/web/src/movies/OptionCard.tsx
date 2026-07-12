@@ -19,6 +19,7 @@ interface Props {
  */
 export function OptionCard({ option, party, selected, onSelect }: Props) {
   const badge = optionFormatBadge(option);
+  const fitLabel = fitTierLabel(option, party);
   const approximate = option.geometryConfidence === "approximate";
 
   return (
@@ -40,9 +41,11 @@ export function OptionCard({ option, party, selected, onSelect }: Props) {
               {badge.label}
             </span>
           )}
-          <span className="tag tag--fit" data-tier={option.fitTier}>
-            {fitTierLabel(option, party)}
-          </span>
+          {fitLabel && (
+            <span className="tag tag--fit" data-tier={option.fitTier}>
+              {fitLabel}
+            </span>
+          )}
           {approximate && (
             // 47c fix #14: the old "(~)" glyph relied entirely on hover/ARIA for meaning. Use the
             // same visible copy as SeatMapView's own chip ("Seat positions approximate") so the

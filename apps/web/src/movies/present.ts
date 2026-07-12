@@ -57,12 +57,15 @@ export function optionFormatBadge(o: Option): { label: string; premium: boolean 
  * `party` is the effective party for the option's own list context; 47c fix #3's group-mode fan-out
  * stamps `o.effectiveParty` on each option with the headcount that actually produced its fitTier —
  * that always wins over the list-level `party` fallback so a card's claim is honest for its own day.
+ *
+ * Returns null (no chip at all) for a solo party's "together" fit — "All 1 together" states nothing
+ * about a single seat, so the card drops the chip rather than render a tautology (#99).
  */
-export function fitTierLabel(o: Option, party: number): string {
+export function fitTierLabel(o: Option, party: number): string | null {
   const effectiveParty = o.effectiveParty ?? party;
   switch (o.fitTier) {
     case "together":
-      return `All ${o.togetherCount} together`;
+      return effectiveParty === 1 ? null : `All ${o.togetherCount} together`;
     case "nearby":
       return `${o.togetherCount} together, not all ${effectiveParty}`;
     case "split":
