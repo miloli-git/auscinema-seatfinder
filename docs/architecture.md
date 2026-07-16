@@ -122,9 +122,12 @@ The full Postgres schema, watch model, and phasing are in
 - **Ingester** (`packages/ingester`) — the Seats Together sweep above. Postgres-backed; reuses the
   adapters via its own registry to stay decoupled from the watcher.
 - **Watcher** (`packages/watcher`) — independent, optional alert path. Polls a JSON-configured set
-  of saved queries on an interval, scores the best seat per session, and fires a webhook
-  (Discord-style) when a session crosses the configured score threshold. Local JSON state file
-  tracks what's already been alerted. Not part of the Seats Together pipeline.
+  of saved queries on an interval and fires Discord-style webhooks. Seat watches score available
+  seats and alert on threshold crossings. New-session watches poll listings only, silently baseline
+  each date, then alert once for session ids added later. A watch can require listing-level proof
+  that sales are open (`seatsAvailable > 0` plus an HTTPS booking URL) before recording or alerting
+  the session. Local JSON state tracks alerted seats, observed sessions, and per-date baselines. Not
+  part of the Seats Together pipeline.
 
 ## Build & test
 

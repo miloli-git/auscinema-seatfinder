@@ -1,0 +1,17 @@
+{
+  "pollIntervalMs": 900000,
+  "timeZone": "Australia/Sydney",
+  "statePath": "watch.odyssey-imax-sydney.state.json",
+  "watches": [
+    {
+      "id": "odyssey-imax-sydney-new-sessions",
+      "label": "The Odyssey - IMAX Sydney",
+      "alertOn": "new-session",
+      "requirePurchasable": true,
+      "chain": "event",
+      "movieId": "19797",
+      "cinemaIds": ["96"],
+      "lookaheadDays": 21
+    }
+  ]
+}

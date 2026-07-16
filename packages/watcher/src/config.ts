@@ -13,24 +13,44 @@ export interface TimeWindow {
   to: string;
 }
 
-/** One saved watch: a movie at given cinemas on a date, with a quality threshold. */
-export interface Watch {
+export type AlertMode = "seat-available" | "new-session";
+
+interface WatchBase {
   /** Stable id, used as the de-dupe namespace for this watch. */
   id: string;
   chain: Chain;
   movieId: string;
   cinemaIds: string[];
-  /** Business date, "YYYY-MM-DD". */
-  date: string;
   /** Optional local start-time window; sessions outside it are ignored. */
   timeWindow?: TimeWindow;
+  /** Human label used in notifications. Defaults to the id. */
+  label?: string;
+}
+
+/** Existing mode: alert when a qualifying seat becomes available on one business date. */
+export interface SeatAvailabilityWatch extends WatchBase {
+  /** Omitted for backwards compatibility; `seat-available` is the default. */
+  alertOn?: "seat-available";
+  /** Business date, "YYYY-MM-DD". */
+  date: string;
   /** Seat-scoring preference passed to rankSeats. */
   preference: SeatPreference;
   /** Alert only when an available seat scores >= this (0–100). */
   minScore: number;
-  /** Human label used in notifications. Defaults to the id. */
-  label?: string;
 }
+
+/** Discovery mode: alert when a session id appears after a date has been baselined. */
+export interface NewSessionWatch extends WatchBase {
+  alertOn: "new-session";
+  /** Require a positive live seat count and valid HTTPS booking URL before considering a session. */
+  requirePurchasable?: boolean;
+  /** Monitor one fixed business date. Mutually exclusive with `lookaheadDays`. */
+  date?: string;
+  /** Rolling days after today to scan (0 = today only, maximum 90). */
+  lookaheadDays?: number;
+}
+
+export type Watch = SeatAvailabilityWatch | NewSessionWatch;
 
 /** Notifier settings. `webhookUrl` is overridden by the WATCHER_WEBHOOK env var. */
 export interface NotifierConfig {
@@ -41,6 +61,8 @@ export interface NotifierConfig {
 export interface WatcherConfig {
   /** Loop interval for `watch` mode, milliseconds. Default 5 minutes. */
   pollIntervalMs?: number;
+  /** IANA zone used to resolve "today" for rolling new-session watches. Default Australia/Sydney. */
+  timeZone?: string;
   /** Max concurrent seat-map fetches per check. Default 4. */
   concurrency?: number;
   /** Where to persist already-alerted hits. Default "watch.state.json". */
@@ -60,6 +82,13 @@ function asArray(v: unknown, where: string): unknown[] {
   return v;
 }
 
+function validateDate(value: unknown, where: string): string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) fail(`${where} must be YYYY-MM-DD`);
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) fail(`${where} must be a real date`);
+  return value;
+}
+
 function validateWatch(raw: unknown, i: number): Watch {
   if (typeof raw !== "object" || raw === null) fail(`watches[${i}] must be an object`);
   const w = raw as Record<string, unknown>;
@@ -70,9 +99,6 @@ function validateWatch(raw: unknown, i: number): Watch {
   if (typeof w.movieId !== "string" || w.movieId.trim() === "") fail(`${at("movieId")} required`);
   const cinemaIds = asArray(w.cinemaIds, at("cinemaIds")).map((c) => String(c));
   if (cinemaIds.length === 0) fail(`${at("cinemaIds")} must be non-empty`);
-  if (typeof w.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(w.date)) fail(`${at("date")} must be YYYY-MM-DD`);
-  if (typeof w.minScore !== "number" || !Number.isFinite(w.minScore)) fail(`${at("minScore")} must be a number`);
-
   let timeWindow: TimeWindow | undefined;
   if (w.timeWindow !== undefined) {
     const tw = w.timeWindow as Record<string, unknown>;
@@ -80,20 +106,43 @@ function validateWatch(raw: unknown, i: number): Watch {
     timeWindow = { from: tw.from, to: tw.to };
   }
 
-  const preference = (w.preference ?? {}) as SeatPreference;
-  if (typeof preference !== "object" || preference === null) fail(`${at("preference")} must be an object`);
-
-  return {
+  const base = {
     id: w.id,
     chain: w.chain as Chain,
     movieId: w.movieId,
     cinemaIds,
-    date: w.date,
     ...(timeWindow ? { timeWindow } : {}),
-    preference,
-    minScore: w.minScore,
     ...(typeof w.label === "string" ? { label: w.label } : {}),
   };
+
+  const alertOn = w.alertOn ?? "seat-available";
+  if (alertOn === "new-session") {
+    if (w.requirePurchasable !== undefined && typeof w.requirePurchasable !== "boolean") {
+      fail(`${at("requirePurchasable")} must be a boolean`);
+    }
+    const purchaseRequirement =
+      typeof w.requirePurchasable === "boolean" ? { requirePurchasable: w.requirePurchasable } : {};
+    const hasDate = w.date !== undefined;
+    const hasLookahead = w.lookaheadDays !== undefined;
+    if (hasDate === hasLookahead) fail(`${at("date")} or ${at("lookaheadDays")} is required (choose one)`);
+    if (hasDate) return { ...base, alertOn, ...purchaseRequirement, date: validateDate(w.date, at("date")) };
+    if (
+      typeof w.lookaheadDays !== "number" ||
+      !Number.isInteger(w.lookaheadDays) ||
+      w.lookaheadDays < 0 ||
+      w.lookaheadDays > 90
+    ) {
+      fail(`${at("lookaheadDays")} must be an integer from 0 to 90`);
+    }
+    return { ...base, alertOn, ...purchaseRequirement, lookaheadDays: w.lookaheadDays };
+  }
+
+  if (alertOn !== "seat-available") fail(`${at("alertOn")} unknown: ${String(alertOn)}`);
+  const date = validateDate(w.date, at("date"));
+  if (typeof w.minScore !== "number" || !Number.isFinite(w.minScore)) fail(`${at("minScore")} must be a number`);
+  const preference = (w.preference ?? {}) as SeatPreference;
+  if (typeof preference !== "object" || preference === null) fail(`${at("preference")} must be an object`);
+  return { ...base, ...(w.alertOn === "seat-available" ? { alertOn } : {}), date, preference, minScore: w.minScore };
 }
 
 /** Validate a parsed config object, throwing on the first problem. */
@@ -107,6 +156,15 @@ export function validateConfig(raw: unknown): WatcherConfig {
   if (c.pollIntervalMs !== undefined) {
     if (typeof c.pollIntervalMs !== "number" || c.pollIntervalMs <= 0) fail("pollIntervalMs must be a positive number");
     cfg.pollIntervalMs = c.pollIntervalMs;
+  }
+  if (c.timeZone !== undefined) {
+    if (typeof c.timeZone !== "string" || c.timeZone.trim() === "") fail("timeZone must be an IANA time-zone name");
+    try {
+      new Intl.DateTimeFormat("en-AU", { timeZone: c.timeZone }).format();
+    } catch {
+      fail(`timeZone unknown: ${c.timeZone}`);
+    }
+    cfg.timeZone = c.timeZone;
   }
   if (c.concurrency !== undefined) {
     if (typeof c.concurrency !== "number" || c.concurrency <= 0) fail("concurrency must be a positive number");

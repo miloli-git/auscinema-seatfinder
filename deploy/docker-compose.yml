@@ -6,7 +6,7 @@
 #   docker compose up -d --build
 #   open http://localhost:8080  (or your SITE_ADDRESS)
 #
-# Enable seat-open alerts too:
+# Enable seat-open or new-session alerts too:
 #   cp ../packages/watcher/watch.config.json.example watch.config.json   # edit watches
 #   docker compose --profile alerts up -d --build
 
@@ -70,7 +70,7 @@ services:
       - api
     restart: unless-stopped
 
-  # Optional: poll saved queries and webhook-alert when a wanted seat opens.
+  # Optional: poll saved queries and webhook-alert when a wanted seat opens or a new session appears.
   # Enable with: docker compose --profile alerts up -d --build
   watcher:
     profiles: ["alerts"]
