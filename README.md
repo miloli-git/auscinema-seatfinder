@@ -45,7 +45,7 @@ npm workspaces, Node 20+, ESM + TypeScript throughout. See
 | `packages/adapters/village` | `@auscinema/adapter-village` | Village adapter (Vista via Next.js route handlers + Algolia session index). |
 | `packages/api` | `@auscinema/api` | Fastify service: normalises adapters, in-memory session cache, per-IP rate limit, serves the live `/seatmap` + (cached) `/together` / `/catalog`. |
 | `packages/ingester` | `@auscinema/ingester` | Scheduled sweep worker for Seats Together: reads `watches`, reuses the adapters, scores seats, upserts into Postgres. |
-| `packages/watcher` | `@auscinema/watcher` | Optional alert worker: polls saved queries and webhooks you when a seat above your score threshold opens. |
+| `packages/watcher` | `@auscinema/watcher` | Optional alert worker: webhooks when a wanted seat opens or an entirely new session is listed. |
 | `apps/web` | `@auscinema/web` | Vite + React SPA. |
 
 Every adapter implements one interface (`listCinemas`, `listSessions`, `getSeatMap`). Scoring, the
@@ -93,7 +93,8 @@ independently; exit code is non-zero if any chain fails.
 - **Ingester (Seats Together):** needs a Postgres `DATABASE_URL`.
   `npm run seed -w @auscinema/ingester` then `npm run ingest:once -w @auscinema/ingester`.
 - **Watcher (alerts):** `npm run check -w @auscinema/watcher` (single shot) or
-  `npm run watch -w @auscinema/watcher` (loop).
+  `npm run watch -w @auscinema/watcher` (loop). Supports seat-threshold and new-session alerts;
+  see [`packages/watcher/README.md`](packages/watcher/README.md).
 - The reverse-engineered chain request/response shapes are documented in
   [`docs/endpoints.md`](docs/endpoints.md); the scoring model in [`docs/scoring.md`](docs/scoring.md).
 

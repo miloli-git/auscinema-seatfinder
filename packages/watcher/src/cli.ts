@@ -62,9 +62,16 @@ async function doCheck(configPath: string): Promise<CheckCycle> {
   const result = await runCheck(config, { registry, notifier, state });
   await saveState(statePath, state);
 
-  log(`check: ${result.hits.length} hit(s), ${result.newHits.length} new, ${result.errors.length} error(s)`);
+  log(
+    `check: ${result.hits.length} seat hit(s), ${result.newHits.length} new; ` +
+      `${result.sessions.length} session(s), ${result.newSessions.length} new; ${result.errors.length} error(s)`,
+  );
   for (const e of result.errors) {
-    const subject = e.sessionId ? `watch ${e.watchId} session ${e.sessionId}` : `watch ${e.watchId}`;
+    const subject = e.sessionId
+      ? `watch ${e.watchId} session ${e.sessionId}`
+      : e.date
+        ? `watch ${e.watchId} date ${e.date}`
+        : `watch ${e.watchId}`;
     log(`  ${subject} error: ${e.error}`);
   }
   return { result, totalWatches: config.watches.length };

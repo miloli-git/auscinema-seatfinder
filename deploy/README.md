@@ -24,7 +24,25 @@ Open `http://localhost:8080` (or whatever `SITE_ADDRESS` / `WEB_PORT` you set).
 - **db** (Postgres): internal-only cache for Seats Together.
 - **refresh** (ingester image): keeps the cached discovery index fresh under an advisory lock.
 - **watcher** (optional, `--profile alerts`): polls saved queries and webhooks you when a
-  seat above your score threshold opens.
+  seat above your score threshold opens or an entirely new session is listed.
+
+## Discord session alerts (Odyssey / IMAX Sydney example)
+
+The webhook is a secret: put it in `deploy/.env`, not in the JSON config.
+
+```bash
+cd deploy
+cp ../packages/watcher/watch.odyssey-imax-sydney.json.example watch.config.json
+# set WATCHER_WEBHOOK=https://discord.com/api/webhooks/... in .env
+docker compose --profile alerts up -d --build watcher
+```
+
+The first successful poll is intentionally silent while every date in the rolling window is
+baselined. This config sends a Discord message only when a later poll finds a previously unseen
+session id with a positive available-seat count and an HTTPS booking link. If a session is listed
+before sales open, it remains pending and alerts when those purchase-ready fields appear.
+The named `watcher-state` volume preserves that baseline and de-duplication across container
+restarts. Deleting the volume resets the baseline.
 
 ## Access gate: open now, proxy auth later
 

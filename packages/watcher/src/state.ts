@@ -1,6 +1,6 @@
 /**
- * Persisted de-dupe state: the set of (watchId, sessionId, seatId) hits already alerted,
- * so an open seat doesn't re-alert on every poll. Stored as a flat JSON key list.
+ * Persisted de-dupe state for seat hits and session discovery. Session watches keep both
+ * seen session ids and per-date baseline markers so a newly-entered rolling date is silent.
  */
 import { readFile, writeFile, rename } from "node:fs/promises";
 
@@ -8,9 +8,17 @@ const SEP = ""; // unit separator - never appears in ids
 
 export class WatchState {
   private readonly keys: Set<string>;
+  private readonly seenSessions: Set<string>;
+  private readonly sessionBaselines: Set<string>;
 
-  constructor(initial: Iterable<string> = []) {
+  constructor(
+    initial: Iterable<string> = [],
+    seenSessions: Iterable<string> = [],
+    sessionBaselines: Iterable<string> = [],
+  ) {
     this.keys = new Set(initial);
+    this.seenSessions = new Set(seenSessions);
+    this.sessionBaselines = new Set(sessionBaselines);
   }
 
   static keyOf(watchId: string, sessionId: string, seatId: string): string {
@@ -20,6 +28,14 @@ export class WatchState {
   /** The (watchId, sessionId) prefix used to scope pruning to checked sessions. */
   static sessionPrefixOf(watchId: string, sessionId: string): string {
     return `${watchId}${SEP}${sessionId}${SEP}`;
+  }
+
+  private static seenSessionKeyOf(watchId: string, sessionId: string): string {
+    return `${watchId}${SEP}${sessionId}`;
+  }
+
+  private static sessionBaselineKeyOf(watchId: string, date: string): string {
+    return `${watchId}${SEP}${date}`;
   }
 
   has(key: string): boolean {
@@ -32,6 +48,22 @@ export class WatchState {
 
   delete(key: string): void {
     this.keys.delete(key);
+  }
+
+  hasSeenSession(watchId: string, sessionId: string): boolean {
+    return this.seenSessions.has(WatchState.seenSessionKeyOf(watchId, sessionId));
+  }
+
+  markSessionSeen(watchId: string, sessionId: string): void {
+    this.seenSessions.add(WatchState.seenSessionKeyOf(watchId, sessionId));
+  }
+
+  hasSessionBaseline(watchId: string, date: string): boolean {
+    return this.sessionBaselines.has(WatchState.sessionBaselineKeyOf(watchId, date));
+  }
+
+  markSessionBaseline(watchId: string, date: string): void {
+    this.sessionBaselines.add(WatchState.sessionBaselineKeyOf(watchId, date));
   }
 
   /**
@@ -50,6 +82,14 @@ export class WatchState {
   toArray(): string[] {
     return [...this.keys];
   }
+
+  seenSessionsArray(): string[] {
+    return [...this.seenSessions];
+  }
+
+  sessionBaselinesArray(): string[] {
+    return [...this.sessionBaselines];
+  }
 }
 
 /** Load state from disk; a missing file yields empty state. */
@@ -61,9 +101,15 @@ export async function loadState(path: string): Promise<WatchState> {
     return new WatchState();
   }
   try {
-    const parsed = JSON.parse(text) as { alerted?: unknown };
+    const parsed = JSON.parse(text) as { alerted?: unknown; seenSessions?: unknown; sessionBaselines?: unknown };
     const list = Array.isArray(parsed.alerted) ? parsed.alerted.filter((k): k is string => typeof k === "string") : [];
-    return new WatchState(list);
+    const seenSessions = Array.isArray(parsed.seenSessions)
+      ? parsed.seenSessions.filter((k): k is string => typeof k === "string")
+      : [];
+    const sessionBaselines = Array.isArray(parsed.sessionBaselines)
+      ? parsed.sessionBaselines.filter((k): k is string => typeof k === "string")
+      : [];
+    return new WatchState(list, seenSessions, sessionBaselines);
   } catch {
     return new WatchState();
   }
@@ -71,7 +117,16 @@ export async function loadState(path: string): Promise<WatchState> {
 
 /** Persist state atomically (temp file + rename). */
 export async function saveState(path: string, state: WatchState): Promise<void> {
-  const body = JSON.stringify({ version: 1, alerted: state.toArray() }, null, 2);
+  const body = JSON.stringify(
+    {
+      version: 2,
+      alerted: state.toArray(),
+      seenSessions: state.seenSessionsArray(),
+      sessionBaselines: state.sessionBaselinesArray(),
+    },
+    null,
+    2,
+  );
   const tmp = `${path}.tmp`;
   await writeFile(tmp, body, "utf8");
   await rename(tmp, path);

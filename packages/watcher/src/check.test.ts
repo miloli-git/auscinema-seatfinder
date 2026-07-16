@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type {
   ChainAdapter,
   Cinema,
@@ -8,13 +11,12 @@ import type {
   SessionQuery,
   Seat,
 } from "@auscinema/core";
-import { runCheck } from "./check.js";
-import { inTimeWindow } from "./check.js";
+import { datesForNewSessionWatch, inTimeWindow, isPurchasableSession, runCheck } from "./check.js";
 import { shouldBackoffForCheckResult } from "./cli.js";
-import { WatchState } from "./state.js";
-import type { Notifier, Hit } from "./notifier.js";
+import { loadState, saveState, WatchState } from "./state.js";
+import { WebhookNotifier, type Notifier, type Hit, type SessionAlert } from "./notifier.js";
 import type { AdapterRegistry } from "./registry.js";
-import type { Watch, WatcherConfig } from "./config.js";
+import { validateConfig, type NewSessionWatch, type SeatAvailabilityWatch, type WatcherConfig } from "./config.js";
 
 // --- Stubs ------------------------------------------------------------------
 
@@ -32,6 +34,7 @@ function session(id: string, startTime: string, seatAllocation = true): Session 
     cinemaName: "Test Cinema",
     startTime,
     format: { kind: "standard", raw: "STANDARD" },
+    seatsAvailable: 10,
     seatAllocation,
     bookingUrl: `https://book.example/${id}`,
   };
@@ -58,12 +61,16 @@ function stubAdapter(sessions: Session[], maps: Record<string, SeatMap>): ChainA
 /** Notifier stub capturing every batch it is handed. */
 class CapturingNotifier implements Notifier {
   readonly calls: Hit[][] = [];
+  readonly sessionCalls: SessionAlert[][] = [];
   async notify(hits: Hit[]): Promise<void> {
     this.calls.push(hits);
   }
+  async notifySessions(sessions: SessionAlert[]): Promise<void> {
+    this.sessionCalls.push(sessions);
+  }
 }
 
-function watch(overrides: Partial<Watch> = {}): Watch {
+function watch(overrides: Partial<SeatAvailabilityWatch> = {}): SeatAvailabilityWatch {
   return {
     id: "w1",
     chain: "event",
@@ -77,7 +84,7 @@ function watch(overrides: Partial<Watch> = {}): Watch {
   };
 }
 
-function configOf(w: Watch): WatcherConfig {
+function configOf(w: SeatAvailabilityWatch): WatcherConfig {
   return { watches: [w], concurrency: 2 };
 }
 
@@ -232,6 +239,8 @@ test("backoff classifier counts distinct failed watches, not error rows", () => 
       {
         hits: [],
         newHits: [],
+        sessions: [],
+        newSessions: [],
         errors: [
           { watchId: "w1", sessionId: "S1", error: "upstream" },
           { watchId: "w1", sessionId: "S2", error: "upstream" },
@@ -249,6 +258,8 @@ test("backoff classifier counts distinct failed watches, not error rows", () => 
       {
         hits: [],
         newHits: [],
+        sessions: [],
+        newSessions: [],
         errors: [
           { watchId: "w1", sessionId: "S1", error: "upstream" },
           { watchId: "w1", sessionId: "S2", error: "upstream" },
@@ -265,6 +276,8 @@ test("backoff classifier counts distinct failed watches, not error rows", () => 
       {
         hits: [],
         newHits: [],
+        sessions: [],
+        newSessions: [],
         errors: [
           { watchId: "w1", error: "upstream" },
           { watchId: "w2", error: "upstream" },
@@ -308,4 +321,231 @@ test("a cleared seat re-alerts after reopening", async () => {
   const r3 = await runCheck(configOf(watch()), { registry: registry(openMaps), notifier, state });
   assert.equal(r3.newHits.length, 1, "re-alerts after reopen");
   assert.equal(notifier.calls.length, 2);
+});
+
+function newSessionWatch(overrides: Partial<NewSessionWatch> = {}): NewSessionWatch {
+  return {
+    id: "odyssey-imax-sydney-new-sessions",
+    label: "The Odyssey - IMAX Sydney",
+    alertOn: "new-session",
+    requirePurchasable: true,
+    chain: "event",
+    movieId: "M1",
+    cinemaIds: ["C1"],
+    date: "2026-07-21",
+    ...overrides,
+  };
+}
+
+function discoveryAdapter(
+  sessionsByDate: Record<string, Session[]>,
+  seatMapCalls: { count: number },
+): ChainAdapter {
+  return {
+    chain: "event",
+    async listCinemas(): Promise<Cinema[]> {
+      return [];
+    },
+    async listSessions(query: SessionQuery): Promise<Session[]> {
+      return sessionsByDate[query.date] ?? [];
+    },
+    async getSeatMap(): Promise<SeatMap> {
+      seatMapCalls.count += 1;
+      throw new Error("new-session watches must not fetch seat maps");
+    },
+  };
+}
+
+test("new-session watch silently baselines, then alerts once for a newly listed session", async () => {
+  const sessionsByDate: Record<string, Session[]> = {
+    "2026-07-21": [session("S1", "2026-07-21T19:30")],
+  };
+  const seatMapCalls = { count: 0 };
+  const registry: AdapterRegistry = { event: discoveryAdapter(sessionsByDate, seatMapCalls) };
+  const notifier = new CapturingNotifier();
+  const state = new WatchState();
+  const config: WatcherConfig = { watches: [newSessionWatch()] };
+
+  const baseline = await runCheck(config, { registry, notifier, state });
+  assert.equal(baseline.sessions.length, 1);
+  assert.equal(baseline.newSessions.length, 0, "existing listing is a silent baseline");
+  assert.equal(notifier.sessionCalls.length, 0);
+  assert.equal(state.hasSessionBaseline("odyssey-imax-sydney-new-sessions", "2026-07-21"), true);
+
+  sessionsByDate["2026-07-21"]!.push(session("S2", "2026-07-21T21:00"));
+  const added = await runCheck(config, { registry, notifier, state });
+  assert.equal(added.newSessions.length, 1);
+  assert.equal(added.newSessions[0]!.sessionId, "S2");
+  assert.equal(added.newSessions[0]!.bookingUrl, "https://book.example/S2");
+  assert.equal(notifier.sessionCalls.length, 1);
+
+  const unchanged = await runCheck(config, { registry, notifier, state });
+  assert.equal(unchanged.newSessions.length, 0);
+  assert.equal(notifier.sessionCalls.length, 1, "same session id is not re-alerted");
+  assert.equal(seatMapCalls.count, 0);
+});
+
+test("purchase-ready watch waits for both positive availability and an HTTPS booking URL", async () => {
+  const pending = session("S-pending", "2026-07-21T21:00");
+  pending.seatsAvailable = 0;
+  const sessionsByDate: Record<string, Session[]> = {
+    "2026-07-21": [session("S-existing", "2026-07-21T19:30")],
+  };
+  const registry: AdapterRegistry = { event: discoveryAdapter(sessionsByDate, { count: 0 }) };
+  const notifier = new CapturingNotifier();
+  const state = new WatchState();
+  const watchConfig = newSessionWatch({ requirePurchasable: true });
+  const config: WatcherConfig = { watches: [watchConfig] };
+
+  await runCheck(config, { registry, notifier, state });
+  sessionsByDate["2026-07-21"]!.push(pending);
+
+  const soldOut = await runCheck(config, { registry, notifier, state });
+  assert.equal(soldOut.newSessions.length, 0);
+  assert.equal(state.hasSeenSession(watchConfig.id, pending.id), false, "not marked seen before sales open");
+
+  pending.seatsAvailable = 8;
+  pending.bookingUrl = "";
+  const noBookingLink = await runCheck(config, { registry, notifier, state });
+  assert.equal(noBookingLink.newSessions.length, 0);
+  assert.equal(state.hasSeenSession(watchConfig.id, pending.id), false);
+
+  pending.bookingUrl = "https://book.example/S-pending";
+  const purchaseReady = await runCheck(config, { registry, notifier, state });
+  assert.deepEqual(purchaseReady.newSessions.map((item) => item.sessionId), ["S-pending"]);
+  assert.equal(purchaseReady.newSessions[0]!.seatsAvailable, 8);
+  assert.equal(notifier.sessionCalls.length, 1);
+
+  assert.equal(isPurchasableSession({ ...pending, seatsAvailable: undefined }), false);
+  assert.equal(isPurchasableSession({ ...pending, seatsAvailable: 0 }), false);
+  assert.equal(isPurchasableSession({ ...pending, bookingUrl: "http://book.example/S-pending" }), false);
+  assert.equal(isPurchasableSession(pending), true);
+});
+
+test("rolling new-session watch baselines a date when it first enters the horizon", async () => {
+  const sessionsByDate: Record<string, Session[]> = {
+    "2026-07-21": [session("S21", "2026-07-21T19:30")],
+    "2026-07-22": [session("S22", "2026-07-22T19:30")],
+    "2026-07-23": [session("S23", "2026-07-23T19:30")],
+  };
+  const registry: AdapterRegistry = { event: discoveryAdapter(sessionsByDate, { count: 0 }) };
+  const notifier = new CapturingNotifier();
+  const state = new WatchState();
+  const rolling = newSessionWatch({ date: undefined, lookaheadDays: 1 });
+  const config: WatcherConfig = { timeZone: "Australia/Sydney", watches: [rolling] };
+
+  await runCheck(config, {
+    registry,
+    notifier,
+    state,
+    now: () => new Date("2026-07-20T15:00:00Z"), // 21 July in Sydney
+  });
+  const nextDay = await runCheck(config, {
+    registry,
+    notifier,
+    state,
+    now: () => new Date("2026-07-21T15:00:00Z"), // 22 July in Sydney
+  });
+
+  assert.equal(nextDay.newSessions.length, 0, "S23 existed before its date first entered scope");
+  assert.equal(state.hasSessionBaseline(rolling.id, "2026-07-23"), true);
+
+  sessionsByDate["2026-07-22"]!.push(session("S22-late", "2026-07-22T21:15"));
+  const genuinelyAdded = await runCheck(config, {
+    registry,
+    notifier,
+    state,
+    now: () => new Date("2026-07-21T15:05:00Z"),
+  });
+  assert.deepEqual(genuinelyAdded.newSessions.map((s) => s.sessionId), ["S22-late"]);
+});
+
+test("rolling dates use the configured cinema business timezone", () => {
+  const rolling = newSessionWatch({ date: undefined, lookaheadDays: 2 });
+  assert.deepEqual(
+    datesForNewSessionWatch(rolling, new Date("2026-07-20T15:00:00Z"), "Australia/Sydney"),
+    ["2026-07-21", "2026-07-22", "2026-07-23"],
+  );
+});
+
+test("new-session config accepts the Odyssey rolling watch and rejects ambiguous date scope", () => {
+  const config = validateConfig({
+    pollIntervalMs: 900000,
+    timeZone: "Australia/Sydney",
+    watches: [
+      {
+        id: "odyssey-imax-sydney-new-sessions",
+        alertOn: "new-session",
+        requirePurchasable: true,
+        chain: "event",
+        movieId: "19797",
+        cinemaIds: ["96"],
+        lookaheadDays: 45,
+      },
+    ],
+  });
+  const validated = config.watches[0]!;
+  assert.equal(validated.alertOn, "new-session");
+  assert.equal(validated.alertOn === "new-session" ? validated.requirePurchasable : undefined, true);
+
+  assert.throws(
+    () =>
+      validateConfig({
+        watches: [
+          {
+            id: "ambiguous",
+            alertOn: "new-session",
+            chain: "event",
+            movieId: "19797",
+            cinemaIds: ["96"],
+            date: "2026-07-21",
+            lookaheadDays: 45,
+          },
+        ],
+      }),
+    /choose one/,
+  );
+});
+
+test("session discovery state survives save and reload", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "auscinema-watcher-state-"));
+  const path = join(dir, "watch.state.json");
+  try {
+    const state = new WatchState();
+    state.markSessionSeen("watch-1", "session-1");
+    state.markSessionBaseline("watch-1", "2026-07-21");
+    await saveState(path, state);
+
+    const loaded = await loadState(path);
+    assert.equal(loaded.hasSeenSession("watch-1", "session-1"), true);
+    assert.equal(loaded.hasSessionBaseline("watch-1", "2026-07-21"), true);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("Discord session notifications are chunked below the content limit", async () => {
+  const bodies: Array<{ content: string; sessions: SessionAlert[] }> = [];
+  const notifier = new WebhookNotifier("https://discord.example/webhook", async (_url, init) => {
+    bodies.push(JSON.parse(init.body) as { content: string; sessions: SessionAlert[] });
+    return { ok: true, status: 204, statusText: "No Content" };
+  });
+  const sessions = Array.from({ length: 40 }, (_, index): SessionAlert => ({
+    watchId: "odyssey-imax-sydney-new-sessions",
+    label: "The Odyssey - IMAX Sydney",
+    chain: "event",
+    sessionId: `S${index}`,
+    movieId: "19797",
+    cinemaId: "96",
+    startTime: `2026-07-${String(17 + (index % 10)).padStart(2, "0")}T19:30`,
+    format: "IMAX 1570",
+    seatsAvailable: 24,
+    bookingUrl: `https://www.eventcinemas.com.au/Orders/Tickets#session-${index}`,
+  }));
+
+  await notifier.notifySessions(sessions);
+
+  assert.ok(bodies.length > 1, "a release burst is split across webhook posts");
+  assert.equal(bodies.flatMap((body) => body.sessions).length, sessions.length);
+  assert.ok(bodies.every((body) => body.content.length <= 1900));
 });
