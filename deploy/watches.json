@@ -21,7 +21,7 @@
   },
   {
     "chain": "reading",
-    "cinemaIds": ["auburn"],
+    "cinemaIds": ["auburn", "rhodes"],
     "dateFrom": "2026-06-26",
     "dateTo": "2026-07-26",
     "movieId": null,
