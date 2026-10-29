@@ -118,7 +118,7 @@ freshness: {
 - `coverage` enumerates ONLY the requested `chain` (not all known chains). Values: `cached` = chain has
   an enabled watch + successful ingest (even when this movie/cinema/date query returns zero — cached-but-
   no-result is still `cached`, distinct from `not_cached`); `not_cached` = no enabled watch / no ingest;
-  `stale` = cached but oldest live `fetched_at` age > `TOGETHER_FRESHNESS_STALE_MS`.
+  `stale` = cached but some live row's `fetched_at` age exceeds its tier TTL x margin (#111; `TOGETHER_FRESHNESS_STALE_MS` retired).
 - Dead-man alert helper (pure, exported from `@auscinema/ingester`):
   `maybeEmitCacheAgeDeadManAlert({ nowInstant, lastSuccessfulIngestAt, oldestLiveFetchedAt?, thresholdMs,
   dedupeWindowMs, state, postWebhook })`. Trigger = `nowInstant - lastSuccessfulIngestAt > thresholdMs`
