@@ -2,6 +2,7 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createPool } from "@auscinema/ingester";
+import { DEFAULT_TIER_TTL_MS, DEFAULT_STALE_MARGIN } from "@auscinema/core";
 import { buildServer } from "./index.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -281,10 +282,13 @@ test(
   "contract §6 fixture: together (event) / nearby (village) / split (hoyts) all present and correct",
   { skip: dbSkip },
   async () => {
-    // Per-card freshness is computed against the real clock (fetched_at age vs the 2h default
-    // threshold), so seed fetched_at relative to now: village 3h ago -> stale, others 10min -> fresh.
+    // Per-card freshness is computed against the real clock (fetched_at age vs the tier
+    // threshold, #111), so seed fetched_at relative to now. The fixture dates are T2, so village is seeded
+    // 1h beyond T2 TTL x margin -> stale; others 10min -> fresh.
     const fetchedFresh = new Date(Date.now() - 10 * 60_000).toISOString();
-    const fetchedStale = new Date(Date.now() - 3 * 60 * 60_000).toISOString();
+    const fetchedStale = new Date(
+      Date.now() - (DEFAULT_TIER_TTL_MS.T2 * DEFAULT_STALE_MARGIN + 60 * 60_000),
+    ).toISOString();
 
     // Session A: Event, together, avgScore 91, IMAX.
     await insertSession({
@@ -315,7 +319,7 @@ test(
       { seatId: "h2", row: 2, col: 5, score: 85 },
     ]);
 
-    // Session C: Village, nearby, run of exactly 2 (not 3), Vmax, stale (fetched >2h ago).
+    // Session C: Village, nearby, run of exactly 2 (not 3), Vmax, stale (fetched beyond the T2 TTL x margin).
     await insertSession({
       id: "vil-4410",
       chain: "village",

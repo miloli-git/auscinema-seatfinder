@@ -113,7 +113,7 @@ function utcMidnight(value: string): number {
 
 /** Whole UTC-midnight day diff from `today` to `date`, clamped >= 0 — same contract as leadtime.ts's
  *  internal (module-private) `leadDays`. */
-function leadDaysFrom(today: string, date: string): number {
+export function leadDaysFrom(today: string, date: string): number {
   const diff = Math.round((utcMidnight(date) - utcMidnight(today)) / MS_PER_DAY);
   return diff > 0 ? diff : 0;
 }
