@@ -463,19 +463,25 @@ test(
   { skip: dbSkip },
   async () => {
     await resetToCurrentSchema();
+    // persist.ts stamps fetched_at/last_seen with the DB's now(), so tick 1's refresh of the live
+    // session lands at real wall-clock time. Anchor the tick instants AND the fixture date to real now
+    // (not a pinned calendar date): otherwise those rows read as newer than t1 (negative age, never
+    // due), or the pinned date drifts into the past and nothing is in scope.
+    const t0 = new Date();
+    const day = new Date(t0.getTime() + days(1)).toISOString().slice(0, 10);
     // movieId: null mirrors every production watch in deploy/watches.json.
     const watchId = await insertWatch({
       chain: "event",
       cinemaIds: ["C1"],
-      dateFrom: "2026-10-05",
-      dateTo: "2026-10-05",
+      dateFrom: day,
+      dateTo: day,
       movieId: null,
     });
-    const t0 = new Date("2026-10-05T00:00:00.000Z");
     await insertCachedSession({
       id: "live-movie-a",
       watchId,
       movieId: "MA",
+      date: day,
       fetchedAt: beforeInstant(t0, hours(3)),
     });
     // "delisted-movie-b" has vanished from the chain's feed entirely — its movieId will never again
@@ -484,10 +490,11 @@ test(
       id: "delisted-movie-b",
       watchId,
       movieId: "MB",
+      date: day,
       fetchedAt: beforeInstant(t0, hours(3)),
     });
 
-    // The wildcard listing for C1/2026-10-05 returns every movie STILL showing — movie A only, on
+    // The wildcard listing for C1/<day> returns every movie STILL showing — movie A only, on
     // both ticks below (a real delisting, not a one-tick blip). Both known sessions have a map so
     // tick 1's seatmap fetch (delisted-movie-b is still LIVE and due at that point — it only tombstones
     // on tick 2) doesn't spuriously error.
@@ -495,7 +502,7 @@ test(
     const registryFor = (captures: { seatMapCalls: string[] }): AdapterRegistry => ({
       event: stubAdapter(
         "event",
-        [session("live-movie-a", "event", "C1", "2026-10-05T19:00:00.000Z", { movieId: "MA" })],
+        [session("live-movie-a", "event", "C1", `${day}T19:00:00.000Z`, { movieId: "MA" })],
         maps,
         captures,
       ),
@@ -512,7 +519,7 @@ test(
     assert.equal((await tombstoneRows())["delisted-movie-b"], null);
 
     // Tick 2: the SECOND consecutive absent tick reaches the default WILDCARD_TOMBSTONE_MISSES=2.
-    const t1 = new Date(t0.getTime() + hours(1));
+    const t1 = new Date(t0.getTime() + hours(2));
     const captures2 = { seatMapCalls: [] as string[] };
     const row = await runRefreshTick({ pool: requirePool(), registry: registryFor(captures2), nowInstant: t1, budgetPerChain: 30 });
 
