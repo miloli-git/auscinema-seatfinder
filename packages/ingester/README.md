@@ -50,6 +50,12 @@ Re-exports `types`, `db`, `registry`, `watches`, `persist`, `sweep`, `seed`:
   is skipped entirely (no listings, no seat maps) until `per_chain.<chain>.cooldown_until`; its due
   sessions count as skipped and other chains keep their full budget. `REFRESH_CHAIN_COOLDOWN_MS`
   (default 30 min, `0` disables). State lives in the latest `ok` `refresh_runs` row, no extra table.
+- Upstream retries: each adapter's default fetch retries HTTP 429/502/503 up to 3 attempts with a
+  jittered 125-500 ms sleep (timeouts/network errors: 2 attempts); other statuses fail fast. A fetch
+  that recovers on retry is a refresh, not an error, so it does not feed the cool-down. After 3
+  calls in a row exhaust their retries the adapter stops retrying until a call succeeds, and a
+  cooling chain gets no requests at all. Each failed seat-map refresh logs one line:
+  `refresh seatmap error chain=<chain> session=<id> kind=<kind> status=<status>: <message>`.
 
 ## Used by
 The API's `/together` / `/catalog` endpoints read the tables this worker populates. Schema:

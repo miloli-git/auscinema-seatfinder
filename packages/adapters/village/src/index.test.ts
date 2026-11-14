@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { UpstreamError } from "@auscinema/core";
 import { VillageAdapter, type FetchJson } from "./index.js";
 
 // Compiled test lives in dist/; fixtures are committed at ../fixtures relative to the package root.
@@ -134,4 +135,47 @@ test("getSeatMap: a second auditorium (different cinema/screen) parses cleanly",
     assert.ok(s.id, "seat has id");
     assert.ok(s.rowLabel, "seat has rowLabel");
   }
+});
+
+// --- default HTTP path --------------------------------------------------------
+
+/** Run `fn` with globalThis.fetch swapped for `stub`, always restoring the original. */
+async function withFetch(stub: typeof fetch, fn: () => Promise<void>): Promise<void> {
+  const original = globalThis.fetch;
+  globalThis.fetch = stub;
+  try {
+    await fn();
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+test("#112 default fetch: a 429 is retried, a 404 fails fast", async () => {
+  const body = JSON.stringify(loadFixture("sessions.json"));
+  const statuses: number[] = [];
+  let failNext = 429;
+  const stub = (async () => {
+    if (failNext !== 0) {
+      statuses.push(failNext);
+      const status = failNext;
+      if (status === 429) failNext = 0;
+      return new Response("nope", { status });
+    }
+    statuses.push(200);
+    return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+  }) as unknown as typeof fetch;
+  await withFetch(stub, async () => {
+    const adapter = new VillageAdapter();
+    const cinemas = await adapter.listCinemas();
+    assert.ok(cinemas.length >= 1);
+    assert.deepEqual(statuses, [429, 200]);
+
+    statuses.length = 0;
+    failNext = 404;
+    await assert.rejects(
+      () => adapter.listCinemas(),
+      (err: unknown) => err instanceof UpstreamError && err.kind === "http" && err.status === 404,
+    );
+    assert.deepEqual(statuses, [404]);
+  });
 });

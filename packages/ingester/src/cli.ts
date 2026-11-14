@@ -145,6 +145,7 @@ async function doRefreshOnce(): Promise<void> {
       registry: defaultRegistry(),
       nowInstant: new Date(),
       budgetPerChain: refreshBudget(),
+      log,
     });
     logRefresh(row);
   } finally {
