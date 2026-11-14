@@ -613,6 +613,150 @@ test("C5 majority-error chain backoff is recorded without starving another chain
   assert.equal((perChain.event as Record<string, unknown>).backoff, true);
   assert.equal((perChain.hoyts as Record<string, unknown>).backoff, false);
   assert.equal((perChain.hoyts as Record<string, unknown>).refreshed, 2);
+  assert.equal(
+    (perChain.event as Record<string, unknown>).cooldown_until,
+    new Date(nowInstant.getTime() + minutes(30)).toISOString(),
+    "the tripping tick records when the chain may be fetched again",
+  );
+  assert.equal((perChain.hoyts as Record<string, unknown>).cooldown_until, null);
+});
+
+test("#110 C5 cool-down: the tick after a majority-error tick skips that chain and still refreshes a healthy one", { skip: dbSkip }, async () => {
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  const eventWatch = await insertWatch({ chain: "event", cinemaIds: ["E1"] });
+  const hoytsWatch = await insertWatch({ chain: "hoyts", cinemaIds: ["H1"] });
+  for (const id of ["E1", "E2", "E3"]) {
+    await insertCachedSession({ id, watchId: eventWatch, chain: "event", cinemaId: "E1", fetchedAt: beforeInstant(nowInstant, hours(3)) });
+  }
+  await insertCachedSession({ id: "H1", watchId: hoytsWatch, chain: "hoyts", cinemaId: "H1", fetchedAt: beforeInstant(nowInstant, hours(3)) });
+  const eventCaptures = { seatMapCalls: [] as string[], queries: [] as SessionQuery[] };
+  const hoytsCaptures = { seatMapCalls: [] as string[], queries: [] as SessionQuery[] };
+  const registry: AdapterRegistry = {
+    event: stubAdapter(
+      "event",
+      [],
+      { E1: new Error("event upstream"), E2: new Error("event upstream"), E3: mapFor("event", "E3") },
+      eventCaptures,
+    ),
+    hoyts: stubAdapter("hoyts", [], { H1: mapFor("hoyts", "H1"), H2: mapFor("hoyts", "H2") }, hoytsCaptures),
+  };
+  const tick = (at: Date) => runRefreshTick({ pool: requirePool(), registry, nowInstant: at, budgetPerChain: 30, concurrency: 2 });
+
+  const tripped = await tick(nowInstant);
+  assert.equal((asRecord(tripped.per_chain).event as Record<string, unknown>).backoff, true);
+  assert.deepEqual(eventCaptures.seatMapCalls.sort(), ["E1", "E2", "E3"]);
+
+  // Next tick at the production cadence: E1/E2 are still due (their fetch failed), H2 is newly due.
+  eventCaptures.seatMapCalls.length = 0;
+  eventCaptures.queries.length = 0;
+  hoytsCaptures.seatMapCalls.length = 0;
+  await insertCachedSession({ id: "H2", watchId: hoytsWatch, chain: "hoyts", cinemaId: "H1", fetchedAt: beforeInstant(nowInstant, hours(3)) });
+  const cooled = await tick(new Date(nowInstant.getTime() + minutes(15)));
+
+  assert.deepEqual(eventCaptures.seatMapCalls, [], "a cooling chain gets no seat-map fan-out");
+  assert.deepEqual(eventCaptures.queries, [], "a cooling chain gets no discovery listing either");
+  assert.deepEqual(hoytsCaptures.seatMapCalls, ["H2"], "the healthy chain is not starved");
+  const cooledChains = asRecord(cooled.per_chain);
+  const cooledEvent = cooledChains.event as Record<string, unknown>;
+  assert.equal(cooledEvent.cooling, true);
+  assert.equal(cooledEvent.backoff, false, "backoff stays a per-tick fact: nothing was attempted, so nothing failed");
+  assert.equal(cooledEvent.cooldown_until, new Date(nowInstant.getTime() + minutes(30)).toISOString());
+  assert.equal(cooledEvent.due, 2);
+  assert.equal(cooledEvent.skipped, 2);
+  assert.equal(cooledEvent.refreshed, 0);
+  assert.equal(cooledEvent.errors, 0);
+  assert.equal((cooledChains.hoyts as Record<string, unknown>).refreshed, 1);
+  assert.equal((cooledChains.hoyts as Record<string, unknown>).cooling, false);
+  assert.equal(
+    cooled.sessions_due,
+    cooled.sessions_refreshed + cooled.errors + cooled.sessions_skipped_budget,
+    "the ledger invariant holds on a cooling tick",
+  );
+
+  // Once the cool-down has expired the chain is fetched again at full budget.
+  eventCaptures.seatMapCalls.length = 0;
+  eventCaptures.queries.length = 0;
+  const resumed = await tick(new Date(nowInstant.getTime() + minutes(30)));
+  assert.deepEqual(eventCaptures.seatMapCalls.sort(), ["E1", "E2"]);
+  assert.ok(eventCaptures.queries.length > 0, "discovery resumes with the chain");
+  const resumedEvent = asRecord(resumed.per_chain).event as Record<string, unknown>;
+  assert.equal(resumedEvent.cooling, false);
+  assert.equal(resumedEvent.backoff, true, "still failing, so it trips again");
+  assert.equal(resumedEvent.cooldown_until, new Date(nowInstant.getTime() + minutes(60)).toISOString());
+});
+
+test("#110 C5 cool-down: an unexpired cool-down is carried through ticks where the chain has nothing due", { skip: dbSkip }, async () => {
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  await insertWatch({ chain: "event", cinemaIds: ["C1"], dateFrom: "2026-10-05", dateTo: "2026-10-05" });
+  let listingDown = true;
+  let listings = 0;
+  const registry: AdapterRegistry = {
+    event: {
+      chain: "event",
+      async listCinemas(): Promise<Cinema[]> {
+        return [];
+      },
+      async listSessions(): Promise<Session[]> {
+        listings++;
+        if (listingDown) throw new Error("event listing upstream down");
+        return [];
+      },
+      async getSeatMap(): Promise<SeatMap> {
+        throw new Error("unused");
+      },
+    },
+  };
+  const tick = (at: Date) => runRefreshTick({ pool: requirePool(), registry, nowInstant: at, budgetPerChain: 30 });
+
+  const tripped = await tick(nowInstant);
+  assert.equal((asRecord(tripped.per_chain).event as Record<string, unknown>).backoff, true);
+  listingDown = false;
+  const listingsPerTick = listings;
+  assert.ok(listingsPerTick > 0);
+
+  const until = new Date(nowInstant.getTime() + minutes(30)).toISOString();
+  for (const offset of [10, 20]) {
+    const row = await tick(new Date(nowInstant.getTime() + minutes(offset)));
+    const event = asRecord(row.per_chain).event as Record<string, unknown>;
+    assert.equal(event.cooling, true, `still cooling at +${offset}min`);
+    assert.equal(event.cooldown_until, until, "expiry is carried forward unchanged, not extended");
+    assert.equal(event.due, 0);
+  }
+  assert.equal(listings, listingsPerTick, "no listing calls while cooling");
+
+  const resumed = await tick(new Date(nowInstant.getTime() + minutes(30)));
+  assert.equal(listings, listingsPerTick * 2, "discovery resumes at expiry");
+  assert.equal(asRecord(resumed.per_chain).event, undefined, "a recovered chain with nothing due leaves no cool-down behind");
+});
+
+test("#110 C5 cool-down: REFRESH_CHAIN_COOLDOWN_MS=0 disables enforcement (ledger-only backoff)", { skip: dbSkip }, async () => {
+  const prev = process.env.REFRESH_CHAIN_COOLDOWN_MS;
+  process.env.REFRESH_CHAIN_COOLDOWN_MS = "0";
+  try {
+    const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+    const watchId = await insertWatch({ chain: "event", cinemaIds: ["E1"] });
+    await insertCachedSession({ id: "E1", watchId, chain: "event", cinemaId: "E1", fetchedAt: beforeInstant(nowInstant, hours(3)) });
+    const captures = { seatMapCalls: [] as string[] };
+    const registry: AdapterRegistry = {
+      event: stubAdapter("event", [], { E1: new Error("event upstream") }, captures),
+    };
+
+    const first = await runRefreshTick({ pool: requirePool(), registry, nowInstant, budgetPerChain: 30 });
+    const firstEvent = asRecord(first.per_chain).event as Record<string, unknown>;
+    assert.equal(firstEvent.backoff, true);
+    assert.equal(firstEvent.cooldown_until, null);
+
+    await runRefreshTick({
+      pool: requirePool(),
+      registry,
+      nowInstant: new Date(nowInstant.getTime() + minutes(15)),
+      budgetPerChain: 30,
+    });
+    assert.deepEqual(captures.seatMapCalls, ["E1", "E1"], "the chain is fetched again on the very next tick");
+  } finally {
+    if (prev === undefined) delete process.env.REFRESH_CHAIN_COOLDOWN_MS;
+    else process.env.REFRESH_CHAIN_COOLDOWN_MS = prev;
+  }
 });
 
 test("discovery inserts a new session as due without testing P30.2 tombstones", { skip: dbSkip }, async () => {
