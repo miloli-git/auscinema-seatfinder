@@ -227,7 +227,7 @@ test("defaultFetchJson: non-2xx -> UpstreamError{kind:http,status}", async () =>
   let calls = 0;
   const stub = (async () => {
     calls += 1;
-    return new Response("nope", { status: 502, statusText: "Bad Gateway" });
+    return new Response("nope", { status: 404, statusText: "Not Found" });
   }) as unknown as typeof fetch;
   await withFetch(stub, async () => {
     await assert.rejects(
@@ -235,11 +235,44 @@ test("defaultFetchJson: non-2xx -> UpstreamError{kind:http,status}", async () =>
       (err: unknown) => {
         assert.ok(err instanceof UpstreamError, "expected UpstreamError");
         assert.equal(err.kind, "http");
-        assert.equal(err.status, 502);
+        assert.equal(err.status, 404);
         return true;
       },
     );
-    assert.equal(calls, 1, "http errors should not be retried");
+    assert.equal(calls, 1, "a non-retryable 4xx fails fast");
+  });
+});
+
+test("#112 defaultFetchJson: a 429 on getSeatMap is retried and the seat map is returned", async () => {
+  const adapter = new EventCinemasAdapter();
+  const body = JSON.stringify(loadFixture("getseating.session-15433720.json"));
+  let calls = 0;
+  const stub = (async () => {
+    calls += 1;
+    if (calls === 1) return new Response("slow down", { status: 429, statusText: "Too Many Requests" });
+    return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+  }) as unknown as typeof fetch;
+  await withFetch(stub, async () => {
+    const map = await adapter.getSeatMap("15433720");
+    assert.equal(map.sessionId, "15433720");
+    assert.ok(map.seats.length > 0);
+    assert.equal(calls, 2);
+  });
+});
+
+test("#112 defaultFetchJson: a persistent 503 stops after three attempts with the upstream status", async () => {
+  const adapter = new EventCinemasAdapter();
+  let calls = 0;
+  const stub = (async () => {
+    calls += 1;
+    return new Response("down", { status: 503, statusText: "Service Unavailable" });
+  }) as unknown as typeof fetch;
+  await withFetch(stub, async () => {
+    await assert.rejects(
+      () => adapter.getSeatMap("15433720"),
+      (err: unknown) => err instanceof UpstreamError && err.kind === "http" && err.status === 503,
+    );
+    assert.equal(calls, 3);
   });
 });
 

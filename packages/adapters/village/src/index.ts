@@ -9,7 +9,7 @@ import type {
   SeatStatus,
   ScreenFormat,
 } from "@auscinema/core";
-import { UpstreamError, isAbortError, safePosterUrl } from "@auscinema/core";
+import { UpstreamError, createUpstreamRetry, isAbortError, safePosterUrl } from "@auscinema/core";
 
 /**
  * Injectable HTTP-JSON fetcher so parsing can run against fixtures without network.
@@ -59,7 +59,7 @@ export class VillageAdapter implements ChainAdapter {
   private readonly fetchJson: FetchJson;
 
   constructor(opts?: { fetchJson?: FetchJson }) {
-    this.fetchJson = opts?.fetchJson ?? defaultFetchJson;
+    this.fetchJson = opts?.fetchJson ?? createDefaultFetchJson();
   }
 
   async listCinemas(): Promise<Cinema[]> {
@@ -104,53 +104,49 @@ const BROWSER_HEADERS: Record<string, string> = {
   Accept: "application/json",
 };
 
-/** Real network call: 15s timeout, one retry on retryable network/timeout failure. */
-const defaultFetchJson: FetchJson = async (url) => {
-  const attempt = async (): Promise<unknown> => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15_000);
-    try {
-      const res = await fetch(url, { headers: BROWSER_HEADERS, signal: controller.signal });
-      if (!res.ok) {
-        throw new UpstreamError(`Village request failed: ${res.status} ${res.statusText} (${url})`, {
-          kind: "http",
-          status: res.status,
-        });
-      }
+/**
+ * Real network call: 15s timeout, jittered retries on timeout/network failure and HTTP
+ * 429/502/503. One per adapter instance, so retry suspension is tracked per chain.
+ */
+function createDefaultFetchJson(): FetchJson {
+  const withRetry = createUpstreamRetry();
+  return async (url) => {
+    const attempt = async (): Promise<unknown> => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15_000);
       try {
-        return await res.json();
+        const res = await fetch(url, { headers: BROWSER_HEADERS, signal: controller.signal });
+        if (!res.ok) {
+          throw new UpstreamError(`Village request failed: ${res.status} ${res.statusText} (${url})`, {
+            kind: "http",
+            status: res.status,
+          });
+        }
+        try {
+          return await res.json();
+        } catch (err) {
+          throw new UpstreamError(`Village response was not valid JSON (${url})`, {
+            kind: "parse",
+            cause: err,
+          });
+        }
       } catch (err) {
-        throw new UpstreamError(`Village response was not valid JSON (${url})`, {
-          kind: "parse",
-          cause: err,
-        });
+        if (err instanceof UpstreamError) throw err;
+        if (isAbortError(err)) {
+          throw new UpstreamError(`Village request timed out (${url})`, { kind: "timeout", cause: err });
+        }
+        throw err; // raw network error retried below, then normalised
+      } finally {
+        clearTimeout(timer);
       }
-    } catch (err) {
-      if (err instanceof UpstreamError) throw err;
-      if (isAbortError(err)) {
-        throw new UpstreamError(`Village request timed out (${url})`, { kind: "timeout", cause: err });
-      }
-      throw err; // raw network error retried below, then normalised
-    } finally {
-      clearTimeout(timer);
-    }
-  };
-  try {
-    return await attempt();
-  } catch (err) {
-    if (!isRetryable(err)) throw err;
-    // One retry on retryable network/timeout failure (cheap, idempotent GET of a read query).
+    };
     try {
-      return await attempt();
+      return await withRetry(attempt);
     } catch (err) {
       if (err instanceof UpstreamError) throw err;
       throw new UpstreamError(`Village request failed (${url})`, { kind: "unknown", cause: err });
     }
-  }
-};
-
-function isRetryable(err: unknown): boolean {
-  return err instanceof UpstreamError ? err.kind === "timeout" : true;
+  };
 }
 
 // --- Parsing ----------------------------------------------------------------

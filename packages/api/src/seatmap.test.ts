@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { EventCinemasAdapter } from "@auscinema/adapter-event";
 import {
   type Chain,
   type ChainAdapter,
@@ -188,4 +191,39 @@ test("GET /seatmap defaults minScore only when party is present; minScore alone 
 
   const minScoreOnly = await getSeatMap("chain=event&sessionId=happy&minScore=74");
   assertNoLiveBlockKeys(minScoreOnly);
+});
+
+// --- #112: a real adapter's retry behind the live endpoint ------------------------
+
+async function seatMapOverStubbedFetch(statuses: number[]): Promise<{ statusCode: number; calls: number }> {
+  const original = globalThis.fetch;
+  const body = readFileSync(
+    fileURLToPath(new URL("../../adapters/event/fixtures/getseating.session-15433720.json", import.meta.url)),
+    "utf8",
+  );
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    const status = statuses[Math.min(calls, statuses.length - 1)] ?? 200;
+    calls++;
+    return new Response(status === 200 ? body : "nope", { status });
+  }) as unknown as typeof fetch;
+  try {
+    const app = buildServer({ adapters: { event: new EventCinemasAdapter() }, rateLimit: false, logger: false });
+    const res = await app.inject({ method: "GET", url: "/seatmap?chain=event&sessionId=15433720" });
+    return { statusCode: res.statusCode, calls };
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+test("#112 GET /seatmap recovers from a brief upstream 503 instead of answering 502", async () => {
+  assert.deepEqual(await seatMapOverStubbedFetch([503, 200]), { statusCode: 200, calls: 2 });
+});
+
+test("#112 GET /seatmap still answers 502 when the upstream 503 outlasts the retries", async () => {
+  assert.deepEqual(await seatMapOverStubbedFetch([503]), { statusCode: 502, calls: 3 });
+});
+
+test("#112 GET /seatmap fails fast on a non-retryable upstream 404", async () => {
+  assert.deepEqual(await seatMapOverStubbedFetch([404]), { statusCode: 502, calls: 1 });
 });

@@ -113,7 +113,7 @@ export async function runRefreshLoopIteration(deps: RefreshLoopIterationDeps): P
 
   try {
     const tickAt = new Date();
-    const row = await runRefreshTick({ pool, registry, nowInstant: tickAt, budgetPerChain });
+    const row = await runRefreshTick({ pool, registry, nowInstant: tickAt, budgetPerChain, log });
     logRefresh(row);
     // C6 purge: drop tombstones older than the retention window each tick (cheap indexed delete).
     await purgeDisappearedSessions({ pool, nowInstant: tickAt, retentionMs: tombstoneRetentionMs });

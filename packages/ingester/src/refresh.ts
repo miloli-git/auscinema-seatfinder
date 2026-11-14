@@ -11,6 +11,7 @@
  */
 import type { Chain, SeatPreference, Session } from "@auscinema/core";
 import {
+  UpstreamError,
   resolveTierTtlMs,
   tierForDayDiff,
   type RefreshTier as CoreRefreshTier,
@@ -359,6 +360,8 @@ export interface RefreshTickDeps {
   nowInstant: Date;
   budgetPerChain: number;
   concurrency?: number;
+  /** Sink for per-session seat-map failure lines. Defaults to console.log. */
+  log?: (msg: string) => void;
 }
 
 export interface RefreshRunRow {
@@ -521,6 +524,7 @@ interface ChainStat {
 async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   const { pool, registry, nowInstant, budgetPerChain } = deps;
   const concurrency = deps.concurrency ?? DEFAULT_CONCURRENCY;
+  const log = deps.log ?? ((m: string) => console.log(m));
   const sydneyToday = sydneyDate(nowInstant);
 
   const cooling = await loadChainCooldowns(pool, nowInstant);
@@ -912,9 +916,10 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
           chainStat(chain).refreshed++;
           refreshed++;
           if (target.isNew) sessionsNew++;
-        } catch {
+        } catch (err) {
           chainStat(chain).errors++;
           fetchErrors++;
+          log(describeSeatMapFailure(chain, id, err));
         }
       }),
     ),
@@ -983,6 +988,17 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
     perChain: perChainObj,
     perTier: perTierObj,
   };
+}
+
+/**
+ * One key=value line per failed seat-map refresh. `kind`/`status` come from the adapter's
+ * UpstreamError; `kind=internal` is a failure on our side of the fetch (no adapter, DB upsert).
+ */
+function describeSeatMapFailure(chain: string, sessionId: string, err: unknown): string {
+  const kind = err instanceof UpstreamError ? err.kind : "internal";
+  const status = err instanceof UpstreamError && err.status !== undefined ? ` status=${err.status}` : "";
+  const message = err instanceof Error ? err.message : String(err);
+  return `refresh seatmap error chain=${chain} session=${sessionId} kind=${kind}${status}: ${message}`;
 }
 
 /** A non-null all-zero ledger payload for the lock-skipped / error rows. */
