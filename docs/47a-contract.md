@@ -143,7 +143,9 @@ This is a genuinely new algorithm being specified by this contract, not a port o
 both builders must implement/test against exactly this, not "whatever `/together` already does."
 
 **"Most together" lens** sort: `fitTier` rank (`together` > `nearby` > `split`) desc, then
-`togetherCount` desc, then `bestBlockScore` desc (nulls last), then `startsAt` asc. Hoyts rows
+`togetherCount` desc, then `startsAt` asc (chronological, so a day's sessions read in time order;
+`bestBlockScore` is not a tie-breaker, the card shows it instead and "Best seats" is the
+score-ordered lens). Hoyts rows
 (`geometryConfidence: "approximate"`) are NOT excluded or re-sorted specially — the client renders the
 existing `(~)` lower-confidence affordance per the wireframe; the API does not down-rank them.
 
