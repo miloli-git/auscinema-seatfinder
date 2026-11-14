@@ -22,8 +22,11 @@ export interface UpstreamRetryOptions {
   baseDelayMs?: number;
   /** Consecutive retry-exhausted calls after which retries are suspended. Default 3. */
   suspendAfter?: number;
+  /** How long a suspension lasts before retries re-arm on their own. Default 60s. */
+  suspendMs?: number;
   sleep?: (ms: number) => Promise<void>;
   random?: () => number;
+  now?: () => number;
 }
 
 export type UpstreamRetry = <T>(attempt: () => Promise<T>) => Promise<T>;
@@ -33,8 +36,9 @@ export type UpstreamRetry = <T>(attempt: () => Promise<T>) => Promise<T>;
  * retried after a jittered sleep, up to the attempt cap; the last error is rethrown as-is.
  *
  * Once `suspendAfter` consecutive calls have exhausted their retries the upstream is treated as
- * down or throttling, and later calls make a single attempt until one succeeds. That keeps a
- * failing chain's request volume flat while the refresh tick's C5 backoff and cool-down take over.
+ * down or throttling, and for `suspendMs` (or until a call succeeds) later calls make a single
+ * attempt. That keeps a failing chain's request volume near flat while the refresh tick's C5
+ * backoff and cool-down take over, without leaving a long-lived process stuck without retries.
  */
 export function createUpstreamRetry(opts: UpstreamRetryOptions = {}): UpstreamRetry {
   const maxHttpAttempts = opts.maxHttpAttempts ?? 3;
@@ -42,21 +46,28 @@ export function createUpstreamRetry(opts: UpstreamRetryOptions = {}): UpstreamRe
   const baseDelayMs = opts.baseDelayMs ?? 250;
   const suspendAfter = opts.suspendAfter ?? 3;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const suspendMs = opts.suspendMs ?? 60_000;
   const random = opts.random ?? Math.random;
+  const now = opts.now ?? Date.now;
   let consecutiveExhausted = 0;
+  let suspendedUntil = 0;
 
   return async <T>(attempt: () => Promise<T>): Promise<T> => {
     for (let attempts = 1; ; attempts++) {
       try {
         const result = await attempt();
         consecutiveExhausted = 0;
+        suspendedUntil = 0;
         return result;
       } catch (err) {
         if (!isRetryableUpstream(err)) throw err;
         const isHttp = err instanceof UpstreamError && err.kind === "http";
-        const cap = consecutiveExhausted >= suspendAfter ? 1 : isHttp ? maxHttpAttempts : maxNetworkAttempts;
-        if (attempts >= cap) {
-          consecutiveExhausted++;
+        if (now() < suspendedUntil) throw err;
+        if (attempts >= (isHttp ? maxHttpAttempts : maxNetworkAttempts)) {
+          if (++consecutiveExhausted >= suspendAfter) {
+            consecutiveExhausted = 0;
+            suspendedUntil = now() + suspendMs;
+          }
           throw err;
         }
         // Half to full of the exponential step, so concurrent retries do not land together.

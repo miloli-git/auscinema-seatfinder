@@ -53,7 +53,7 @@ Re-exports `types`, `db`, `registry`, `watches`, `persist`, `sweep`, `seed`:
 - Upstream retries: each adapter's default fetch retries HTTP 429/502/503 up to 3 attempts with a
   jittered 125-500 ms sleep (timeouts/network errors: 2 attempts); other statuses fail fast. A fetch
   that recovers on retry is a refresh, not an error, so it does not feed the cool-down. After 3
-  calls in a row exhaust their retries the adapter stops retrying until a call succeeds, and a
+  calls in a row exhaust their retries the adapter stops retrying for 60 s or until a call succeeds, and a
   cooling chain gets no requests at all. Each failed seat-map refresh logs one line:
   `refresh seatmap error chain=<chain> session=<id> kind=<kind> status=<status>: <message>`.
 

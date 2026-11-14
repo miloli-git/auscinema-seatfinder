@@ -8,13 +8,15 @@ const http = (status: number): UpstreamError => new UpstreamError(`http ${status
 /** A retry wrapper with a recording, non-waiting sleep. */
 function harness(random = 0.5) {
   const sleeps: number[] = [];
+  const clock = { now: 1_000_000 };
   const retry = createUpstreamRetry({
+    now: () => clock.now,
     sleep: async (ms) => {
       sleeps.push(ms);
     },
     random: () => random,
   });
-  return { retry, sleeps };
+  return { retry, sleeps, clock };
 }
 
 /** An attempt that throws the queued errors in order, then resolves "ok". */
@@ -106,6 +108,22 @@ test("retries are suspended after three exhausted calls and resume after a succe
   const recovered = failing([http(429)]);
   assert.equal(await retry(recovered.attempt), "ok");
   assert.equal(recovered.state.calls, 2, "a success re-arms retries");
+});
+
+test("a suspension expires after 60s so a long-lived process gets its retries back", async () => {
+  const { retry, clock } = harness();
+  const down = () => failing([http(503), http(503), http(503), http(503)]);
+  for (let i = 0; i < 3; i++) await assert.rejects(retry(down().attempt));
+
+  clock.now += 59_999;
+  const suspended = down();
+  await assert.rejects(retry(suspended.attempt));
+  assert.equal(suspended.state.calls, 1, "failures while suspended do not extend the window");
+
+  clock.now += 1;
+  const rearmed = failing([http(503)]);
+  assert.equal(await retry(rearmed.attempt), "ok", "a brief 503 after the window recovers on retry");
+  assert.equal(rearmed.state.calls, 2);
 });
 
 test("a non-retryable failure neither counts toward nor clears suspension", async () => {
