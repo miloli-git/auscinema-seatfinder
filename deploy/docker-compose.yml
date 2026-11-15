@@ -160,6 +160,8 @@ services:
       # don't exceed 200 without re-measuring). deploy/.env had no override at RCA time, so this
       # tracked default is what actually governs the NAS.
       REFRESH_BUDGET_PER_CHAIN: "${REFRESH_BUDGET_PER_CHAIN:-150}"
+      # How long a chain sits out after a majority-error tick (per_chain.backoff). 0 disables.
+      REFRESH_CHAIN_COOLDOWN_MS: "${REFRESH_CHAIN_COOLDOWN_MS:-1800000}"
       REFRESH_DEAD_MAN_THRESHOLD_MS: "${REFRESH_DEAD_MAN_THRESHOLD_MS:-7200000}"
       REFRESH_DEAD_MAN_DEDUPE_MS: "${REFRESH_DEAD_MAN_DEDUPE_MS:-3600000}"
       REFRESH_DEAD_MAN_WEBHOOK: "${REFRESH_DEAD_MAN_WEBHOOK:-}"

@@ -46,6 +46,10 @@ Re-exports `types`, `db`, `registry`, `watches`, `persist`, `sweep`, `seed`:
 - The compose `ingester` service is still profile-gated for seed/checkpoint runs. The live stack's
   scheduled freshness path is the long-running `refresh` service in `deploy/docker-compose.yml`,
   which advances cached sessions under an advisory lock and dead-man freshness alert.
+- Refresh cool-down: a chain whose tick was majority-error (`refresh_runs.per_chain.<chain>.backoff`)
+  is skipped entirely (no listings, no seat maps) until `per_chain.<chain>.cooldown_until`; its due
+  sessions count as skipped and other chains keep their full budget. `REFRESH_CHAIN_COOLDOWN_MS`
+  (default 30 min, `0` disables). State lives in the latest `ok` `refresh_runs` row, no extra table.
 
 ## Used by
 The API's `/together` / `/catalog` endpoints read the tables this worker populates. Schema:

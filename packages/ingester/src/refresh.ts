@@ -1,7 +1,8 @@
 /**
  * Tiered refresh (#30 P30.1). One tick:
  *   acquire advisory lock (C3) -> discover-if-due -> selectDueSessions (C2) ->
- *   fetch under per-chain budget + backoff (C5) -> upsert (reuse upsertSessionWithSeats) ->
+ *   fetch under per-chain budget + backoff (C5; a tripped chain sits out later ticks until its
+ *   cool-down expires) -> upsert (reuse upsertSessionWithSeats) ->
  *   write ONE refresh_runs row (C4) -> release.
  *
  * Tiering (C1) is computed on the Australia/Sydney CALENDAR. Session showtimes are local
@@ -115,6 +116,16 @@ function resolveWildcardTombstoneMisses(): number {
   const raw = process.env.WILDCARD_TOMBSTONE_MISSES;
   const n = raw === undefined ? NaN : Number(raw);
   return Number.isInteger(n) && n >= 1 ? n : 2;
+}
+
+/**
+ * How long a chain sits out after a tick trips its C5 backoff. Env REFRESH_CHAIN_COOLDOWN_MS,
+ * default 30 min (one skipped tick at the production 15-min cadence); 0 disables enforcement.
+ */
+function resolveChainCooldownMs(): number {
+  const raw = process.env.REFRESH_CHAIN_COOLDOWN_MS;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 30 * 60_000;
 }
 
 /**
@@ -457,6 +468,28 @@ async function writeRefreshRun(db: Queryable, startedAt: Date, c: RefreshCounts)
   return { ...row, id: Number(row.id) };
 }
 
+/**
+ * Chains still cooling at `nowInstant`, keyed to their expiry. The only store is the latest `ok`
+ * row's per_chain[chain].cooldown_until, so every tick must carry an unexpired value forward.
+ */
+async function loadChainCooldowns(db: Queryable, nowInstant: Date): Promise<Map<string, Date>> {
+  const cooling = new Map<string, Date>();
+  if (resolveChainCooldownMs() <= 0) return cooling;
+  const { rows } = await db.query<{ per_chain: unknown }>(
+    "SELECT per_chain FROM refresh_runs WHERE outcome = 'ok' ORDER BY id DESC LIMIT 1",
+  );
+  const raw = rows[0]?.per_chain;
+  const perChain: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
+  if (!perChain || typeof perChain !== "object") return cooling;
+  for (const [chain, stat] of Object.entries(perChain as Record<string, unknown>)) {
+    const until = (stat as { cooldown_until?: unknown } | null)?.cooldown_until;
+    if (typeof until !== "string") continue;
+    const expiry = new Date(until);
+    if (expiry.getTime() > nowInstant.getTime()) cooling.set(chain, expiry);
+  }
+  return cooling;
+}
+
 interface FetchTarget {
   upsert: SessionUpsert;
   chain: Chain;
@@ -473,6 +506,10 @@ interface ChainStat {
   /** Discovery (listSessions) errors — accounted separately so the ledger invariant holds (NEW-HIGH). */
   discovery_errors: number;
   backoff: boolean;
+  /** True when this tick skipped the chain (no discovery, no seat maps) because it was cooling. */
+  cooling: boolean;
+  /** ISO instant the chain may be fetched again; null when it is not cooling. */
+  cooldown_until: string | null;
   skipped_buckets: { tier: RefreshTier; cinemaId: string; date: string; count: number }[];
 }
 
@@ -485,6 +522,8 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   const { pool, registry, nowInstant, budgetPerChain } = deps;
   const concurrency = deps.concurrency ?? DEFAULT_CONCURRENCY;
   const sydneyToday = sydneyDate(nowInstant);
+
+  const cooling = await loadChainCooldowns(pool, nowInstant);
 
   // --- discovery: list current sessions, find newly-appeared ones (P30.1: no tombstones).
   const watches = await loadEnabledWatches(pool);
@@ -565,6 +604,8 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   for (const w of watches) {
     const adapter = registry[w.chain];
     if (!adapter) continue;
+    // No listing means no conclusive scope, so a cooling chain's sessions are never tombstoned.
+    if (cooling.has(w.chain)) continue;
     const eff = windowFor.get(w.id);
     if (!eff) continue; // watch starts beyond the rolling horizon — nothing to discover this tick
     for (const date of datesInRange(eff.from, eff.to)) {
@@ -780,24 +821,53 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
   const reserveForNew = resolveReserveForNew();
   // #46 fix (3a): the rolling horizon's far edge, so the reserved lane can exclude never-fetched
   // sessions right at that edge (env-resolved exclusion window, default 2 days).
-  const sel = selectDueSessions(candidates, {
-    budgetPerChain,
-    reserveForNew,
-    nowInstant,
-    horizonEdgeDate: horizonDate(sydneyToday, horizonDays),
-    reserveNewEdgeExcludeDays: resolveReserveNewEdgeExcludeDays(),
-  });
+  const fetchable = selectDueSessions(
+    candidates.filter((c) => !cooling.has(c.chain)),
+    {
+      budgetPerChain,
+      reserveForNew,
+      nowInstant,
+      horizonEdgeDate: horizonDate(sydneyToday, horizonDays),
+      reserveNewEdgeExcludeDays: resolveReserveNewEdgeExcludeDays(),
+    },
+  );
+  // A cooling chain gets a zero budget, so its whole due set lands in `skipped` and the ledger
+  // invariant (due = refreshed + errors + skipped) still holds for the tick.
+  const cooled = selectDueSessions(
+    candidates.filter((c) => cooling.has(c.chain)),
+    { budgetPerChain: 0, reserveForNew: 0, nowInstant },
+  );
+  const sel: SelectResult = {
+    selected: fetchable.selected,
+    skipped: [...fetchable.skipped, ...cooled.skipped],
+  };
 
   // --- per-chain accounting.
   const perChain = new Map<string, ChainStat>();
   const chainStat = (chain: string): ChainStat => {
     let st = perChain.get(chain);
     if (!st) {
-      st = { due: 0, refreshed: 0, skipped: 0, errors: 0, discovery_errors: 0, backoff: false, skipped_buckets: [] };
+      st = {
+        due: 0,
+        refreshed: 0,
+        skipped: 0,
+        errors: 0,
+        discovery_errors: 0,
+        backoff: false,
+        cooling: false,
+        cooldown_until: null,
+        skipped_buckets: [],
+      };
       perChain.set(chain, st);
     }
     return st;
   };
+  // A cooling chain with nothing due still needs a ledger entry to carry its expiry forward.
+  for (const [chain, until] of cooling) {
+    const st = chainStat(chain);
+    st.cooling = true;
+    st.cooldown_until = until.toISOString();
+  }
   // due counts the WHOLE due set (selected + budget-skipped), not just attempted (HIGH-1).
   for (const c of dueCandidates) chainStat(c.chain).due++;
   // skipped detail keyed by (tier, cinemaId, date) is preserved per chain (HIGH-2).
@@ -858,6 +928,15 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
     st.backoff = attempts > 0 && (failures === attempts || failures > attempts / 2);
   }
 
+  // A chain that tripped backoff this tick starts cooling; later ticks skip it until expiry.
+  const cooldownMs = resolveChainCooldownMs();
+  if (cooldownMs > 0) {
+    const until = new Date(nowInstant.getTime() + cooldownMs).toISOString();
+    for (const st of perChain.values()) {
+      if (st.backoff) st.cooldown_until = until;
+    }
+  }
+
   const perChainObj: Record<string, unknown> = {};
   for (const [chain, st] of perChain) {
     perChainObj[chain] = {
@@ -867,6 +946,8 @@ async function runLockedTick(deps: RefreshTickDeps): Promise<RefreshCounts> {
       errors: st.errors,
       discovery_errors: st.discovery_errors,
       backoff: st.backoff,
+      cooling: st.cooling,
+      cooldown_until: st.cooldown_until,
       skipped_buckets: st.skipped_buckets,
     };
   }
