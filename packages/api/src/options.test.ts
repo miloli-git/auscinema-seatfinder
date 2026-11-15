@@ -388,7 +388,7 @@ test(
   },
 );
 
-test("default order (most together) ranks together > nearby > split, then togetherCount, then bestBlockScore, then startsAt", { skip: dbSkip }, async () => {
+test("default order (most together) ranks together > nearby > split, then togetherCount, then startsAt", { skip: dbSkip }, async () => {
   await insertSession({ id: "s-split", startTime: "2099-07-21T10:00:00.000Z", fetchedAt: "2099-07-21T09:00:00.000Z" });
   await insertSeats("s-split", [{ seatId: "sp1", col: 1, score: 90 }]);
 
@@ -402,20 +402,45 @@ test("default order (most together) ranks together > nearby > split, then togeth
   await insertSeats("s-together-late", [
     { seatId: "t1", col: 1, score: 90 },
     { seatId: "t2", col: 2, score: 90 },
+    { seatId: "t1x", col: 3, score: 90 },
   ]);
 
   await insertSession({ id: "s-together-early", startTime: "2099-07-21T08:00:00.000Z", fetchedAt: "2099-07-21T09:00:00.000Z" });
   await insertSeats("s-together-early", [
     { seatId: "t3", col: 1, score: 90 },
     { seatId: "t4", col: 2, score: 90 },
+    { seatId: "t3x", col: 3, score: 90 },
   ]);
 
-  const { status, body } = await getOptions("movieKey=event:555&party=2&minScore=74");
+  const { status, body } = await getOptions("movieKey=event:555&party=3&minScore=74");
   assert.equal(status, 200);
   const res = body as OptionsResponse;
   assert.deepEqual(
     res.options.map((o) => o.sessionId),
     ["s-together-early", "s-together-late", "s-nearby", "s-split"],
+  );
+});
+
+test("default order (most together) is chronological within a tier and count, not by bestBlockScore (#104)", { skip: dbSkip }, async () => {
+  // Issue shot: 7:15 AM (45), 8:45 PM (45), 11:15 AM (44) - higher scores must not jump the queue.
+  const rows: Array<[string, string, number]> = [
+    ["s-745pm-hi", "2099-07-21T20:45:00.000Z", 90],
+    ["s-715am-hi", "2099-07-21T07:15:00.000Z", 90],
+    ["s-1115am-lo", "2099-07-21T11:15:00.000Z", 80],
+  ];
+  for (const [id, startTime, score] of rows) {
+    await insertSession({ id, startTime, fetchedAt: "2099-07-20T09:00:00.000Z" });
+    await insertSeats(id, [
+      { seatId: `${id}-a`, col: 1, score },
+      { seatId: `${id}-b`, col: 2, score },
+    ]);
+  }
+  const { status, body } = await getOptions("movieKey=event:555&party=2&minScore=74");
+  assert.equal(status, 200);
+  const res = body as OptionsResponse;
+  assert.deepEqual(
+    res.options.map((o) => o.sessionId),
+    ["s-715am-hi", "s-1115am-lo", "s-745pm-hi"],
   );
 });
 

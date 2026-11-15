@@ -1103,17 +1103,15 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       };
     });
 
-    // Default order = "most together" (contract §1.5/§1.6 — the only server-sorted lens): fitTier
-    // rank (together > nearby > split) desc, then togetherCount desc, then bestBlockScore desc
-    // (nulls last), then startsAt asc. Hoyts rows are NOT excluded or re-sorted specially.
+    // Default order = "most together" (contract §1.5/§1.6 - the only server-sorted lens): fitTier
+    // rank (together > nearby > split) desc, then togetherCount desc, then chronological. Score is
+    // deliberately not a tie-breaker so a day's sessions read in time order; "Best seats" is the
+    // score-ordered lens. Hoyts rows are NOT excluded or re-sorted specially.
     const TIER_RANK: Record<FitTier, number> = { together: 2, nearby: 1, split: 0 };
     options.sort((a, b) => {
       const tier = TIER_RANK[b.fitTier] - TIER_RANK[a.fitTier];
       if (tier !== 0) return tier;
       if (b.togetherCount !== a.togetherCount) return b.togetherCount - a.togetherCount;
-      const av = a.bestBlockScore ?? Number.NEGATIVE_INFINITY;
-      const bv = b.bestBlockScore ?? Number.NEGATIVE_INFINITY;
-      if (bv !== av) return bv - av;
       return a.startsAt < b.startsAt ? -1 : a.startsAt > b.startsAt ? 1 : 0;
     });
 
