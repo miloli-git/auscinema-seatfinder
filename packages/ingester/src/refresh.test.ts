@@ -1,6 +1,9 @@
 import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { EventCinemasAdapter } from "@auscinema/adapter-event";
 import type { Chain, ChainAdapter, Cinema, Seat, SeatMap, Session, SessionQuery } from "@auscinema/core";
 import {
   createPool,
@@ -1158,4 +1161,163 @@ test("#92 regression: a stored poster_url is NOT NULLed out by a refresh tick wh
     "https://cdn.eventcinemas.com.au/already-cached-poster.jpg",
     "the session's own due-refresh upsert must not NULL out a poster the DB already had",
   );
+});
+
+// --- #112 adapter retries x #110 cool-down -----------------------------------
+
+/**
+ * A real Event adapter (default fetch path, so the real retry wrapper) over a stubbed
+ * globalThis.fetch. Listings always succeed and are empty; `seating` decides each GetSeating reply.
+ */
+function eventOverStubbedFetch(seating: (sessionId: string) => number): {
+  registry: AdapterRegistry;
+  calls: { seating: string[]; listings: number };
+  restore: () => void;
+} {
+  const original = globalThis.fetch;
+  const seatingBody = readFileSync(
+    fileURLToPath(new URL("../../adapters/event/fixtures/getseating.session-15433720.json", import.meta.url)),
+    "utf8",
+  );
+  const calls = { seating: [] as string[], listings: 0 };
+  globalThis.fetch = (async (input: unknown) => {
+    const url = new URL(String(input));
+    if (!url.pathname.endsWith("/GetSeating")) {
+      calls.listings++;
+      return new Response("{}", { status: 200 });
+    }
+    const sessionId = url.searchParams.get("sessionId") ?? "";
+    calls.seating.push(sessionId);
+    const status = seating(sessionId);
+    return new Response(status === 200 ? seatingBody : "nope", { status });
+  }) as unknown as typeof fetch;
+  return {
+    registry: { event: new EventCinemasAdapter() },
+    calls,
+    restore: () => {
+      globalThis.fetch = original;
+    },
+  };
+}
+
+test("#112 a 429 that clears on retry counts as a refresh and does not start a cool-down", { skip: dbSkip }, async () => {
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["E1"] });
+  const ids = ["E1", "E2", "E3"];
+  for (const id of ids) {
+    await insertCachedSession({ id, watchId, chain: "event", cinemaId: "E1", fetchedAt: beforeInstant(nowInstant, hours(3)) });
+  }
+  const seen = new Set<string>();
+  const upstream = eventOverStubbedFetch((sessionId) => {
+    if (seen.has(sessionId)) return 200;
+    seen.add(sessionId);
+    return 429;
+  });
+  const lines: string[] = [];
+  try {
+    const row = await runRefreshTick({
+      pool: requirePool(),
+      registry: upstream.registry,
+      nowInstant,
+      budgetPerChain: 30,
+      concurrency: 1,
+      log: (m) => lines.push(m),
+    });
+    assert.deepEqual(upstream.calls.seating, ["E1", "E1", "E2", "E2", "E3", "E3"].sort());
+    assert.equal(row.sessions_refreshed, 3);
+    assert.equal(row.errors, 0);
+    const event = asRecord(row.per_chain).event as Record<string, unknown>;
+    assert.equal(event.backoff, false);
+    assert.equal(event.cooldown_until, null);
+    assert.deepEqual(lines, [], "a recovered fetch is not logged as a failure");
+  } finally {
+    upstream.restore();
+  }
+});
+
+test("#112 exhausted retries are logged per session, trip the cool-down, and a cooling chain gets no retries", { skip: dbSkip }, async () => {
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["E1"] });
+  const ids = ["E1", "E2", "E3", "E4", "E5"];
+  for (const id of ids) {
+    await insertCachedSession({ id, watchId, chain: "event", cinemaId: "E1", fetchedAt: beforeInstant(nowInstant, hours(3)) });
+  }
+  let status = 429;
+  const upstream = eventOverStubbedFetch(() => status);
+  const lines: string[] = [];
+  const tick = (at: Date) =>
+    runRefreshTick({
+      pool: requirePool(),
+      registry: upstream.registry,
+      nowInstant: at,
+      budgetPerChain: 30,
+      concurrency: 1,
+      log: (m) => lines.push(m),
+    });
+  const reset = () => {
+    upstream.calls.seating.length = 0;
+    upstream.calls.listings = 0;
+    lines.length = 0;
+  };
+  try {
+    const tripped = await tick(nowInstant);
+    // Three sessions spend their full retry budget; after that the adapter stops retrying.
+    assert.equal(upstream.calls.seating.length, 3 * 3 + 2, "retries are capped per call and suspended once the chain is clearly down");
+    assert.equal(tripped.errors, 5, "one error per session, however many attempts it took");
+    const trippedEvent = asRecord(tripped.per_chain).event as Record<string, unknown>;
+    assert.equal(trippedEvent.backoff, true);
+    assert.equal(trippedEvent.cooldown_until, new Date(nowInstant.getTime() + minutes(30)).toISOString());
+    assert.equal(lines.length, 5);
+    for (const id of ids) {
+      const line = lines.find((l) => l.includes(`session=${id} `));
+      assert.ok(line, `a failure line names session ${id}`);
+      assert.match(line, /^refresh seatmap error chain=event session=E\d kind=http status=429: /);
+    }
+
+    reset();
+    const cooled = await tick(new Date(nowInstant.getTime() + minutes(15)));
+    assert.deepEqual(upstream.calls.seating, [], "no seat-map request, first attempt or retry, reaches a cooling chain");
+    assert.equal(upstream.calls.listings, 0, "no listing request either");
+    assert.deepEqual(lines, []);
+    const cooledEvent = asRecord(cooled.per_chain).event as Record<string, unknown>;
+    assert.equal(cooledEvent.cooling, true);
+    assert.equal(cooledEvent.skipped, 5);
+
+    // Cool-down expired, seat maps still throttled. The successful listing re-arms retries, so
+    // the tick pays the same bounded cost again (6 extra requests) before retries are suspended.
+    reset();
+    const stillDown = await tick(new Date(nowInstant.getTime() + minutes(30)));
+    assert.equal(upstream.calls.seating.length, 3 * 3 + 2);
+    assert.equal(stillDown.errors, 5);
+    assert.equal((asRecord(stillDown.per_chain).event as Record<string, unknown>).backoff, true);
+
+    // Upstream recovers while cooling; the first tick after expiry refreshes everything.
+    reset();
+    status = 200;
+    const recovered = await tick(new Date(nowInstant.getTime() + minutes(60)));
+    assert.deepEqual([...upstream.calls.seating].sort(), ids);
+    assert.equal(recovered.sessions_refreshed, 5);
+    assert.equal(recovered.errors, 0);
+    const recoveredEvent = asRecord(recovered.per_chain).event as Record<string, unknown>;
+    assert.equal(recoveredEvent.backoff, false);
+    assert.equal(recoveredEvent.cooldown_until, null);
+    assert.deepEqual(lines, []);
+  } finally {
+    upstream.restore();
+  }
+});
+
+test("#112 a non-upstream seat-map failure is logged as kind=internal with its session id", { skip: dbSkip }, async () => {
+  const nowInstant = new Date("2026-10-05T00:00:00.000Z");
+  const watchId = await insertWatch({ chain: "event", cinemaIds: ["E1"] });
+  await insertCachedSession({ id: "E1", watchId, chain: "event", cinemaId: "E1", fetchedAt: beforeInstant(nowInstant, hours(3)) });
+  const lines: string[] = [];
+  await runRefreshTick({
+    pool: requirePool(),
+    registry: { event: stubAdapter("event", [], { E1: new Error("boom") }) },
+    nowInstant,
+    budgetPerChain: 30,
+    log: (m) => lines.push(m),
+  });
+  assert.deepEqual(lines, ["refresh seatmap error chain=event session=E1 kind=internal: boom"]);
 });
