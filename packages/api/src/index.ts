@@ -23,6 +23,7 @@ import {
   UpstreamError,
   resolveStaleMargin,
   resolveTierTtlMs,
+  tierForDayDiff,
   type BlockSeat,
   type Chain,
   type ChainAdapter,
@@ -41,6 +42,7 @@ import {
   buildAvailabilityDates,
   fetchAvailabilitySessions,
   fetchSeatsBySession,
+  leadDaysFrom,
   resolveSoldHeldThresholdPct,
 } from "./availability.js";
 
@@ -363,14 +365,6 @@ interface Freshness {
   coverage: Record<string, CoverageState>;
 }
 
-const DEFAULT_FRESHNESS_STALE_MS = 2 * 60 * 60_000; // 2h, override via TOGETHER_FRESHNESS_STALE_MS
-
-/** Staleness threshold (ms) from env, defaulting to 2h. Read per-request (cheap, env-overridable). */
-function freshnessStaleMs(): number {
-  const raw = Number(process.env.TOGETHER_FRESHNESS_STALE_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_FRESHNESS_STALE_MS;
-}
-
 // --- #86 fix: /availability's tier-aware staleness gate ----------------------
 
 const ALL_REFRESH_TIERS: readonly RefreshTier[] = ["T0", "T1", "T2"];
@@ -382,7 +376,7 @@ const ALL_REFRESH_TIERS: readonly RefreshTier[] = ["T0", "T1", "T2"];
  * `baseTtlMs` and this resolve from the identical packages/core/src/refresh-tiers.ts source, so the
  * two packages can never silently drift again), times a margin (AVAILABILITY_STALE_MARGIN, default
  * 1.5) for the scheduler's own selection/budget/backoff latency on top of the raw TTL. Read
- * per-request (cheap, env-overridable, same convention as `freshnessStaleMs()`).
+ * per-request (cheap, env-overridable, also drives /together + /options (#111)).
  */
 function resolveStaleMsByTier(): Record<RefreshTier, number> {
   const margin = resolveStaleMargin(process.env);
@@ -391,6 +385,20 @@ function resolveStaleMsByTier(): Record<RefreshTier, number> {
     out[tier] = resolveTierTtlMs(tier, process.env) * margin;
   }
   return out;
+}
+
+/**
+ * #111: staleness threshold (ms) for one session row, from the SAME tier table as `/availability`
+ * (the session's lead days from `today` -> RefreshTier -> margin-applied TTL). Replaces the old flat 2h
+ * gate that made healthy T2 rows look permanently stale. TOGETHER_FRESHNESS_STALE_MS is retired; tune
+ * via REFRESH_TTL_T{0,1,2}_MS and AVAILABILITY_STALE_MARGIN.
+ */
+export function sessionStaleMs(
+  date: string,
+  today: string,
+  staleMsByTier: Record<RefreshTier, number>,
+): number {
+  return staleMsByTier[tierForDayDiff(leadDaysFrom(today, date))];
 }
 
 /**
@@ -406,12 +414,16 @@ async function computeFreshness(
   chain: string,
   liveRows: SessionRow[],
   now: Date,
+  today: string,
 ): Promise<Freshness> {
   // min/max over the live set. fetched_at strings are uniform true-UTC ISO, so lexicographic
   // comparison is chronological — no parsing needed for the min/max selection itself.
   let oldestFetchedAt: string | null = null;
   let newestFetchedAt: string | null = null;
+  const staleMsByTier = resolveStaleMsByTier();
+  let anyStale = false;
   for (const r of liveRows) {
+    if (now.getTime() - Date.parse(r.fetched_at) > sessionStaleMs(r.date, today, staleMsByTier)) anyStale = true;
     if (oldestFetchedAt === null || r.fetched_at < oldestFetchedAt) oldestFetchedAt = r.fetched_at;
     if (newestFetchedAt === null || r.fetched_at > newestFetchedAt) newestFetchedAt = r.fetched_at;
   }
@@ -438,10 +450,7 @@ async function computeFreshness(
   let coverageState: CoverageState;
   if (!hasEnabledWatch || lastSuccessfulIngestAt === null) {
     coverageState = "not_cached";
-  } else if (
-    oldestFetchedAt !== null &&
-    now.getTime() - Date.parse(oldestFetchedAt) > freshnessStaleMs()
-  ) {
+  } else if (anyStale) {
     coverageState = "stale";
   } else {
     coverageState = "cached";
@@ -740,7 +749,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
 
     // P30.3 (C7) freshness: additive top-level object. NEVER alters count/results or the P30.2
     // liveness filter — computed from the SAME live `sessions` set plus the refresh_runs ledger.
-    const freshness = await computeFreshness(db, chain, sessions, now);
+    const freshness = await computeFreshness(db, chain, sessions, now, sydneyDate(now));
     if (sessions.length === 0) return { party, minScore, count: 0, results: [], freshness };
 
     const ids = sessions.map((s) => s.id);
@@ -1007,7 +1016,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     const sessions = sessionsRes.rows;
 
     // Aggregate freshness: identical helper/shape to /together's, computed from the SAME live set.
-    const freshness = await computeFreshness(db, chain, sessions, now);
+    const freshness = await computeFreshness(db, chain, sessions, now, today);
 
     // movieTitle: NOT liveness-filtered — a title should still resolve even when the live session
     // count is 0 (e.g. between refreshes), matching /catalog's `movies` field's own (unfiltered)
@@ -1054,7 +1063,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       arr.push({ id: s.seat_id, rowLabel: s.row_label ?? "", row: s.row, col: s.col, score: s.score });
     }
 
-    const staleMs = freshnessStaleMs();
+    const staleMsByTier = resolveStaleMsByTier();
     interface Option {
       chain: string;
       cinemaId: string;
@@ -1082,7 +1091,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
       // Per-card freshness (§1.3): this session's OWN fetched_at, independent of the top-level
       // aggregate `freshness` object — two sessions in the same response can honestly differ.
       const age = now.getTime() - Date.parse(row.fetched_at);
-      const state: "fresh" | "stale" = age < staleMs ? "fresh" : "stale";
+      const state: "fresh" | "stale" = age < sessionStaleMs(row.date, today, staleMsByTier) ? "fresh" : "stale";
       return {
         chain: row.chain,
         cinemaId: row.cinema_id,
